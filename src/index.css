@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #061320;
+    color: #f1f5f9;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+.scada-grid {
+  background-size: 28px 28px;
+  background-image: 
+    linear-gradient(to right, rgba(30, 58, 95, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 58, 95, 0.22) 1px, transparent 1px);
+}
+
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.animate-flow {
+  stroke-dasharray: 6 6;
+  animation: flowDash 0.9s linear infinite;
+}
+
+.animate-flow-slow {
+  stroke-dasharray: 6 6;
+  animation: flowDash 1.8s linear infinite;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #061320;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e3a5f;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0085ad;
+}
