@@ -476,4 +476,219 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
       'Current cartridge is strictly calibrated and certified for C4 (PFBA, PFBS) and C8 (PFOA, PFOS) compounds governed by EPA 2024 & EU 2026 rules; C2–C3 zwitterionic MIP layer scheduled for Xylem Ignite Incubator Cohort.',
     trlTarget: 'Scheduled for Xylem Ignite Incubator Months 3–6',
   },
+  {
+    challenge: 'Chip-to-Chip Sorption Inconsistency in Hand-Packed MOF Sensors',
+    physicalCause:
+      'Conventional Metal-Organic Framework (MOF) disposable chips suffer from severe batch-to-batch crystal packing variance and mechanical delamination under continuous hydraulic shear (PDF Page 10).',
+    pfasSentinelMitigation:
+      'Replaces hand-packed MOF powders with photolithographically polymerized Stand-Alone MIP membranes (Oseyemi & Rezai Sept 2025) covalently anchored to amine-functionalized nanocarbon (CV < 3.4% across 32 channels).',
+    trlTarget: 'Standardized wafer-scale COC/MIP cartridge specification',
+  },
 ];
+
+export interface ResearchPillar {
+  institution: string;
+  year: string;
+  technologyFocus: string;
+  pfasSentinelIntegration: string;
+}
+
+export const RESEARCH_SYNTHESIS_PILLARS: ResearchPillar[] = [
+  {
+    institution: 'Oseyemi & Rezai (Microfluidic Stand-Alone MIP)',
+    year: 'Sept 2025',
+    technologyFocus: 'Self-supporting microfluidic Molecularly Imprinted Polymer membrane without fragile support beads',
+    pfasSentinelIntegration: 'Forms Layer 2 of the cartridge, eliminating MOF hand-packing sorption inconsistencies',
+  },
+  {
+    institution: 'University of Connecticut (UConn)',
+    year: '2025–2026',
+    technologyFocus: 'Amine-functionalized electrode surfaces achieving sub-part-per-trillion (<1 ppt) PFAS sensitivity',
+    pfasSentinelIntegration: 'Protonated amine (-NH₃⁺) electrostatic pre-concentration on Layer 3 nanocarbon transducer',
+  },
+  {
+    institution: '2witech Solutions LLC',
+    year: '2025–2026',
+    technologyFocus: 'Portable MIP electrochemical analyzer for rapid on-site field water screening',
+    pfasSentinelIntegration: 'Inspires dual-mode operation: <2 min rapid plume screening & 12–15 min quantitative EIS',
+  },
+  {
+    institution: 'Rowan University',
+    year: '2025–2026',
+    technologyFocus: 'Electrochemical-optical hybrid sensor cross-validation for perfluoroalkyl substances',
+    pfasSentinelIntegration: 'Orthogonal optical/impedance calibration baseline for multi-chain C4–C8 discrimination',
+  },
+  {
+    institution: 'Verralize Platform',
+    year: '2025–2026',
+    technologyFocus: 'Scalable nanocarbon biosensor cartridge & "razor-and-blade" disposable sample cup/sensing lid',
+    pfasSentinelIntegration: '32-channel multiplexed electrode array & $11.80 disposable cartridge unit economics',
+  },
+];
+
+export interface RegulatoryMilestone {
+  date: string;
+  authority: string;
+  title: string;
+  mandate: string;
+  status: 'ENACTED' | 'MANDATORY NOW' | 'UPCOMING DEADLINE';
+}
+
+export const REGULATORY_TIMELINE: RegulatoryMilestone[] = [
+  {
+    date: 'April 2024',
+    authority: 'US EPA (Federal)',
+    title: 'Binding National Drinking Water Standard',
+    mandate: 'First legally binding Maximum Contaminant Level (MCL) enacted at 4.0 ppt (parts per trillion) for PFOA & PFOS, plus Hazard Index for PFBS/PFHxS/PFNA/GenX.',
+    status: 'ENACTED',
+  },
+  {
+    date: 'January 2026',
+    authority: 'European Union (DWD)',
+    title: 'Mandatory EU Member State Compliance',
+    mandate: 'EU Drinking Water Directive harmonized PFAS monitoring and strict 100 ng/L (Sum of 20 PFAS) compliance becomes legally mandatory across all EU utilities.',
+    status: 'MANDATORY NOW',
+  },
+  {
+    date: 'April 2027',
+    authority: 'US EPA (Federal)',
+    title: 'Mandatory Utility Monitoring & Public Notification',
+    mandate: 'All public water systems must complete initial PFAS monitoring and begin mandatory public consumer notification of any 4.0 ppt exceedances.',
+    status: 'UPCOMING DEADLINE',
+  },
+  {
+    date: 'April 2029',
+    authority: 'US EPA (Federal)',
+    title: 'Final Treatment Facility Commissioning',
+    mandate: 'Utilities exceeding 4.0 ppt must have full-scale GAC, Selective IX, or RO treatment systems installed, operational, and continuously compliant.',
+    status: 'UPCOMING DEADLINE',
+  },
+];
+
+export interface MarketMetricBar {
+  label: string;
+  percentage: number;
+  detail: string;
+  color: string;
+}
+
+export const MARKET_OPERATIONAL_SHARES_2026: MarketMetricBar[] = [
+  {
+    label: 'Separation & Concentration Technologies (GAC / IX / Membrane Dominance)',
+    percentage: 74.5,
+    detail: 'Commands absolute market dominance in 2026 PFAS treatment deployments (PDF Page 8–9)',
+    color: '#00B4D8',
+  },
+  {
+    label: 'Media Replacement & O&M Share of Total System Lifetime Value',
+    percentage: 42.5,
+    detail: '40%–45% of total lifecycle cost is spent on replacing/regenerating GAC & IX media',
+    color: '#F59E0B',
+  },
+  {
+    label: 'European Regional Market Revenue Share (Global Leader)',
+    percentage: 36.3,
+    detail: 'Driven by mandatory 2026 EU harmonized monitoring; North America is fastest-growing through 2033',
+    color: '#10B981',
+  },
+  {
+    label: 'Reverse Osmosis (RO) System Revenue Share',
+    percentage: 30.7,
+    detail: 'High-energy membrane share; GAC & Selective IX preferred for municipal high-flow throughput',
+    color: '#A855F7',
+  },
+  {
+    label: 'Utility Infrastructure Modernization Investment Surge',
+    percentage: 16.0,
+    detail: 'Annual capital reallocation toward smart cyber-physical water quality monitoring',
+    color: '#38BDF8',
+  },
+];
+
+export interface StakeholderFeedback {
+  group: string;
+  sampleSize: string;
+  keyPainPointValidated: string;
+  interviewQuote: string;
+  designImpactOnPfasSentinel: string;
+}
+
+export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
+  {
+    group: 'Municipal Water Utility Engineers (GAC / IX Operators)',
+    sampleSize: 'n = 12 Utility Engineers',
+    keyPainPointValidated: '92% cite 10–14 day centralized LC-MS/MS lab turnaround as their #1 operational blind spot, forcing 25–30% premature media changeouts.',
+    interviewQuote:
+      '“We swap out lead GAC carbon vessels months early just to sleep at night before an EPA audit. A mid-bed 15-minute sensor connected to SCADA would pay for itself in a single media changeout.”',
+    designImpactOnPfasSentinel: 'Added Node 02 Mid-Bed (z/L = 0.50) port telemetry & automated Lead-Lag PLC valve actuation.',
+  },
+  {
+    group: 'Organized Industrial Zone (OSB) & Semiconductor WWTP Managers',
+    sampleSize: 'n = 8 Plant Directors',
+    keyPainPointValidated: '88% struggle with sudden short-chain PFBA/PFBS spikes and high organic/humic matrix fouling that ruins uncompensated sensors.',
+    interviewQuote:
+      '“Short-chain C4 compounds slip through carbon beds way faster than PFOA, and industrial wastewater conductivity swings wildly every shift.”',
+    designImpactOnPfasSentinel: 'Engineered 4 NIP reference channels + Edge AI fusion with Xylem YSI/WTW pH, temp & conductivity sensors.',
+  },
+  {
+    group: 'Environmental Engineering & Electrochemistry Academics',
+    sampleSize: 'n = 5 Faculty Researchers',
+    keyPainPointValidated: 'Highlighted that hand-packed MOF electrodes fail reproducibility tests and that static Thomas equations break under variable flow Q.',
+    interviewQuote:
+      '“Coupling a stand-alone MIP membrane with a Physics-Informed Neural Network that ingests real-time flow Q and NOM fouling solves both the analytical and kinetic bottlenecks.”',
+    designImpactOnPfasSentinel: 'Adopted Oseyemi & Rezai (2025) Stand-Alone MIP + dynamic PINN NOM pore-blocking correction.',
+  },
+  {
+    group: 'Xylem Ecosystem & Servitization Alignment Review',
+    sampleSize: 'n = 3 Water Digitalization Advisors',
+    keyPainPointValidated: 'Emphasized zero-CAPEX adoption for utilities and native data compatibility with Xylem Vue powered by GoAigua & Evoqua O&M logistics.',
+    interviewQuote:
+      '“Utilities don’t want another isolated dashboard. Make it a native Smart Water Engine module that triggers Evoqua regeneration crews and MitiGATOR™ mobile units automatically.”',
+    designImpactOnPfasSentinel: 'Built standardized JSON/OPC-UA telemetry for Xylem Vue SWE and automated Evoqua / MitiGATOR™ work-order dispatch.',
+  },
+];
+
+export interface CompetitorComparison {
+  solutionName: string;
+  category: string;
+  detectionCapability: string;
+  physicalTreatmentIntegration: string;
+  digitalTwinAndAi: string;
+  xylemEcosystemFit: string;
+}
+
+export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
+  {
+    solutionName: 'PFAS-Sentinel™ (Our Flagship)',
+    category: 'Challenge #2: Water Quality (Cyber-Physical Hardware-Enabled SaaS)',
+    detectionCapability: '1–4 ppt PFOA, PFOS, PFBS, PFBA in 12–15 min (32-ch Stand-Alone MIP + Amine-Nanocarbon EIS)',
+    physicalTreatmentIntegration: 'Direct in-line Influent, Mid-Bed & Effluent monitoring on Evoqua GAC & Selective IX vessels + SCADA Lead-Lag control',
+    digitalTwinAndAi: 'Edge AI Matrix Compensation (YSI/WTW) + PINN Bohart-Adams/Thomas Breakthrough Twin + Autonomous Agentic EWS',
+    xylemEcosystemFit: '100% Native: Xylem Vue (GoAigua SWE), Evoqua GAC/IX, MitiGATOR™ Mobile Fleet, Sensus/MJK, YSI/WTW',
+  },
+  {
+    solutionName: 'JolSetu (2026 Xylem Competitor — PDF Page 5–6)',
+    category: 'Challenge #2: Water Quality (Mobile App)',
+    detectionCapability: 'Reads 20-Taka colorimetric paper arsenic test strips via smartphone camera (µg/L scale, cannot detect 4 ppt PFAS)',
+    physicalTreatmentIntegration: 'None — identifies contaminated rural wells on a map but does not treat water or optimize filtration media',
+    digitalTwinAndAi: 'Smartphone image classification + well mapping web prototype',
+    xylemEcosystemFit: 'Low — disconnected from Xylem municipal/industrial treatment fleet and Xylem Vue Smart Water Engine',
+  },
+  {
+    solutionName: 'Team SolarLens (2026 Xylem Competitor — PDF Page 6)',
+    category: 'Challenge #3: Water Access (Hardware Only)',
+    detectionCapability: 'No contaminant-specific trace chemical sensor',
+    physicalTreatmentIntegration: 'Modular concentrated solar thermal distillation hardware',
+    digitalTwinAndAi: 'None — lacks digital scalability, Edge AI, or predictive maintenance twin',
+    xylemEcosystemFit: 'Low — standalone off-grid hardware without Xylem Vue or Evoqua integration',
+  },
+  {
+    solutionName: 'Conventional Centralized LC-MS/MS Lab (Status Quo)',
+    category: 'Off-Site Laboratory Reference Method (EPA Method 537.1 / 533)',
+    detectionCapability: '<1 ppt gold standard, but requires $350–$500/sample and 10–14 days shipping & lab queue latency',
+    physicalTreatmentIntegration: 'Zero real-time feedback — results arrive weeks after short-chain PFBA/PFBS breakthrough has already occurred',
+    digitalTwinAndAi: 'Static spreadsheet curves that ignore real-time flow Q and NOM fouling fluctuations',
+    xylemEcosystemFit: 'Manual offline PDF lab reports; causes 40–45% lifecycle media O&M waste',
+  },
+];
+

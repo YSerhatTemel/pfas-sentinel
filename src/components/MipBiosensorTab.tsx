@@ -14,6 +14,7 @@ import {
 import {
   PFAS_SPECIES,
   HARDWARE_BOM,
+  RESEARCH_SYNTHESIS_PILLARS,
   computeMipElectrochemicalSignal,
 } from '../data/pfasPhysicsEngine';
 
@@ -26,6 +27,7 @@ export const MipBiosensorTab: React.FC = () => {
   const [conductivityUsCm, setConductivityUsCm] = useState<number>(420);
   const [nomMgL, setNomMgL] = useState<number>(3.4);
   const [assayMode, setAssayMode] = useState<'quantitative' | 'screening'>('quantitative');
+  const [formFactor, setFormFactor] = useState<'flow-cell' | 'sample-cup'>('flow-cell');
   const [activeCadLayer, setActiveCadLayer] = useState<number>(2);
 
   const signal = computeMipElectrochemicalSignal({
@@ -116,34 +118,80 @@ export const MipBiosensorTab: React.FC = () => {
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-3xl">
               Synthesizing 2025–2026 electrochemical breakthroughs (UConn amine-functionalized sub-ppt
-              sensing, Oseyemi &amp; Rezai stand-alone microfluidic MIP, 2witech &amp; Verralize
-              nanocarbon platforms) into an industrial razor-and-blade cartridge that captures EPA’s{' '}
+              sensing, Oseyemi &amp; Rezai Sept 2025 stand-alone microfluidic MIP, Rowan University
+              electrochemical-optical hybrid, 2witech &amp; Verralize nanocarbon platforms) into an
+              industrial razor-and-blade cartridge that captures EPA’s{' '}
               <strong className="text-cyan-300">4.0 ppt threshold in 12–15 minutes</strong> on-site.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#061320] p-1.5 rounded-lg border border-slate-800">
-            <button
-              onClick={() => setAssayMode('quantitative')}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${
-                assayMode === 'quantitative'
-                  ? 'bg-cyan-500 text-slate-950'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Quantitative EIS Mode (12–15 min • 1–4 ppt)
-            </button>
-            <button
-              onClick={() => setAssayMode('screening')}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${
-                assayMode === 'screening'
-                  ? 'bg-amber-500 text-slate-950'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Rapid Plume Screening (&lt;2 min • &gt;10 ppt)
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-[#061320] p-1.5 rounded-lg border border-slate-800">
+              <button
+                onClick={() => setAssayMode('quantitative')}
+                className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-all ${
+                  assayMode === 'quantitative'
+                    ? 'bg-cyan-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Quantitative EIS (12–15m • 1–4 ppt)
+              </button>
+              <button
+                onClick={() => setAssayMode('screening')}
+                className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-all ${
+                  assayMode === 'screening'
+                    ? 'bg-amber-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Rapid Screening (&lt;2m • &gt;10 ppt)
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-[#061320] p-1.5 rounded-lg border border-slate-800">
+              <button
+                onClick={() => setFormFactor('flow-cell')}
+                className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-all ${
+                  formFactor === 'flow-cell'
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                In-Line Microfluidic Flow Cell
+              </button>
+              <button
+                onClick={() => setFormFactor('sample-cup')}
+                className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-all ${
+                  formFactor === 'sample-cup'
+                    ? 'bg-purple-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Sample Cup &amp; Sensing Lid
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Active Form Factor & Assay Mode Status Strip */}
+        <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <span className="text-cyan-300">
+            Active Format:{' '}
+            <strong className="text-white">
+              {formFactor === 'flow-cell'
+                ? 'In-Line NPT 1/4" Microfluidic Flow Cell (Connected to Influent C₀, Mid-Bed C_mid & Effluent C_t)'
+                : 'Portable Disposable Sample Cup + 32-Ch Multiplexed Sensing Lid ("Razor-and-Blade" Field Kit)'}
+            </strong>
+          </span>
+          <span className="text-emerald-300">
+            Interrogation:{' '}
+            <strong className="text-white">
+              {assayMode === 'quantitative'
+                ? '12–15 Min Pre-Concentration + [Fe(CN)₆]³⁻/⁴⁻ EIS Gate-Effect (LOD: 0.8–4.0 ppt)'
+                : '<2 Min High-Speed DPV/EIS Plume Triage for AFFF Emergency Response'}
+            </strong>
+          </span>
         </div>
       </div>
 
@@ -468,10 +516,8 @@ export const MipBiosensorTab: React.FC = () => {
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-400">WTW Temperature / Turbidity:</span>
-                <span className="font-mono font-bold text-slate-200">
-                  {tempC}°C | {turbidityNTU} NTU
-                </span>
+                <span className="text-slate-400">WTW Temperature:</span>
+                <span className="font-mono font-bold text-slate-200">{tempC}°C</span>
               </div>
               <input
                 type="range"
@@ -480,6 +526,40 @@ export const MipBiosensorTab: React.FC = () => {
                 step={1}
                 value={tempC}
                 onChange={(e) => setTempC(Number(e.target.value))}
+                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-400">YSI Conductivity:</span>
+                <span className="font-mono font-bold text-slate-200">
+                  {conductivityUsCm} μS/cm
+                </span>
+              </div>
+              <input
+                type="range"
+                min={100}
+                max={1200}
+                step={20}
+                value={conductivityUsCm}
+                onChange={(e) => setConductivityUsCm(Number(e.target.value))}
+                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-400">WTW Turbidity:</span>
+                <span className="font-mono font-bold text-slate-200">{turbidityNTU} NTU</span>
+              </div>
+              <input
+                type="range"
+                min={0.1}
+                max={10.0}
+                step={0.1}
+                value={turbidityNTU}
+                onChange={(e) => setTurbidityNTU(Number(e.target.value))}
                 className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
               />
             </div>
@@ -510,6 +590,102 @@ export const MipBiosensorTab: React.FC = () => {
                 Residual Error: {signal.edgeAiErrorPct}% (EPA Ready)
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 32-Channel Multiplexed Array & 2025-2026 Research Synthesis Section (PDF Page 10) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left 6 Columns: 32-Channel Multiplexed Electrode Array Live Readout */}
+        <div className="lg:col-span-6 bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-cyan-400" />
+                8-to-32 Channel Multiplexed Nanocarbon Array (Zero Cross-Talk)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Simultaneous short-chain (PFBA, PFBS) &amp; long-chain (PFOA, PFOS) separation + 4 NIP blank channels
+              </p>
+            </div>
+            <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">
+              CV &lt; 3.2%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-8 gap-1.5 bg-[#061320] p-3 rounded-xl border border-slate-800">
+            {Array.from({ length: 32 }, (_, idx) => {
+              const ch = idx + 1;
+              const group =
+                ch <= 7
+                  ? { label: 'PFBA', color: '#F59E0B', sub: 'C4' }
+                  : ch <= 14
+                  ? { label: 'PFBS', color: '#A855F7', sub: 'C4' }
+                  : ch <= 21
+                  ? { label: 'PFOA', color: '#EF4444', sub: 'C8' }
+                  : ch <= 28
+                  ? { label: 'PFOS', color: '#00B4D8', sub: 'C8' }
+                  : { label: 'NIP', color: '#10B981', sub: 'REF' };
+              const isHighlighted = group.label === selectedSpecies || group.label === 'NIP';
+              return (
+                <div
+                  key={ch}
+                  className={`p-1.5 rounded border text-center font-mono transition-all ${
+                    isHighlighted
+                      ? 'bg-[#10263F] border-cyan-500/50 shadow-sm'
+                      : 'bg-[#0B1D30]/60 border-slate-800 opacity-75'
+                  }`}
+                >
+                  <div className="text-[9px] text-slate-400">CH{ch < 10 ? `0${ch}` : ch}</div>
+                  <div className="text-[10px] font-bold" style={{ color: group.color }}>
+                    {group.label}
+                  </div>
+                  <div className="text-[8px] text-slate-300">{group.sub}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 bg-[#061320] border border-slate-800 rounded-lg p-3 text-xs text-slate-300 leading-relaxed">
+            <strong className="text-amber-300">Why Stand-Alone MIP Beats Hand-Packed MOF Chips:</strong>{' '}
+            Conventional Metal-Organic Framework (MOF) disposable chips suffer from severe chip-to-chip
+            sorption inconsistency during manual packing. PFAS-Sentinel’s photolithographic{' '}
+            <strong className="text-cyan-300">Stand-Alone MIP membrane</strong> ensures uniform 3D
+            fluorophilic cavity density across all 32 multiplexed electrodes while Channels 29–32
+            (Non-Imprinted Polymer) subtract background NOM &amp; ionic interference in real time.
+          </div>
+        </div>
+
+        {/* Right 6 Columns: 5 Literature Synthesis Pillars (PDF Page 10) */}
+        <div className="lg:col-span-6 bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              2025–2026 Peer-Reviewed Hardware Synthesis Pillars
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Synthesizing five cutting-edge electrochemical &amp; microfluidic platforms cited in our technical dossier
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            {RESEARCH_SYNTHESIS_PILLARS.map((pillar, i) => (
+              <div
+                key={i}
+                className="bg-[#061320] border border-slate-800 rounded-lg p-3 flex flex-col gap-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-cyan-300">{pillar.institution}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                    {pillar.year}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">{pillar.technologyFocus}</p>
+                <p className="text-[11px] font-mono text-emerald-400">
+                  → {pillar.pfasSentinelIntegration}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

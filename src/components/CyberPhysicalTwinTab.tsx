@@ -233,12 +233,12 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
           </div>
         </div>
 
-        {/* Time & Flow Sliders */}
+        {/* Time, Flow Q & Influent C0 Sliders */}
         <div className="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div className="md:col-span-5 flex items-center gap-3">
+          <div className="md:col-span-4 flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all shrink-0 ${
                 isPlaying
                   ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
                   : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
@@ -249,7 +249,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </button>
             <div className="flex-1">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-400">Bed Run Time (Days Since Media Load):</span>
+                <span className="text-slate-400">Bed Run Time (t):</span>
                 <span className="font-mono font-bold text-cyan-300">Day {operatingDay} / 220</span>
               </div>
               <input
@@ -263,9 +263,9 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </div>
           </div>
 
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400">Sensus Flow Rate ($Q$):</span>
+              <span className="text-slate-400">Sensus/MJK Flow (Q):</span>
               <span className="font-mono font-bold text-cyan-300">{effectiveFlowMGD} MGD</span>
             </div>
             <input
@@ -279,7 +279,25 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             />
           </div>
 
-          <div className="md:col-span-4 flex items-center justify-end gap-2">
+          <div className="md:col-span-3">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-slate-400">Influent PFAS Load (C₀):</span>
+              <span className="font-mono font-bold text-amber-300">
+                {activeTelemetry.c0} ppt ({Math.round(c0Multiplier * 100)}%)
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.5}
+              max={2.0}
+              step={0.05}
+              value={c0Multiplier}
+              onChange={(e) => setC0Multiplier(Number(e.target.value))}
+              className="w-full accent-amber-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+            />
+          </div>
+
+          <div className="md:col-span-3 flex items-center justify-end gap-2">
             <button
               onClick={() => setLeadLagSwitched(!leadLagSwitched)}
               className={`px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all ${

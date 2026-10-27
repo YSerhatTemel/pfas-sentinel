@@ -446,7 +446,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Influent {focusSpecies} ($C_0$):</span>
+                <span className="text-slate-300">Influent {focusSpecies} (C₀):</span>
                 <span className="font-mono font-bold text-cyan-300">{customC0} ppt (ng/L)</span>
               </div>
               <input
@@ -462,7 +462,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Sensus/MJK Flow Rate ($Q$):</span>
+                <span className="text-slate-300">Sensus/MJK Flow Rate (Q):</span>
                 <span className="font-mono font-bold text-cyan-300">{customFlowMGD} MGD</span>
               </div>
               <input
@@ -478,7 +478,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Active {facility.mediaType} Media Mass ($M$):</span>
+                <span className="text-slate-300">Active {facility.mediaType} Media Mass (M):</span>
                 <span className="font-mono font-bold text-emerald-300">
                   {customMassKg.toLocaleString()} kg
                 </span>
@@ -512,7 +512,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Inspection Day Cursor ($t$):</span>
+                <span className="text-slate-300">Inspection Day Cursor (t):</span>
                 <span className="font-mono font-bold text-white">Day {operatingDay}</span>
               </div>
               <input
@@ -537,9 +537,9 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
             </label>
           </div>
 
-          {/* Multi-Species Exhaustion Order Summary */}
-          <div className="bg-[#061320] border border-slate-800 rounded-xl p-3.5">
-            <h4 className="text-xs font-mono uppercase text-slate-400 mb-2">
+          {/* Multi-Species Exhaustion Order Summary & Dataset Export */}
+          <div className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-3">
+            <h4 className="text-xs font-mono uppercase text-slate-400">
               Predicted 4.0 ppt Breakthrough Sequence
             </h4>
             <div className="space-y-1.5 text-xs font-mono">
@@ -555,16 +555,75 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                   nomMgL: customNom,
                   usePinnCorrection: true,
                 });
+                const rem = Math.max(0, d - operatingDay);
+                const remDays = Math.floor(rem);
+                const remHrs = Math.round((rem - remDays) * 24);
                 return (
                   <div key={sp} className="flex items-center justify-between">
                     <span style={{ color: PFAS_SPECIES[sp].color }} className="font-bold">
                       {sp} ({PFAS_SPECIES[sp].chainType.split(' ')[0]})
                     </span>
-                    <span className="text-slate-200">Day {d}</span>
+                    <span className="text-slate-200">
+                      Day {d} ({rem > 0 ? `${remDays}d ${remHrs}h left` : 'Exhausted'})
+                    </span>
                   </div>
                 );
               })}
             </div>
+
+            <button
+              onClick={() => {
+                const header = 'Day,Species,Influent_C0_ppt,MidBed_Cmid_ppt,Effluent_PINN_Ct_ppt,Effluent_Static_Ct_ppt,Flow_MGD,NOM_mgL\n';
+                const rows = daysArray
+                  .map((d) => {
+                    const cMid = computeBreakthroughConcentration({
+                      speciesId: focusSpecies,
+                      mediaType: facility.mediaType,
+                      C0: customC0,
+                      flowRateMGD: customFlowMGD,
+                      mediaMassKg: customMassKg,
+                      day: d,
+                      bedDepthFraction: 0.5,
+                      nomMgL: customNom,
+                      usePinnCorrection: true,
+                    });
+                    const cEffPinn = computeBreakthroughConcentration({
+                      speciesId: focusSpecies,
+                      mediaType: facility.mediaType,
+                      C0: customC0,
+                      flowRateMGD: customFlowMGD,
+                      mediaMassKg: customMassKg,
+                      day: d,
+                      bedDepthFraction: 1.0,
+                      nomMgL: customNom,
+                      usePinnCorrection: true,
+                    });
+                    const cEffStatic = computeBreakthroughConcentration({
+                      speciesId: focusSpecies,
+                      mediaType: facility.mediaType,
+                      C0: customC0,
+                      flowRateMGD: customFlowMGD,
+                      mediaMassKg: customMassKg,
+                      day: d,
+                      bedDepthFraction: 1.0,
+                      nomMgL: 1.0,
+                      usePinnCorrection: false,
+                    });
+                    return `${d},${focusSpecies},${customC0},${cMid},${cEffPinn},${cEffStatic},${customFlowMGD},${customNom}`;
+                  })
+                  .join('\n');
+                const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pfas_sentinel_${facility.id}_${focusSpecies}_pinn_dataset.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="w-full py-2 px-3 rounded-lg bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-semibold transition-all text-center"
+            >
+              ↓ Export Week 1 PINN &amp; Sensor Dataset (.CSV)
+            </button>
           </div>
         </div>
       </div>

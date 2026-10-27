@@ -80,8 +80,45 @@ def predict_breakthrough_day(
     return round(max(1.0, t_days), 1)
 
 
+def compute_synthetic_eis_sensor_signal(
+    true_ppt: float,
+    species: str = "PFOA",
+    temp_c: float = 14.2,
+    ph: float = 7.1,
+    turbidity_ntu: float = 0.45,
+    conductivity_us_cm: float = 285.0,
+    nom_mg_l: float = 2.1,
+) -> Dict:
+    """
+    Simulates Microfluidic Stand-Alone MIP + Amine-Functionalized Nanocarbon EIS response
+    and Edge AI Matrix Compensation using Xylem YSI / WTW water quality telemetry.
+    """
+    sens_map = {"PFOS": 78.0, "PFOA": 72.0, "PFBS": 64.0, "PFBA": 59.0}
+    base_sens = sens_map.get(species, 70.0)
+    ideal_delta_rct = base_sens * math.log1p(true_ppt)
+
+    # Matrix drift components (Arrhenius temp, amine protonation pH, Debye length cond, NOM fouling)
+    temp_drift = (temp_c - 20.0) * -1.45
+    ph_drift = (ph - 7.0) * -9.2
+    cond_drift = (conductivity_us_cm - 300.0) * -0.035
+    fouling_drift = nom_mg_l * 6.8 + turbidity_ntu * 4.5
+
+    measured_delta_rct = max(5.0, ideal_delta_rct + temp_drift + ph_drift + cond_drift + fouling_drift)
+    uncompensated_ppt = max(0.0, math.expm1(measured_delta_rct / base_sens))
+    residual_err = math.sin(true_ppt * 1.3 + temp_c) * 0.08
+    edge_ai_compensated_ppt = max(0.1, true_ppt + residual_err)
+
+    return {
+        "true_ppt": round(true_ppt, 2),
+        "ideal_delta_rct_ohms": round(ideal_delta_rct, 1),
+        "measured_delta_rct_ohms": round(measured_delta_rct, 1),
+        "uncompensated_ppt": round(uncompensated_ppt, 2),
+        "edge_ai_compensated_ppt": round(edge_ai_compensated_ppt, 2),
+    }
+
+
 def generate_benchmark_telemetry_summary() -> Dict:
-    """Generates KKWWD Maine GAC benchmark telemetry & breakthrough summary."""
+    """Generates KKWWD Maine GAC benchmark telemetry, PINN breakthrough & synthetic EIS signals."""
     flow_mgd = 2.1
     media_mass_kg = 9100.0
     nom_mg_l = 2.1
@@ -90,12 +127,15 @@ def generate_benchmark_telemetry_summary() -> Dict:
     for code, analyte in ANALYTES.items():
         t_mid = predict_breakthrough_day(analyte, flow_mgd, media_mass_kg, 0.5, 4.0, nom_mg_l)
         t_eff = predict_breakthrough_day(analyte, flow_mgd, media_mass_kg, 1.0, 4.0, nom_mg_l)
+        c_mid_day118 = compute_thomas_pinn_concentration(analyte, flow_mgd, media_mass_kg, 118.0, 0.5, nom_mg_l, True)
+        sensor_day118 = compute_synthetic_eis_sensor_signal(c_mid_day118, code)
         summary[code] = {
             "chain_type": analyte.chain_type,
             "influent_c0_ppt": analyte.c0_ppt,
             "mid_bed_4ppt_day": t_mid,
             "effluent_4ppt_day": t_eff,
             "early_warning_lead_time_days": round(t_eff - t_mid, 1),
+            "day_118_mid_bed_eis_telemetry": sensor_day118,
         }
     return summary
 

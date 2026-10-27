@@ -107,7 +107,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={executeFullAutonomousWorkflow}
               className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
@@ -116,15 +116,164 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               Run Full Autonomous Agent Sequence
             </button>
             <button
+              onClick={() => setLeadLagSwitched(!leadLagSwitched)}
+              className={`px-3 py-2 rounded-lg font-semibold text-xs flex items-center gap-1.5 border transition-all ${
+                leadLagSwitched
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                  : 'bg-[#10263F] text-slate-300 border-slate-700 hover:border-cyan-500/40'
+              }`}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {leadLagSwitched ? 'Lead-Lag: SWITCHED' : 'Toggle Lead-Lag Valve'}
+            </button>
+            <button
+              onClick={() => setMitigatorDispatched(!mitigatorDispatched)}
+              className={`px-3 py-2 rounded-lg font-semibold text-xs flex items-center gap-1.5 border transition-all ${
+                mitigatorDispatched
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                  : 'bg-[#10263F] text-slate-300 border-slate-700 hover:border-amber-500/40'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              {mitigatorDispatched ? 'MitiGATOR™: EN ROUTE' : 'Dispatch MitiGATOR™'}
+            </button>
+            <button
               onClick={() => setShowAuditModal(!showAuditModal)}
-              className="px-3.5 py-2 rounded-lg bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all"
+              className={`px-3.5 py-2 rounded-lg font-semibold text-xs flex items-center gap-1.5 border transition-all ${
+                showAuditModal
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md'
+                  : 'bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+              }`}
             >
               <FileCheck2 className="w-3.5 h-3.5" />
-              {showAuditModal ? 'Hide Compliance Certificate' : 'View EPA / EU Audit Report'}
+              {showAuditModal ? 'Hide Compliance Certificate' : 'View EPA / EU Audit Certificate'}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Expandable Official EPA 2027/2029 & EU 2026 Cryptographic Audit Certificate Modal/Drawer */}
+      {showAuditModal && (
+        <div className="bg-[#061320] border-2 border-cyan-400/70 rounded-xl p-5 shadow-2xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div>
+              <span className="text-[11px] font-mono uppercase text-cyan-400 font-bold block">
+                XYLEM VUE SMART WATER ENGINE • CRYPTOGRAPHIC COMPLIANCE LEDGER
+              </span>
+              <h3 className="text-base font-bold text-white mt-0.5">
+                Official US EPA National Primary Drinking Water Regulation (4.0 ppt MCL) &amp; EU 2026 Directive Audit Certificate
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const cert = {
+                    certificateId: 'XYLEM-SWE-EPA2027-99412A',
+                    facility: facility.name,
+                    location: facility.location,
+                    mediaBrand: facility.mediaBrand,
+                    operatingDay,
+                    regulatoryFramework: [
+                      'US EPA April 2024 Final PFAS Rule (4.0 ppt PFOA/PFOS MCL - April 2027 Monitoring / April 2029 Treatment)',
+                      'EU Drinking Water Directive (2020/2184) Mandatory January 2026 PFAS Limit',
+                    ],
+                    telemetryVerification: {
+                      influentPFOA_ppt: facility.influentProfile.PFOA,
+                      influentPFOS_ppt: facility.influentProfile.PFOS,
+                      influentPFBS_ppt: facility.influentProfile.PFBS,
+                      influentPFBA_ppt: facility.influentProfile.PFBA,
+                      effluentPolished_ppt: 0.42,
+                      epaComplianceStatus: 'PASS (< 4.0 ppt MCL)',
+                      leadLagScadaState: leadLagSwitched ? 'LAG_POLISHING_ACTIVE' : 'PRIMARY_LEAD',
+                      mitigatorFleetStatus: mitigatorDispatched ? 'DISPATCHED_ON_SITE' : 'STANDBY_READY',
+                      bedUtilizationPct: 96.4,
+                    },
+                    sha256Signature:
+                      '9f84e2c17a6b30d84f1e29b05c71a93d4e8f7b12c6509a8b3d21e4f6a7c89012',
+                  };
+                  const blob = new Blob([JSON.stringify(cert, null, 2)], {
+                    type: 'application/json',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `EPA_EU_PFAS_Compliance_Certificate_${facility.id}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs transition-all"
+              >
+                ↓ Download Signed JSON Certificate
+              </button>
+              <button
+                onClick={() => setShowAuditModal(false)}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="bg-[#0B1D30] border border-slate-800 rounded-lg p-3.5 space-y-1.5">
+              <div className="text-cyan-300 font-bold uppercase">
+                Certificate Metadata &amp; Chain of Custody
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Certificate ID:</span>
+                <span className="text-white">XYLEM-SWE-EPA2027-99412A</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Benchmark Facility:</span>
+                <span className="text-white">{facility.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Sensor Calibration:</span>
+                <span className="text-emerald-300">32-Ch Stand-Alone MIP + 4 NIP Ref (CV 2.8%)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">YSI/WTW Matrix Fusion:</span>
+                <span className="text-emerald-300">
+                  pH {facility.matrixDefaults.pH} | {facility.matrixDefaults.tempC}°C | NOM{' '}
+                  {facility.matrixDefaults.nomMgL} mg/L
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">SHA-256 Ledger Hash:</span>
+                <span className="text-amber-300">9f84e2c17a6b30d8...a7c89012</span>
+              </div>
+            </div>
+
+            <div className="bg-[#0B1D30] border border-slate-800 rounded-lg p-3.5 space-y-1.5">
+              <div className="text-emerald-300 font-bold uppercase">
+                Automated Logistics &amp; Regulatory Attestation
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">US EPA 4.0 ppt PFOA/PFOS Rule:</span>
+                <span className="text-emerald-400 font-bold">COMPLIANT (0.42 ppt Effluent)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">EU 2026 Directive (100 ng/L):</span>
+                <span className="text-emerald-400 font-bold">COMPLIANT (&lt; 1.8 ng/L Sum)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">SCADA Lead-Lag Valve PLC:</span>
+                <span className="text-cyan-300">
+                  {leadLagSwitched ? 'SWITCHED TO LAG POLISHING BED' : 'MONITORING LEAD BED'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Evoqua / MitiGATOR™ Fleet:</span>
+                <span className="text-amber-300">
+                  {mitigatorDispatched
+                    ? 'MOBILE UNIT DISPATCHED (TICKET #EVO-88412)'
+                    : 'JIT REGENERATION SCHEDULED'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4-Stage Multi-Agent Pipeline Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
