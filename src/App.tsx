@@ -144,10 +144,13 @@ export function App() {
                   PFAS-Sentinel™
                 </h1>
                 <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                  Xylem Vue SWE Native
+                  Xylem Vue SWE Compatible
                 </span>
                 <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   Challenge #2: Water Quality
+                </span>
+                <span className="hidden lg:inline-block px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  TRL 3 In-Silico Twin
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -248,6 +251,9 @@ export function App() {
           <AgenticEwsTab
             facility={facility}
             operatingDay={operatingDay}
+            selectedSpecies={selectedSpecies}
+            flowMultiplier={flowMultiplier}
+            c0Multiplier={c0Multiplier}
             leadLagSwitched={leadLagSwitched}
             setLeadLagSwitched={setLeadLagSwitched}
             mitigatorDispatched={mitigatorDispatched}

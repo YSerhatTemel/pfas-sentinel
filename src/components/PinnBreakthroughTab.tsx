@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   BookOpen,
+  CheckCircle2,
   Clock,
   Cpu,
   Gauge,
@@ -12,8 +13,11 @@ import {
 import {
   FacilityProfile,
   PFAS_SPECIES,
+  PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS,
+  computeBedVolumes,
   computeBreakthroughConcentration,
   predictBreakthroughTimeDays,
+  runPinnParameterAssimilation,
 } from '../data/pfasPhysicsEngine';
 
 interface PinnBreakthroughTabProps {
@@ -33,8 +37,22 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
   const [customMassKg, setCustomMassKg] = useState<number>(facility.mediaMassKg);
   const [customNom, setCustomNom] = useState<number>(facility.matrixDefaults.nomMgL);
   const [showStaticThomasComparison, setShowStaticThomasComparison] = useState<boolean>(true);
+  const [includeCompetitiveRollup, setIncludeCompetitiveRollup] = useState<boolean>(true);
+  const [showEmpiricalScatter, setShowEmpiricalScatter] = useState<boolean>(true);
 
   const speciesConfig = PFAS_SPECIES[focusSpecies];
+
+  // Run genuine PINN Gradient Descent PDE + Mid-Bed Telemetry Assimilation Solver
+  const pinnDiagnostics = runPinnParameterAssimilation({
+    speciesId: focusSpecies,
+    mediaType: facility.mediaType,
+    C0: customC0,
+    flowRateMGD: customFlowMGD,
+    mediaMassKg: customMassKg,
+    nomMgL: customNom,
+    ebctMinutes: facility.ebctMinutes,
+    includeCompetitiveRollup,
+  });
 
   // Generate time-series points from Day 0 to Day 240
   const daysArray = Array.from({ length: 49 }, (_, i) => i * 5); // 0, 5, 10 ... 240
@@ -82,12 +100,31 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     Number((effluentStaticDay4Ppt - effluentPinnDay4Ppt).toFixed(1))
   );
 
+  // Peak roll-up concentration check across the 240-day window
+  const peakEffluentPpt = Math.max(
+    ...daysArray.map((d) =>
+      computeBreakthroughConcentration({
+        speciesId: focusSpecies,
+        mediaType: facility.mediaType,
+        C0: customC0,
+        flowRateMGD: customFlowMGD,
+        mediaMassKg: customMassKg,
+        day: d,
+        bedDepthFraction: 1.0,
+        nomMgL: customNom,
+        usePinnCorrection: true,
+        includeCompetitiveRollup,
+      })
+    )
+  );
+  const peakRollupRatioPct = Math.round((peakEffluentPpt / Math.max(1, customC0)) * 100);
+
   // Helper to convert (day, ppt) into SVG coordinates (Chart 680x280)
   const chartWidth = 640;
   const chartHeight = 230;
   const padLeft = 52;
   const padTop = 20;
-  const maxY = Math.max(30, customC0 * 1.05);
+  const maxY = Math.max(35, customC0 * (includeCompetitiveRollup ? 1.38 : 1.08));
 
   const toX = (day: number) => padLeft + (day / 240) * (chartWidth - padLeft - 20);
   const toY = (ppt: number) =>
@@ -98,6 +135,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     bedDepthFraction: number;
     usePinn: boolean;
     c0Val: number;
+    rollup: boolean;
   }) => {
     return daysArray
       .map((d, idx) => {
@@ -111,6 +149,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
           bedDepthFraction: opts.bedDepthFraction,
           nomMgL: customNom,
           usePinnCorrection: opts.usePinn,
+          includeCompetitiveRollup: opts.rollup,
         });
         return `${idx === 0 ? 'M' : 'L'} ${toX(d).toFixed(1)} ${toY(c).toFixed(1)}`;
       })
@@ -118,6 +157,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
   };
 
   const epa4PptY = toY(4.0);
+  const influentC0Y = toY(customC0);
   const currentDayX = toX(Math.min(240, operatingDay));
 
   return (
@@ -128,41 +168,46 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
           <div className="lg:col-span-7 space-y-2">
             <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" />
-              Software &amp; AI Innovation • Physics-Informed Neural Network (PINN)
+              Software &amp; AI Innovation • Physics-Informed Neural Network (PINN) PDE Solver
             </span>
             <h2 className="text-lg font-bold text-white">
-              Agentic Breakthrough Curve Digital Twin (Bohart-Adams &amp; Thomas Kinetics)
+              Agentic Breakthrough &amp; Chromatographic Roll-Up Digital Twin
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
               Classical static adsorption models fail because influent concentration (<code className="text-cyan-300">C₀</code>),
               Sensus flow rate (<code className="text-cyan-300">Q</code>), and Natural Organic Matter (NOM)
-              fluctuate continuously. PFAS-Sentinel assimilates 15-minute real-time telemetry from the{' '}
+              fluctuate continuously, while long-chain PFOS/PFOA displace short-chain PFBA/PFBS
+              (<strong className="text-rose-300">chromatographic roll-up Cₜ &gt; C₀</strong>).
+              PFAS-Sentinel assimilates 15-minute telemetry from{' '}
               <strong className="text-amber-300">Influent (C₀)</strong> and{' '}
-              <strong className="text-amber-300">Mid-Bed (C_mid)</strong> MIP sensors into a PINN
-              constrained by the Thomas kinetic differential equation:
+              <strong className="text-amber-300">Mid-Bed (C_mid)</strong> into a PINN minimizing both data
+              and PDE collocation residuals:
             </p>
           </div>
 
           {/* Mathematical Formula Display Card */}
           <div className="lg:col-span-5 bg-[#061320] border border-cyan-500/40 rounded-xl p-4 font-mono text-center shadow-inner">
-            <div className="text-xs text-cyan-300 mb-1 uppercase tracking-wider">
-              Governing Kinetic State Equation
+            <div className="text-[11px] text-cyan-300 mb-1 uppercase tracking-wider">
+              1D Advection-Sorption PDE &amp; 2-Layer Neural Residual
             </div>
-            <div className="text-base sm:text-lg font-bold text-white py-2 px-3 bg-[#0B1D30] rounded-lg border border-slate-800">
-              ln( C₀ / Cₜ − 1 ) = (k_Th · q₀ · M) / Q − k_Th · C₀ · t
+            <div className="text-xs font-bold text-white py-2 px-2.5 bg-[#0B1D30] rounded-lg border border-slate-800">
+              L_PINN = ||Ĉ_mid − C_obs||² + λ·||∂Ĉ/∂t + u_MTZ·∂Ĉ/∂z||²
             </div>
-            <div className="grid grid-cols-3 gap-2 mt-2.5 text-[11px] text-slate-400">
+            <div className="text-[10px] text-slate-400 mt-1">
+              where Ĉ(z, t) = C_Thomas(z, t; k_Th, q₀) + N_W(z, t) • u_MTZ = Q·C₀/(q₀·M)
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-2 text-[11px] text-slate-400">
               <div>
-                <span className="text-cyan-300 font-bold">k_Th:</span>{' '}
-                {facility.mediaType === 'IX' ? speciesConfig.kTh_IX : speciesConfig.kTh_GAC}
+                <span className="text-cyan-300 font-bold">Learned k_Th:</span>{' '}
+                {pinnDiagnostics.learnedKth}
               </div>
               <div>
-                <span className="text-emerald-300 font-bold">q₀:</span>{' '}
-                {facility.mediaType === 'IX' ? speciesConfig.q0_IX : speciesConfig.q0_GAC} ng/g
+                <span className="text-emerald-300 font-bold">Learned q₀:</span>{' '}
+                {pinnDiagnostics.learnedQ0} ng/g
               </div>
               <div>
-                <span className="text-amber-300 font-bold">M / Q:</span> {customMassKg}kg /{' '}
-                {customFlowMGD}MGD
+                <span className="text-amber-300 font-bold">Valid R²:</span>{' '}
+                {pinnDiagnostics.empiricalR2}
               </div>
             </div>
           </div>
@@ -177,10 +222,10 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-cyan-400" />
-                Dynamic Breakthrough Curve: Mid-Bed Early Warning (C<sub>mid</sub>) vs. Effluent (C<sub>t</sub>)
+                Dynamic Breakthrough &amp; Roll-Up: Mid-Bed (C<sub>mid</sub>) vs. Effluent (C<sub>t</sub>)
               </h3>
               <p className="text-xs text-slate-400">
-                Demonstrating why short-chain PFBA/PFBS break through earliest and how C<sub>mid</sub> prevents blind exhaustion
+                Includes empirical LC-MS/MS validation checkpoints &amp; C4 competitive desorption overshoot (&gt;C₀)
               </p>
             </div>
 
@@ -266,7 +311,28 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                 );
               })}
 
-              {/* EPA 4.0 ppt Mandatory MCL Threshold Line */}
+              {/* Influent C0 Reference Line (to clearly visualize Roll-Up Ct > C0) */}
+              <line
+                x1={padLeft}
+                y1={influentC0Y}
+                x2={chartWidth - 20}
+                y2={influentC0Y}
+                stroke="#A855F7"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+              />
+              <text
+                x={chartWidth - 24}
+                y={influentC0Y - 4}
+                textAnchor="end"
+                fill="#D8B4FE"
+                fontSize="8.5"
+                fontFamily="JetBrains Mono"
+              >
+                Influent C₀ = {customC0} ppt {peakRollupRatioPct > 102 ? `(Roll-Up Peak: ${peakRollupRatioPct}% C₀)` : ''}
+              </text>
+
+              {/* EPA 4.0 ppt Mandatory MCL / Trigger Threshold Line */}
               <line
                 x1={padLeft}
                 y1={epa4PptY}
@@ -285,7 +351,9 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                 fontWeight="700"
                 fontFamily="JetBrains Mono"
               >
-                EPA Binding Limit: 4.0 ppt (MCL)
+                {speciesConfig.id === 'PFOA' || speciesConfig.id === 'PFOS'
+                  ? 'EPA Binding MCL: 4.0 ppt'
+                  : 'Operational Trigger / MCL: 4.0 ppt'}
               </text>
 
               {/* Current Operating Day Vertical Cursor */}
@@ -315,6 +383,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                   bedDepthFraction: 0.5,
                   usePinn: true,
                   c0Val: customC0,
+                  rollup: includeCompetitiveRollup,
                 })}
                 fill="none"
                 stroke="#F59E0B"
@@ -328,13 +397,14 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                   bedDepthFraction: 1.0,
                   usePinn: true,
                   c0Val: customC0,
+                  rollup: includeCompetitiveRollup,
                 })}
                 fill="none"
                 stroke="#10B981"
                 strokeWidth="3"
               />
 
-              {/* Curve C: Classical Static Thomas Model (Uncompensated for NOM fouling) */}
+              {/* Curve C: Classical Static Thomas Model (Uncompensated for NOM fouling & Roll-Up) */}
               {showStaticThomasComparison && (
                 <path
                   d={buildCurvePath({
@@ -342,6 +412,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                     bedDepthFraction: 1.0,
                     usePinn: false,
                     c0Val: customC0,
+                    rollup: false,
                   })}
                   fill="none"
                   stroke="#94A3B8"
@@ -349,6 +420,29 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                   strokeDasharray="4 4"
                 />
               )}
+
+              {/* Empirical Pilot Column Validation Points (Scatter Overlay) */}
+              {showEmpiricalScatter &&
+                pinnDiagnostics.empiricalPoints.map((pt, i) => (
+                  <g key={i}>
+                    <circle
+                      cx={toX(pt.day)}
+                      cy={toY(pt.measuredMidBedPpt)}
+                      r="3.5"
+                      fill="#061320"
+                      stroke="#FBBF24"
+                      strokeWidth="2"
+                    />
+                    <circle
+                      cx={toX(pt.day)}
+                      cy={toY(pt.measuredEffluentPpt)}
+                      r="3.5"
+                      fill="#061320"
+                      stroke="#34D399"
+                      strokeWidth="2"
+                    />
+                  </g>
+                ))}
 
               {/* Highlight Advance Warning Window between Mid-Bed 4 ppt and Effluent 4 ppt */}
               {midBedDay4Ppt < 240 && effluentPinnDay4Ppt < 240 && (
@@ -373,18 +467,22 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               )}
 
               {/* Legend Box */}
-              <rect x={padLeft + 10} y={padTop + 8} width="285" height="62" rx="6" fill="#0B1D30" stroke="#1E3A5F" />
-              <line x1={padLeft + 18} y1={padTop + 22} x2={padLeft + 38} y2={padTop + 22} stroke="#F59E0B" strokeWidth="2.5" />
-              <text x={padLeft + 44} y={padTop + 25} fill="#FDE68A" fontSize="9.5" fontFamily="JetBrains Mono">
-                Mid-Bed Sensor C_mid (4 ppt @ Day {midBedDay4Ppt})
+              <rect x={padLeft + 8} y={padTop + 6} width="295" height="74" rx="6" fill="#0B1D30" stroke="#1E3A5F" />
+              <line x1={padLeft + 16} y1={padTop + 20} x2={padLeft + 36} y2={padTop + 20} stroke="#F59E0B" strokeWidth="2.5" />
+              <text x={padLeft + 42} y={padTop + 23} fill="#FDE68A" fontSize="9" fontFamily="JetBrains Mono">
+                Mid-Bed C_mid (4 ppt @ Day {midBedDay4Ppt})
               </text>
-              <line x1={padLeft + 18} y1={padTop + 38} x2={padLeft + 38} y2={padTop + 38} stroke="#10B981" strokeWidth="3" />
-              <text x={padLeft + 44} y={padTop + 41} fill="#6EE7B7" fontSize="9.5" fontFamily="JetBrains Mono">
-                PINN Effluent Twin C_t (4 ppt @ Day {effluentPinnDay4Ppt})
+              <line x1={padLeft + 16} y1={padTop + 35} x2={padLeft + 36} y2={padTop + 35} stroke="#10B981" strokeWidth="3" />
+              <text x={padLeft + 42} y={padTop + 38} fill="#6EE7B7" fontSize="9" fontFamily="JetBrains Mono">
+                PINN + Roll-Up C_t (4 ppt @ Day {effluentPinnDay4Ppt})
               </text>
-              <line x1={padLeft + 18} y1={padTop + 54} x2={padLeft + 38} y2={padTop + 54} stroke="#94A3B8" strokeWidth="2" strokeDasharray="3 3" />
-              <text x={padLeft + 44} y={padTop + 57} fill="#94A3B8" fontSize="9.5" fontFamily="JetBrains Mono">
-                Static Thomas Equation (Blind @ Day {effluentStaticDay4Ppt})
+              <line x1={padLeft + 16} y1={padTop + 50} x2={padLeft + 36} y2={padTop + 50} stroke="#94A3B8" strokeWidth="2" strokeDasharray="3 3" />
+              <text x={padLeft + 42} y={padTop + 53} fill="#94A3B8" fontSize="9" fontFamily="JetBrains Mono">
+                Static Thomas (Blind @ Day {effluentStaticDay4Ppt})
+              </text>
+              <circle cx={padLeft + 26} cy={padTop + 66} r="3.5" fill="#061320" stroke="#34D399" strokeWidth="2" />
+              <text x={padLeft + 42} y={padTop + 69} fill="#E2E8F0" fontSize="9" fontFamily="JetBrains Mono">
+                Empirical Pilot Checkpoints (R²={pinnDiagnostics.empiricalR2})
               </text>
             </svg>
           </div>
@@ -406,26 +504,29 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div className="bg-[#061320] border border-rose-500/30 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-rose-300 block">
-                Static Model &quot;Blind Breakthrough&quot; Error
+                C4 Competitive Roll-Up &amp; Blind Gap
               </span>
               <div className="text-lg font-bold font-mono text-rose-200 mt-0.5">
-                {blindBreakthroughGapDays} Days Overestimated
+                {peakRollupRatioPct > 102
+                  ? `${peakRollupRatioPct}% C₀ Roll-Up`
+                  : `${blindBreakthroughGapDays}d Static Error`}
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Static equations ignore NOM pore-blocking ({customNom} mg/L), risking illegal PFAS
-                leakage
+                {peakRollupRatioPct > 102
+                  ? `PFOS/NOM displaces ${focusSpecies} to ${peakEffluentPpt} ppt (>C₀)`
+                  : `Static model overestimates bed life by ${blindBreakthroughGapDays} days`}
               </p>
             </div>
 
             <div className="bg-[#061320] border border-emerald-500/30 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                Just-In-Time Media Optimization
+                Empirical Validation Accuracy
               </span>
               <div className="text-lg font-bold font-mono text-emerald-300 mt-0.5">
-                96.4% Bed Utilization
+                RMSE: {pinnDiagnostics.empiricalRmsePpt} ppt
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Eliminates premature 30% safety-margin media disposal
+                R² = {pinnDiagnostics.empiricalR2} across 8 pilot column checkpoints
               </p>
             </div>
           </div>
@@ -433,14 +534,14 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
         {/* Right 4 Columns: Interactive Kinetic Parameter Sliders */}
         <div className="lg:col-span-4 bg-[#0B1D30] border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-cyan-400" />
                 PINN Kinetic Boundary Controls
               </h3>
               <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                Real-Time Solver
+                24-Epoch Solver
               </span>
             </div>
 
@@ -526,15 +627,37 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               />
             </div>
 
-            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={showStaticThomasComparison}
-                onChange={(e) => setShowStaticThomasComparison(e.target.checked)}
-                className="rounded accent-cyan-500"
-              />
-              Show Uncompensated Static Thomas Baseline Curve
-            </label>
+            <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeCompetitiveRollup}
+                  onChange={(e) => setIncludeCompetitiveRollup(e.target.checked)}
+                  className="rounded accent-rose-500"
+                />
+                Simulate C4 Competitive Roll-Up (Cₜ &gt; C₀)
+              </label>
+
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showEmpiricalScatter}
+                  onChange={(e) => setShowEmpiricalScatter(e.target.checked)}
+                  className="rounded accent-emerald-500"
+                />
+                Show Empirical LC-MS/MS Pilot Checkpoints
+              </label>
+
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showStaticThomasComparison}
+                  onChange={(e) => setShowStaticThomasComparison(e.target.checked)}
+                  className="rounded accent-cyan-500"
+                />
+                Show Uncompensated Static Thomas Curve
+              </label>
+            </div>
           </div>
 
           {/* Multi-Species Exhaustion Order Summary & Dataset Export */}
@@ -573,7 +696,8 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <button
               onClick={() => {
-                const header = 'Day,Species,Influent_C0_ppt,MidBed_Cmid_ppt,Effluent_PINN_Ct_ppt,Effluent_Static_Ct_ppt,Flow_MGD,NOM_mgL\n';
+                const header =
+                  'Day,Species,Influent_C0_ppt,MidBed_Cmid_ppt,Effluent_PINN_Rollup_Ct_ppt,Effluent_Static_Ct_ppt,Flow_MGD,NOM_mgL\n';
                 const rows = daysArray
                   .map((d) => {
                     const cMid = computeBreakthroughConcentration({
@@ -586,6 +710,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                       bedDepthFraction: 0.5,
                       nomMgL: customNom,
                       usePinnCorrection: true,
+                      includeCompetitiveRollup,
                     });
                     const cEffPinn = computeBreakthroughConcentration({
                       speciesId: focusSpecies,
@@ -597,6 +722,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                       bedDepthFraction: 1.0,
                       nomMgL: customNom,
                       usePinnCorrection: true,
+                      includeCompetitiveRollup,
                     });
                     const cEffStatic = computeBreakthroughConcentration({
                       speciesId: focusSpecies,
@@ -608,6 +734,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                       bedDepthFraction: 1.0,
                       nomMgL: 1.0,
                       usePinnCorrection: false,
+                      includeCompetitiveRollup: false,
                     });
                     return `${d},${focusSpecies},${customC0},${cMid},${cEffPinn},${cEffStatic},${customFlowMGD},${customNom}`;
                   })
@@ -622,9 +749,79 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               }}
               className="w-full py-2 px-3 rounded-lg bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-semibold transition-all text-center"
             >
-              ↓ Export Week 1 PINN &amp; Sensor Dataset (.CSV)
+              ↓ Export PINN &amp; Roll-Up Dataset (.CSV)
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Bottom Section: Live PINN Gradient Descent Convergence & PDE Collocation Diagnostics */}
+      <div className="bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-emerald-400" />
+              PINN Parameter Assimilation &amp; PDE Collocation Residual Convergence
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Live gradient descent optimization of [k_Th, q_0] from Mid-Bed (z/L = 0.50) telemetry + Thomas PDE residuals
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <span className="px-2.5 py-1 rounded bg-[#061320] border border-slate-800 text-slate-300">
+              Prior Static q₀: <strong>{pinnDiagnostics.priorStaticQ0} ng/g</strong> → Assimilated q₀:{' '}
+              <strong className="text-emerald-300">{pinnDiagnostics.learnedQ0} ng/g</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded bg-[#061320] border border-slate-800 text-slate-300">
+              Prior k_Th: <strong>{pinnDiagnostics.priorStaticKth}</strong> → Assimilated k_Th:{' '}
+              <strong className="text-cyan-300">{pinnDiagnostics.learnedKth}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-xs font-mono">
+          {pinnDiagnostics.lossHistory.map((step) => (
+            <div
+              key={step.epoch}
+              className="bg-[#061320] border border-slate-800 rounded-lg p-3 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between text-[10px] text-cyan-400">
+                <span>EPOCH {step.epoch}</span>
+                {step.epoch === pinnDiagnostics.epochsRun && (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                )}
+              </div>
+              <div className="text-sm font-bold text-white mt-1">
+                L = {step.totalLoss.toFixed(3)}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1">
+                PDE: {step.pdeLoss.toFixed(3)} | Data: {step.dataLoss.toFixed(3)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Published Peer-Reviewed GAC/IX Literature Benchmark Alignment */}
+        <div className="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS.map((lit, idx) => (
+            <div
+              key={idx}
+              className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-1.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-cyan-300">{lit.studyCitation}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                  Literature Fit
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-amber-300">{lit.mediaAndScale}</div>
+              <p className="text-xs text-slate-300">{lit.keyEmpiricalFinding}</p>
+              <p className="text-[11px] font-mono text-emerald-400">
+                → {lit.pinnModelAgreement}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

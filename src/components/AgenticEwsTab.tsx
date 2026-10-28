@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
 import {
   Bot,
-  CheckCircle2,
   FileCheck2,
   Lock,
   Play,
-  Radio,
   RefreshCw,
-  Server,
-  ShieldCheck,
-  Terminal,
   Truck,
-  Zap,
 } from 'lucide-react';
-import { FacilityProfile } from '../data/pfasPhysicsEngine';
+import {
+  FacilityProfile,
+  computeBedVolumes,
+  computeBreakthroughConcentration,
+  predictBreakthroughTimeDays,
+  computeRegulatoryComplianceMetrics,
+} from '../data/pfasPhysicsEngine';
 
 interface AgenticEwsTabProps {
   facility: FacilityProfile;
   operatingDay: number;
+  selectedSpecies: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
+  flowMultiplier: number;
+  c0Multiplier: number;
   leadLagSwitched: boolean;
   setLeadLagSwitched: (v: boolean) => void;
   mitigatorDispatched: boolean;
@@ -27,6 +30,9 @@ interface AgenticEwsTabProps {
 export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   facility,
   operatingDay,
+  selectedSpecies,
+  flowMultiplier,
+  c0Multiplier,
   leadLagSwitched,
   setLeadLagSwitched,
   mitigatorDispatched,
@@ -34,6 +40,95 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
 }) => {
   const [activeAgentStep, setActiveAgentStep] = useState<number>(4);
   const [showAuditModal, setShowAuditModal] = useState<boolean>(false);
+
+  // Dynamically compute live telemetry for the active facility, day, and multipliers
+  const effectiveFlowMGD = Number((facility.flowRateMGD * flowMultiplier).toFixed(2));
+  const speciesList: ('PFBA' | 'PFBS' | 'PFOA' | 'PFOS')[] = ['PFBA', 'PFBS', 'PFOA', 'PFOS'];
+  const lagVesselEffectiveDay = leadLagSwitched
+    ? Math.max(12, Math.round((operatingDay - 95) * 0.35))
+    : Math.max(6, Math.round(operatingDay * 0.08));
+
+  const telemetryBySpecies = speciesList.map((spId) => {
+    const c0 = Number((facility.influentProfile[spId] * c0Multiplier).toFixed(1));
+    const cMid = computeBreakthroughConcentration({
+      speciesId: spId,
+      mediaType: facility.mediaType,
+      C0: c0,
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      day: operatingDay,
+      bedDepthFraction: 0.5,
+      nomMgL: facility.matrixDefaults.nomMgL,
+      usePinnCorrection: true,
+      includeCompetitiveRollup: true,
+    });
+    const rawEff = computeBreakthroughConcentration({
+      speciesId: spId,
+      mediaType: facility.mediaType,
+      C0: c0,
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      day: operatingDay,
+      bedDepthFraction: 1.0,
+      nomMgL: facility.matrixDefaults.nomMgL,
+      usePinnCorrection: true,
+      includeCompetitiveRollup: true,
+    });
+    const lagPolished = computeBreakthroughConcentration({
+      speciesId: spId,
+      mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
+      C0: Math.max(4.5, rawEff),
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      day: lagVesselEffectiveDay,
+      bedDepthFraction: 1.0,
+      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      usePinnCorrection: true,
+      includeCompetitiveRollup: false,
+    });
+    const ct = leadLagSwitched ? lagPolished : rawEff;
+    const breakthroughDayEff = predictBreakthroughTimeDays({
+      speciesId: spId,
+      mediaType: facility.mediaType,
+      C0: c0,
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      bedDepthFraction: 1.0,
+      targetPpt: 4.0,
+      nomMgL: facility.matrixDefaults.nomMgL,
+      usePinnCorrection: true,
+    });
+    const remainingDays = Number((breakthroughDayEff - operatingDay).toFixed(1));
+    return { spId, c0, cMid, rawEff, ct, breakthroughDayEff, remainingDays };
+  });
+
+  const sentinel =
+    [...telemetryBySpecies].sort((a, b) => a.remainingDays - b.remainingDays)[0] ||
+    telemetryBySpecies[0];
+  const focused =
+    telemetryBySpecies.find((t) => t.spId === selectedSpecies) || sentinel;
+
+  const remainingWholeDays = Math.max(0, Math.floor(sentinel.remainingDays));
+  const remainingHours = Math.max(
+    0,
+    Math.round((sentinel.remainingDays - remainingWholeDays) * 24)
+  );
+  const totalRemainingHours = Math.max(0, Math.round(sentinel.remainingDays * 24));
+  const currentBedVolumes = computeBedVolumes(operatingDay, facility.ebctMinutes);
+  const savedMediaKg = Math.round(facility.mediaMassKg * 0.28);
+
+  const effluentMap: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', number> = {
+    PFBA: telemetryBySpecies.find((s) => s.spId === 'PFBA')?.ct ?? 0.2,
+    PFBS: telemetryBySpecies.find((s) => s.spId === 'PFBS')?.ct ?? 0.2,
+    PFOA: telemetryBySpecies.find((s) => s.spId === 'PFOA')?.ct ?? 0.2,
+    PFOS: telemetryBySpecies.find((s) => s.spId === 'PFOS')?.ct ?? 0.2,
+  };
+  const avgRemovalFraction = Math.max(0.05, 1 - focused.ct / Math.max(1.0, focused.c0));
+  const regMetrics = computeRegulatoryComplianceMetrics({
+    effluentPpt: effluentMap,
+    coContaminantsInfluentPpt: facility.coContaminantsPpt,
+    removalEfficiencyFraction: avgRemovalFraction,
+  });
 
   const executeFullAutonomousWorkflow = () => {
     setActiveAgentStep(1);
@@ -51,59 +146,56 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   const agentNodes = [
     {
       step: 1,
-      name: 'Agent 01 • Edge Telemetry & Anomaly Perception',
-      role: 'Microfluidic MIP + YSI/WTW Matrix Fusion',
-      status: 'COMPLETED (15-min cycle)',
-      detail:
-        'Detects short-chain PFBA/PFBS mass-transfer front crossing 3.1 ppt at Mid-Bed port (z/L = 0.50) while Effluent remains compliant at 0.68 ppt.',
-      payload: `{"node":"MID_BED_02","species":"PFBA","c_mid_ppt":3.42,"ysi_ph":${facility.matrixDefaults.pH},"nom_mgl":${facility.matrixDefaults.nomMgL},"matrix_comp":"OK"}`,
+      name: 'Node 01 • Edge Telemetry & Mid-Bed Front Perception',
+      role: 'Microfluidic MIP + YSI/WTW Sonde Fusion',
+      status: 'SYNCED (15-min cycle)',
+      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt.`,
+      payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_ph":${facility.matrixDefaults.pH},"nom_mgl":${facility.matrixDefaults.nomMgL}}`,
     },
     {
       step: 2,
-      name: 'Agent 02 • PINN Breakthrough Forecasting Engine',
+      name: 'Node 02 • PINN Breakthrough & Roll-Up Forecasting',
       role: 'Xylem Vue Smart Water Engine (SWE)',
-      status: 'COMPLETED (CI ±3.2 hrs)',
-      detail:
-        'Updates Thomas kinetic state (k_Th, q_0) with live Sensus flow telemetry (Q). Predicts 4.0 ppt EPA MCL breach in 11 days 14 hours if unmitigated.',
-      payload: `{"model":"PINN_Thomas_v2.6","predicted_mcl_breach_hrs":278,"limiting_analyte":"PFBA_C4","recommended_action":"LEAD_LAG_SWITCH"}`,
+      status: sentinel.remainingDays > 0 ? `WINDOW: ${remainingWholeDays}d ${remainingHours}h` : 'EXHAUSTION REACHED',
+      detail: `Assimilates live Sensus flow telemetry (Q = ${effectiveFlowMGD} MGD) into the 1D Advection-Sorption PINN. Predicts 4.0 ppt trigger at Day ${sentinel.breakthroughDayEff} (${remainingWholeDays}d ${remainingHours}h remaining).`,
+      payload: `{"model":"PINN_AdvSorp_v2.7","predicted_breach_day":${sentinel.breakthroughDayEff},"remaining_hrs":${totalRemainingHours},"limiting_analyte":"${sentinel.spId}"}`,
     },
     {
       step: 3,
-      name: 'Agent 03 • Autonomous SCADA Valve Control',
-      role: 'Zero-Trust OPC-UA / Modbus PLC Bridge',
+      name: 'Node 03 • Automated SCADA Lead-Lag Valve Control',
+      role: 'OPC-UA / Modbus PLC Actuator Bridge',
       status: leadLagSwitched ? 'EXECUTED (VALVE ACTUATED)' : 'READY TO ACTUATE',
       detail:
-        'Commands motorized butterfly valves MV-104 & MV-105 to promote Fresh Lag Polishing Vessel to Primary Lead without human operator latency.',
-      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","plc_tag":"MV_104_105","state":"POLISH_ENGAGED","cybersec_sig":"SHA256:9f84e2c1..."}`,
+        'Commands motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel to Primary Lead before short-chain C4 roll-up or C8 MCL breach occurs.',
+      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}","flow_mgd":${effectiveFlowMGD}}`,
     },
     {
       step: 4,
-      name: 'Agent 04 • Evoqua O&M & MitiGATOR™ Logistics + EPA Audit',
-      role: 'Servitization ERP & Regulatory Compliance Ledger',
-      status: mitigatorDispatched ? 'WORK ORDER & EPA AUDIT LOCKED' : 'STANDBY DISPATCH',
-      detail:
-        'Schedules Just-In-Time Evoqua GAC/IX media regeneration crew (saving 28% unused bed capacity) and logs an immutable EU 2026 / EPA 2027–2029 compliance record.',
-      payload: `{"erp_ticket":"EVO-2026-8841","service":"JIT_MEDIA_REGEN","mitigator_fleet":"STANDBY_READY","epa_4ppt_audit":"COMPLIANT"}`,
+      name: 'Node 04 • Evoqua O&M Logistics & Compliance Telemetry',
+      role: 'Servitization ERP & Regulatory Audit Log',
+      status: mitigatorDispatched ? 'WORK ORDER & AUDIT LOGGED' : 'STANDBY DISPATCH',
+      detail: `Schedules Just-In-Time Evoqua ${facility.mediaType} media regeneration (avoiding ~${savedMediaKg.toLocaleString()} kg premature media disposal per vessel) and exports timestamped EPA/EU compliance telemetry.`,
+      payload: `{"erp_ticket":"EVO-2026-8841","facility":"${facility.id}","saved_media_kg":${savedMediaKg},"epa_hi":${regMetrics.hazardIndex},"eu_sum_ngl":${regMetrics.euSumOfPfasNgL}}`,
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header aligned with Xylem Vue March 2026 Strategy Report */}
+      {/* Header aligned with Xylem Vue Digital Water Architecture */}
       <div className="bg-[#0B1D30] border border-cyan-500/30 rounded-xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Bot className="w-4 h-4" />
-              Xylem Vue 2026 Strategic Alignment • Agent-Based Early Warning System (EWS)
+              Xylem Vue Digital Water Integration • Closed-Loop SCADA Early Warning System (EWS)
             </span>
             <h2 className="text-lg font-bold text-white mt-0.5">
-              Autonomous Multi-Agent SCADA Control, MitiGATOR™ Dispatch &amp; Regulatory Ledger
+              Automated Lead-Lag Valve Control, Evoqua O&amp;M Dispatch &amp; Compliance Telemetry
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-3xl">
-              Aligned with Xylem Vue’s March 2026 report (<em>Five Digital Solutions Shaping the Path
-              Towards Global Water Digitalization</em>): combining Generative/Agentic AI, Cybersecurity,
-              Early Warning Systems, and Servitization PPPs.
+              Connects Mid-Bed (<code className="text-cyan-300">z/L = 0.50</code>) PINN breakthrough
+              forecasts directly to plant PLC valve actuators and Evoqua media regeneration scheduling—turning
+              reactive 14-day lab sampling into proactive closed-loop control.
             </p>
           </div>
 
@@ -113,7 +205,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              Run Full Autonomous Agent Sequence
+              Run Closed-Loop Control Sequence
             </button>
             <button
               onClick={() => setLeadLagSwitched(!leadLagSwitched)}
@@ -146,49 +238,58 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               }`}
             >
               <FileCheck2 className="w-3.5 h-3.5" />
-              {showAuditModal ? 'Hide Compliance Certificate' : 'View EPA / EU Audit Certificate'}
+              {showAuditModal ? 'Hide Telemetry Report' : 'Export EPA / EU Telemetry Log'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Expandable Official EPA 2027/2029 & EU 2026 Cryptographic Audit Certificate Modal/Drawer */}
+      {/* Expandable EPA 2027/2029 & EU 2026 Compliance Telemetry Log Drawer */}
       {showAuditModal && (
         <div className="bg-[#061320] border-2 border-cyan-400/70 rounded-xl p-5 shadow-2xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
             <div>
               <span className="text-[11px] font-mono uppercase text-cyan-400 font-bold block">
-                XYLEM VUE SMART WATER ENGINE • CRYPTOGRAPHIC COMPLIANCE LEDGER
+                XYLEM VUE SMART WATER ENGINE • AUTOMATED COMPLIANCE TELEMETRY LOG
               </span>
               <h3 className="text-base font-bold text-white mt-0.5">
-                Official US EPA National Primary Drinking Water Regulation (4.0 ppt MCL) &amp; EU 2026 Directive Audit Certificate
+                US EPA National Primary Drinking Water Regulation (4.0 ppt MCL) &amp; EU 2026 Directive Telemetry Snapshot
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
                   const cert = {
-                    certificateId: 'XYLEM-SWE-EPA2027-99412A',
+                    logId: `XYLEM-SWE-${facility.id.toUpperCase()}-DAY${operatingDay}`,
                     facility: facility.name,
                     location: facility.location,
                     mediaBrand: facility.mediaBrand,
                     operatingDay,
+                    bedVolumesProcessed: currentBedVolumes,
                     regulatoryFramework: [
-                      'US EPA April 2024 Final PFAS Rule (4.0 ppt PFOA/PFOS MCL - April 2027 Monitoring / April 2029 Treatment)',
-                      'EU Drinking Water Directive (2020/2184) Mandatory January 2026 PFAS Limit',
+                      'US EPA April 2024 Final PFAS Rule (4.0 ppt PFOA/PFOS MCL + Hazard Index HI <= 1.0 - April 2027/2029)',
+                      'EU Drinking Water Directive (2020/2184) Mandatory January 2026 Sum-of-20 PFAS Limit (100 ng/L)',
                     ],
-                    telemetryVerification: {
-                      influentPFOA_ppt: facility.influentProfile.PFOA,
-                      influentPFOS_ppt: facility.influentProfile.PFOS,
-                      influentPFBS_ppt: facility.influentProfile.PFBS,
-                      influentPFBA_ppt: facility.influentProfile.PFBA,
-                      effluentPolished_ppt: 0.42,
-                      epaComplianceStatus: 'PASS (< 4.0 ppt MCL)',
+                    liveTelemetryVerification: {
+                      flowRate_MGD: effectiveFlowMGD,
+                      sentinelSpecies: sentinel.spId,
+                      midBed_z050_ppt: sentinel.cMid,
+                      effluentPFOA_ppt: effluentMap.PFOA,
+                      effluentPFOS_ppt: effluentMap.PFOS,
+                      effluentPFBS_ppt: effluentMap.PFBS,
+                      effluentPFBA_ppt: effluentMap.PFBA,
+                      epaHazardIndex_HI: regMetrics.hazardIndex,
+                      euSumOfPfas_ngL: regMetrics.euSumOfPfasNgL,
+                      predictedEffluentBreachDay: sentinel.breakthroughDayEff,
+                      remainingHoursToBreach: totalRemainingHours,
+                      epaComplianceStatus: regMetrics.overallEpaCompliant
+                        ? 'PASS (< 4.0 ppt MCL & HI <= 1.0)'
+                        : 'ACTION_REQUIRED',
                       leadLagScadaState: leadLagSwitched ? 'LAG_POLISHING_ACTIVE' : 'PRIMARY_LEAD',
                       mitigatorFleetStatus: mitigatorDispatched ? 'DISPATCHED_ON_SITE' : 'STANDBY_READY',
-                      bedUtilizationPct: 96.4,
+                      estimatedUnwastedMediaSaved_kg: savedMediaKg,
                     },
-                    sha256Signature:
+                    sha256Checksum:
                       '9f84e2c17a6b30d84f1e29b05c71a93d4e8f7b12c6509a8b3d21e4f6a7c89012',
                   };
                   const blob = new Blob([JSON.stringify(cert, null, 2)], {
@@ -197,13 +298,13 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `EPA_EU_PFAS_Compliance_Certificate_${facility.id}.json`;
+                  a.download = `EPA_EU_PFAS_Telemetry_Log_${facility.id}_Day${operatingDay}.json`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
                 className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs transition-all"
               >
-                ↓ Download Signed JSON Certificate
+                ↓ Download JSON Telemetry Log
               </button>
               <button
                 onClick={() => setShowAuditModal(false)}
@@ -217,44 +318,56 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
             <div className="bg-[#0B1D30] border border-slate-800 rounded-lg p-3.5 space-y-1.5">
               <div className="text-cyan-300 font-bold uppercase">
-                Certificate Metadata &amp; Chain of Custody
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Certificate ID:</span>
-                <span className="text-white">XYLEM-SWE-EPA2027-99412A</span>
+                Live Facility &amp; Sensor Calibration Metadata
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Benchmark Facility:</span>
-                <span className="text-white">{facility.name}</span>
+                <span className="text-white">{facility.shortName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Sensor Calibration:</span>
-                <span className="text-emerald-300">32-Ch Stand-Alone MIP + 4 NIP Ref (CV 2.8%)</span>
+                <span className="text-slate-400">Operating Run Time:</span>
+                <span className="text-white">
+                  Day {operatingDay} ({currentBedVolumes.toLocaleString()} BV)
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">YSI/WTW Matrix Fusion:</span>
+                <span className="text-slate-400">Mid-Bed ({sentinel.spId}) Port:</span>
+                <span className="text-amber-300">{sentinel.cMid} ppt (z/L = 0.50)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">YSI/WTW Sonde Matrix:</span>
                 <span className="text-emerald-300">
                   pH {facility.matrixDefaults.pH} | {facility.matrixDefaults.tempC}°C | NOM{' '}
                   {facility.matrixDefaults.nomMgL} mg/L
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">SHA-256 Ledger Hash:</span>
-                <span className="text-amber-300">9f84e2c17a6b30d8...a7c89012</span>
+                <span className="text-slate-400">Packet SHA-256 Checksum:</span>
+                <span className="text-slate-300">9f84e2c17a6b30d8...a7c89012</span>
               </div>
             </div>
 
             <div className="bg-[#0B1D30] border border-slate-800 rounded-lg p-3.5 space-y-1.5">
               <div className="text-emerald-300 font-bold uppercase">
-                Automated Logistics &amp; Regulatory Attestation
+                Live Regulatory &amp; SCADA Status
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">US EPA 4.0 ppt PFOA/PFOS Rule:</span>
-                <span className="text-emerald-400 font-bold">COMPLIANT (0.42 ppt Effluent)</span>
+                <span className="text-slate-400">US EPA PFOA / PFOS Effluent:</span>
+                <span
+                  className={
+                    regMetrics.pfoaCompliant && regMetrics.pfosCompliant
+                      ? 'text-emerald-400 font-bold'
+                      : 'text-rose-400 font-bold'
+                  }
+                >
+                  {effluentMap.PFOA} / {effluentMap.PFOS} ppt (MCL: 4.0)
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">EU 2026 Directive (100 ng/L):</span>
-                <span className="text-emerald-400 font-bold">COMPLIANT (&lt; 1.8 ng/L Sum)</span>
+                <span className="text-slate-400">EPA Hazard Index &amp; EU Sum:</span>
+                <span className="text-emerald-400 font-bold">
+                  HI = {regMetrics.hazardIndex} | Σ = {regMetrics.euSumOfPfasNgL} ng/L
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">SCADA Lead-Lag Valve PLC:</span>
@@ -266,8 +379,8 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                 <span className="text-slate-400">Evoqua / MitiGATOR™ Fleet:</span>
                 <span className="text-amber-300">
                   {mitigatorDispatched
-                    ? 'MOBILE UNIT DISPATCHED (TICKET #EVO-88412)'
-                    : 'JIT REGENERATION SCHEDULED'}
+                    ? 'MOBILE UNIT DISPATCHED (TICKET #EVO-8841)'
+                    : `JIT REGEN IN ${remainingWholeDays}d ${remainingHours}h`}
                 </span>
               </div>
             </div>
@@ -275,7 +388,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
         </div>
       )}
 
-      {/* 4-Stage Multi-Agent Pipeline Cards */}
+      {/* 4-Stage Pipeline Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {agentNodes.map((agent) => {
           const isActive = activeAgentStep >= agent.step;
@@ -320,7 +433,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
         })}
       </div>
 
-      {/* Immutable Regulatory Compliance Report & Evoqua Work Order */}
+      {/* Live Operational Compliance Summary & Evoqua Work Order */}
       <div className="bg-[#0B1D30] border border-emerald-500/40 rounded-xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -330,21 +443,23 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white">
-                  Immutable Digital Compliance Record &amp; Just-In-Time Evoqua Work Order
+                  Live Regulatory Compliance Summary &amp; Just-In-Time Evoqua Work Order
                 </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  VERIFIED SHA-256
+                  LIVE SYNC • {currentBedVolumes.toLocaleString()} BV
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Auto-generated for US EPA April 2027/2029 National Primary Drinking Water Regulation &amp; EU 2026 Directive
+                Dynamically computed for {facility.name} at Operating Day {operatingDay}
               </p>
             </div>
           </div>
 
           <div className="text-right font-mono text-xs">
-            <div className="text-slate-400">LEDGER TIMESTAMP</div>
-            <div className="text-cyan-300 font-bold">2026-10-23T18:00:00Z (Day {operatingDay})</div>
+            <div className="text-slate-400">SIMULATION STATE</div>
+            <div className="text-cyan-300 font-bold">
+              Day {operatingDay} • Q = {effectiveFlowMGD} MGD
+            </div>
           </div>
         </div>
 
@@ -359,15 +474,25 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">PFOA / PFOS Effluent:</span>
-              <span className="font-mono text-emerald-400 font-bold">&lt; 0.85 ppt (MCL: 4.0)</span>
+              <span className="font-mono text-emerald-400 font-bold">
+                {effluentMap.PFOA} / {effluentMap.PFOS} ppt (MCL: 4.0)
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Short-Chain PFBA/PFBS:</span>
-              <span className="font-mono text-emerald-400 font-bold">Polished via Lag Bed</span>
+              <span className="text-slate-400">PFBA / PFBS Effluent:</span>
+              <span className="font-mono text-emerald-400 font-bold">
+                {effluentMap.PFBA} / {effluentMap.PFBS} ppt
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Compliance Status:</span>
-              <span className="font-mono text-emerald-300 font-bold">100% CONTINUOUS PASS</span>
+              <span
+                className={`font-mono font-bold ${
+                  regMetrics.overallEpaCompliant ? 'text-emerald-300' : 'text-rose-400'
+                }`}
+              >
+                {regMetrics.overallEpaCompliant ? 'EPA & EU COMPLIANT' : 'SWITCHOVER REQUIRED'}
+              </span>
             </div>
           </div>
 
@@ -376,44 +501,52 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               2. Evoqua Just-In-Time Media Dispatch
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Work Order #:</span>
-              <span className="font-mono text-white">EVO-REGEN-88412</span>
+              <span className="text-slate-400">Sentinel Species:</span>
+              <span className="font-mono text-white">
+                {sentinel.spId} (Breach @ Day {sentinel.breakthroughDayEff})
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Lead Vessel Utilisation:</span>
-              <span className="font-mono text-amber-300 font-bold">96.4% (Optimal Exhaustion)</span>
+              <span className="text-slate-400">Remaining Window:</span>
+              <span className="font-mono text-amber-300 font-bold">
+                {remainingWholeDays}d {remainingHours}h ({totalRemainingHours} hrs)
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Unwasted Media Saved:</span>
-              <span className="font-mono text-emerald-400 font-bold">2,540 kg GAC/IX Saved</span>
+              <span className="font-mono text-emerald-400 font-bold">
+                ~{savedMediaKg.toLocaleString()} kg / vessel (~28%)
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">MitiGATOR™ Mobile Unit:</span>
               <span className="font-mono text-cyan-300">
-                {mitigatorDispatched ? 'ACTIVE ON-SITE' : 'GEOFENCED STANDBY'}
+                {mitigatorDispatched ? 'ACTIVE ON-SITE' : 'STANDBY READY'}
               </span>
             </div>
           </div>
 
           <div className="bg-[#061320] border border-slate-800 rounded-lg p-3.5 space-y-1.5">
             <div className="font-mono text-[11px] text-emerald-400 uppercase font-bold">
-              3. Environmental &amp; GHG Impact
+              3. Environmental &amp; O&amp;M Impact
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Secondary Hazardous Waste:</span>
-              <span className="font-mono text-emerald-400 font-bold">-28.5% Reduction</span>
+              <span className="text-slate-400">Premature Media Disposal:</span>
+              <span className="font-mono text-emerald-400 font-bold">-25% to -30% Avoided</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Reactivation Kiln CO₂e Saved:</span>
-              <span className="font-mono text-emerald-400 font-bold">14.2 Metric Tons CO₂e/yr</span>
+              <span className="font-mono text-emerald-400 font-bold">
+                {((savedMediaKg / 1000) * 2.4).toFixed(1)} tCO₂e / vessel changeout
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">LC-MS/MS Lab Trips Eliminated:</span>
-              <span className="font-mono text-white">144 Courier Shipments/yr</span>
+              <span className="text-slate-400">Routine Lab Grabs Replaced:</span>
+              <span className="font-mono text-white">~85% Reduction (Keep Quarterly QC)</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Xylem Net-Zero Alignment:</span>
-              <span className="font-mono text-cyan-300 font-bold">Scope 3 Verified</span>
+              <span className="text-slate-400">Mid-Bed Retrofit Tap:</span>
+              <span className="font-mono text-cyan-300 font-bold">Standard 1/4&quot; NPT Port</span>
             </div>
           </div>
         </div>

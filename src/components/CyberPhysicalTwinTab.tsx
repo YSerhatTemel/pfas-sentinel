@@ -22,8 +22,10 @@ import {
 import {
   FacilityProfile,
   PFAS_SPECIES,
+  computeBedVolumes,
   computeBreakthroughConcentration,
   predictBreakthroughTimeDays,
+  computeRegulatoryComplianceMetrics,
 } from '../data/pfasPhysicsEngine';
 
 interface CyberPhysicalTwinTabProps {
@@ -68,11 +70,16 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
   const effectiveFlowMGD = Number((facility.flowRateMGD * flowMultiplier).toFixed(2));
   const speciesList: ('PFBA' | 'PFBS' | 'PFOA' | 'PFOS')[] = ['PFBA', 'PFBS', 'PFOA', 'PFOS'];
 
+  // Dynamic Lag Vessel run-time when promoted to Primary Polishing mode
+  const lagVesselEffectiveDay = leadLagSwitched
+    ? Math.max(12, Math.round((operatingDay - 95) * 0.35))
+    : Math.max(6, Math.round(operatingDay * 0.08));
+
   // Calculate concentrations across all 4 PFAS species at Influent (C0), Mid-Bed (C_mid, z/L=0.5), and Effluent (C_t, z/L=1.0)
   const speciesTelemetry = speciesList.map((spId) => {
     const c0 = Number((facility.influentProfile[spId] * c0Multiplier).toFixed(1));
-    // If Lead-Lag valve has been switched by the SCADA Agent, effective bed depth is refreshed/polished by Lag vessel!
     const effectiveDayForLead = operatingDay;
+
     const cMid = computeBreakthroughConcentration({
       speciesId: spId,
       mediaType: facility.mediaType,
@@ -83,6 +90,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       bedDepthFraction: 0.5,
       nomMgL: facility.matrixDefaults.nomMgL,
       usePinnCorrection: true,
+      includeCompetitiveRollup: true,
     });
 
     const rawEffluent = computeBreakthroughConcentration({
@@ -95,12 +103,25 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       bedDepthFraction: 1.0,
       nomMgL: facility.matrixDefaults.nomMgL,
       usePinnCorrection: true,
+      includeCompetitiveRollup: true,
     });
 
-    // When Lead-Lag is switched or MitiGATOR is active, Lag vessel polishes effluent down to <0.4 ppt
-    const ct = leadLagSwitched
-      ? Number(Math.max(0.12, rawEffluent * 0.08).toFixed(2))
-      : rawEffluent;
+    // Dynamic Lag Vessel kinetic computation (instead of static multiplier)
+    const lagPolishedEffluent = computeBreakthroughConcentration({
+      speciesId: spId,
+      mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
+      C0: Math.max(4.5, rawEffluent),
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      day: lagVesselEffectiveDay,
+      bedDepthFraction: 1.0,
+      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      usePinnCorrection: true,
+      includeCompetitiveRollup: false,
+    });
+
+    const ct = leadLagSwitched ? lagPolishedEffluent : rawEffluent;
+    const isRollupActive = !leadLagSwitched && rawEffluent > c0 * 1.01;
 
     const breakthroughDayEffluent = predictBreakthroughTimeDays({
       speciesId: spId,
@@ -134,6 +155,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       cMid,
       rawEffluent,
       ct,
+      isRollupActive,
       breakthroughDayEffluent,
       breakthroughDayMidBed,
       remainingDays,
@@ -151,7 +173,24 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
   const isMidBedWarning = criticalTelemetry.cMid >= 3.0;
   const isEffluentBreachRisk = criticalTelemetry.rawEffluent >= 3.5;
 
-  // Calculate saturation profile along Lead Vessel depth (0%, 25%, 50%, 75%, 100%)
+  // Build effluent map for EPA Hazard Index & EU 2026 Sum-of-20 calculation
+  const effluentMap: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', number> = {
+    PFBA: speciesTelemetry.find((s) => s.species.id === 'PFBA')?.ct ?? 0.2,
+    PFBS: speciesTelemetry.find((s) => s.species.id === 'PFBS')?.ct ?? 0.2,
+    PFOA: speciesTelemetry.find((s) => s.species.id === 'PFOA')?.ct ?? 0.2,
+    PFOS: speciesTelemetry.find((s) => s.species.id === 'PFOS')?.ct ?? 0.2,
+  };
+  const avgRemovalFraction = Math.max(
+    0.05,
+    1 - activeTelemetry.ct / Math.max(1.0, activeTelemetry.c0)
+  );
+  const regMetrics = computeRegulatoryComplianceMetrics({
+    effluentPpt: effluentMap,
+    coContaminantsInfluentPpt: facility.coContaminantsPpt,
+    removalEfficiencyFraction: avgRemovalFraction,
+  });
+
+  // Calculate saturation profile along Lead Vessel depth (15%, 35%, 50%, 75%, 100%)
   const depthSlices = [0.15, 0.35, 0.5, 0.75, 1.0].map((z) => {
     const conc = computeBreakthroughConcentration({
       speciesId: selectedSpecies,
@@ -163,8 +202,30 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       bedDepthFraction: z,
       nomMgL: facility.matrixDefaults.nomMgL,
       usePinnCorrection: true,
+      includeCompetitiveRollup: true,
     });
-    const satPct = Math.min(100, Math.round((conc / activeTelemetry.c0) * 100));
+    const satPct = Math.min(135, Math.round((conc / activeTelemetry.c0) * 100));
+    return { z, conc, satPct };
+  });
+
+  // Dynamic Lag Vessel saturation slices (z = 25%, 60%, 100%)
+  const lagSlices = [0.25, 0.6, 1.0].map((z) => {
+    const conc = computeBreakthroughConcentration({
+      speciesId: selectedSpecies,
+      mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
+      C0: Math.max(6.0, activeTelemetry.rawEffluent),
+      flowRateMGD: effectiveFlowMGD,
+      mediaMassKg: facility.mediaMassKg,
+      day: lagVesselEffectiveDay,
+      bedDepthFraction: z,
+      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      usePinnCorrection: true,
+      includeCompetitiveRollup: false,
+    });
+    const satPct = Math.min(
+      100,
+      Math.max(3, Math.round((conc / Math.max(6.0, activeTelemetry.c0)) * 100))
+    );
     return { z, conc, satPct };
   });
 
@@ -249,8 +310,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </button>
             <div className="flex-1">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-400">Bed Run Time (t):</span>
-                <span className="font-mono font-bold text-cyan-300">Day {operatingDay} / 220</span>
+                <span className="text-slate-400">Bed Run Time (t / BV):</span>
+                <span className="font-mono font-bold text-cyan-300">
+                  Day {operatingDay} ({computeBedVolumes(operatingDay, facility.ebctMinutes).toLocaleString()} BV)
+                </span>
               </div>
               <input
                 type="range"
@@ -374,7 +437,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </span>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Port Depth: z/L = 0.50</span>
+            <span className="text-slate-400">1/4&quot; NPT Port: z/L = 0.50</span>
             <span className="text-amber-300 font-mono">
               {Math.round((activeTelemetry.cMid / activeTelemetry.c0) * 100)}% Saturation
             </span>
@@ -400,27 +463,40 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </div>
             <span
               className={`px-2 py-0.5 rounded text-xs font-mono font-semibold flex items-center gap-1 ${
-                activeTelemetry.ct >= 4.0
+                activeTelemetry.isRollupActive
+                  ? 'bg-rose-500/30 text-rose-200 border border-rose-400 animate-pulse'
+                  : activeTelemetry.ct >= 4.0
                   ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50'
                   : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
               }`}
             >
-              {activeTelemetry.ct >= 4.0 ? (
+              {activeTelemetry.isRollupActive ? (
                 <>
-                  <AlertTriangle className="w-3 h-3" /> MCL EXCEEDED
+                  <AlertTriangle className="w-3 h-3" /> C4 ROLL-UP (&gt;C₀)
+                </>
+              ) : activeTelemetry.ct >= 4.0 ? (
+                <>
+                  <AlertTriangle className="w-3 h-3" /> TRIGGER EXCEEDED
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-3 h-3" /> &lt; 4.0 ppt EPA MCL
+                  <CheckCircle2 className="w-3 h-3" /> &lt; 4.0 ppt TARGET
                 </>
               )}
             </span>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-            <span className="text-slate-400">EPA 2024 Limit: 4.0 ppt</span>
+            <span className="text-slate-400 truncate max-w-[145px]" title={activeTelemetry.species.epaRegulationType}>
+              {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
+                ? 'EPA Binding MCL: 4.0 ppt'
+                : activeTelemetry.species.id === 'PFBS'
+                ? `EPA HI: ${regMetrics.hazardIndex} (≤1.0)`
+                : 'UCMR5 Sentinel Tracer'}
+            </span>
             <span className="text-emerald-400 font-mono">
-              Removal:{' '}
-              {(((activeTelemetry.c0 - activeTelemetry.ct) / activeTelemetry.c0) * 100).toFixed(1)}%
+              {activeTelemetry.isRollupActive
+                ? `Roll-Up: ${Math.round((activeTelemetry.ct / activeTelemetry.c0) * 100)}% C₀`
+                : `Removal: ${(((activeTelemetry.c0 - activeTelemetry.ct) / activeTelemetry.c0) * 100).toFixed(1)}%`}
             </span>
           </div>
         </div>
@@ -445,14 +521,15 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               </h3>
             </div>
             <span className="px-2 py-0.5 rounded text-xs font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-              Limiting: {criticalTelemetry.species.name}
+              Sentinel: {criticalTelemetry.species.name}
             </span>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
             <span className="text-slate-400">
-              Est. Exhaustion: Day {criticalTelemetry.breakthroughDayEffluent}
+              Exhaustion: Day {criticalTelemetry.breakthroughDayEffluent} (
+              {computeBedVolumes(criticalTelemetry.breakthroughDayEffluent, facility.ebctMinutes).toLocaleString()} BV)
             </span>
-            <span className="text-cyan-300 font-mono">±3.2 hr PINN CI</span>
+            <span className="text-cyan-300 font-mono">PINN PDE Twin</span>
           </div>
         </div>
       </div>
@@ -527,10 +604,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 XYLEM VUE POWERED BY GOAIGUA — SMART WATER ENGINE (SWE)
               </text>
               <text x="200" y="50" fill="#94A3B8" fontSize="10" fontFamily="JetBrains Mono">
-                1. Edge AI Matrix Compensation → 2. PINN Thomas Kinetic Twin → 3. Agentic SCADA EWS
+                1. Inverse Edge AI (4 NIP + YSI) → 2. PINN PDE &amp; Roll-Up Twin → 3. Agentic SCADA EWS
               </text>
               <text x="200" y="68" fill="#10B981" fontSize="10" fontFamily="JetBrains Mono">
-                Status: {leadLagSwitched ? 'AUTONOMOUS LEAD-LAG BYPASS ENGAGED' : isMidBedWarning ? 'MID-BED BREAKTHROUGH ALERT — PREPARING SWITCHOVER' : 'CONTINUOUS 15-MIN TELEMETRY SYNC (ACTIVE)'}
+                Status: {leadLagSwitched ? 'AUTONOMOUS LEAD-LAG BYPASS ENGAGED (EVOQUA REGEN ACTIVE)' : isMidBedWarning ? 'MID-BED BREAKTHROUGH ALERT — PREPARING SWITCHOVER' : 'CONTINUOUS 15-MIN TELEMETRY SYNC (ACTIVE)'}
               </text>
 
               {/* Telemetry Uplinks (Dashed Vertical Lines from Sensors to Xylem Vue Cloud) */}
@@ -632,18 +709,20 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 height="220"
                 rx="22"
                 fill="url(#vesselGrad)"
-                stroke="#38BDF8"
+                stroke={leadLagSwitched ? '#F59E0B' : '#38BDF8'}
                 strokeWidth="2"
               />
-              <text x="282" y="142" fill="#F8FAFC" fontSize="11" fontWeight="700" fontFamily="Inter">
-                LEAD VESSEL ({facility.mediaType})
+              <text x="276" y="142" fill="#F8FAFC" fontSize="10.5" fontWeight="700" fontFamily="Inter">
+                {leadLagSwitched ? 'VESSEL 1 (REGEN HOLD)' : `LEAD VESSEL (${facility.mediaType})`}
               </text>
 
               {/* Dynamic Mass Transfer Zone (MTZ) Saturation Layers inside Lead Vessel */}
               {depthSlices.map((slice, idx) => {
                 const yPos = 152 + idx * 32;
                 const barColor =
-                  slice.satPct > 75
+                  slice.satPct > 100
+                    ? '#EC4899'
+                    : slice.satPct > 75
                     ? '#EF4444'
                     : slice.satPct > 35
                     ? '#F59E0B'
@@ -663,20 +742,20 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                     <rect
                       x="279"
                       y={yPos + 2}
-                      width={Math.max(6, (102 * slice.satPct) / 100)}
+                      width={Math.max(6, (102 * Math.min(100, slice.satPct)) / 100)}
                       height="22"
                       rx="3"
                       fill={barColor}
                       fillOpacity="0.45"
                     />
                     <text
-                      x="285"
+                      x="283"
                       y={yPos + 16}
                       fill="#E2E8F0"
-                      fontSize="9.5"
+                      fontSize="9"
                       fontFamily="JetBrains Mono"
                     >
-                      z={Math.round(slice.z * 100)}%: {slice.conc} ppt ({slice.satPct}%)
+                      z={Math.round(slice.z * 100)}%: {slice.conc}p ({slice.satPct}%)
                     </text>
                   </g>
                 );
@@ -750,44 +829,73 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 PLC
               </text>
 
-              {/* VESSEL 2: LAG POLISHING GAC / IX COLUMN */}
+              {/* VESSEL 2: DYNAMIC LAG POLISHING GAC / IX COLUMN */}
               <rect
                 x="555"
                 y="120"
-                width="125"
+                width="130"
                 height="220"
                 rx="22"
                 fill="url(#vesselGrad)"
                 stroke={leadLagSwitched ? '#10B981' : '#475569'}
                 strokeWidth="2"
               />
-              <text x="572" y="142" fill="#F8FAFC" fontSize="11" fontWeight="700" fontFamily="Inter">
-                LAG VESSEL (POLISH)
+              <text x="568" y="142" fill="#F8FAFC" fontSize="10.5" fontWeight="700" fontFamily="Inter">
+                {leadLagSwitched ? 'LAG VESSEL (ACTIVE LEAD)' : 'LAG VESSEL (POLISH)'}
               </text>
-              <rect
-                x="570"
-                y="160"
-                width="95"
-                height="150"
-                rx="8"
-                fill="#061320"
-                stroke={leadLagSwitched ? '#10B981' : '#1E3A5F'}
-                strokeWidth="1.2"
-              />
-              <text x="580" y="195" fill="#10B981" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">
-                FRESH MEDIA
+
+              {/* Dynamic Saturation Slices inside Lag Polishing Vessel */}
+              {lagSlices.map((slice, idx) => {
+                const yPos = 156 + idx * 42;
+                return (
+                  <g key={slice.z}>
+                    <rect
+                      x="568"
+                      y={yPos}
+                      width="104"
+                      height="32"
+                      rx="5"
+                      fill="#061320"
+                      stroke={leadLagSwitched ? '#10B981' : '#1E3A5F'}
+                      strokeWidth="1"
+                    />
+                    <rect
+                      x="570"
+                      y={yPos + 2}
+                      width={Math.max(6, (100 * slice.satPct) / 100)}
+                      height="28"
+                      rx="4"
+                      fill="#10B981"
+                      fillOpacity="0.4"
+                    />
+                    <text
+                      x="575"
+                      y={yPos + 14}
+                      fill="#10B981"
+                      fontSize="8.5"
+                      fontWeight="700"
+                      fontFamily="JetBrains Mono"
+                    >
+                      Lag z={Math.round(slice.z * 100)}% (t={lagVesselEffectiveDay}d)
+                    </text>
+                    <text
+                      x="575"
+                      y={yPos + 26}
+                      fill="#E2E8F0"
+                      fontSize="9"
+                      fontFamily="JetBrains Mono"
+                    >
+                      {slice.conc} ppt ({slice.satPct}% Sat)
+                    </text>
+                  </g>
+                );
+              })}
+
+              <text x="570" y="302" fill="#38BDF8" fontSize="9" fontFamily="JetBrains Mono">
+                {leadLagSwitched ? 'Polishing C4 Roll-Up' : 'Standby Guard Bed'}
               </text>
-              <text x="580" y="215" fill="#94A3B8" fontSize="9.5" fontFamily="JetBrains Mono">
-                Saturation: 4.2%
-              </text>
-              <text x="580" y="235" fill="#E2E8F0" fontSize="9.5" fontFamily="JetBrains Mono">
-                Mode: {leadLagSwitched ? 'PRIMARY LEAD' : 'STANDBY LAG'}
-              </text>
-              <text x="580" y="265" fill="#38BDF8" fontSize="9" fontFamily="JetBrains Mono">
-                Evoqua Resin/GAC
-              </text>
-              <text x="580" y="280" fill="#38BDF8" fontSize="9" fontFamily="JetBrains Mono">
-                Zero Blind Waste
+              <text x="570" y="317" fill="#94A3B8" fontSize="8.5" fontFamily="JetBrains Mono">
+                Evoqua JIT Sync: OK
               </text>
 
               {/* Pipe from Lag Vessel to Effluent Distribution */}
@@ -847,7 +955,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 fontWeight="700"
                 fontFamily="JetBrains Mono"
               >
-                {activeTelemetry.ct} ppt (MCL: 4.0)
+                {activeTelemetry.ct} ppt (HI: {regMetrics.hazardIndex})
               </text>
               <text x="714" y="244" fill="#E2E8F0" fontSize="8.5" fontFamily="JetBrains Mono">
                 {activeTelemetry.ct < 4.0 ? 'EPA 2027/2029 COMPLIANT' : 'ACTION REQUIRED'}
@@ -874,6 +982,63 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 Evoqua O&amp;M Logistics Sync
               </text>
             </svg>
+          </div>
+
+          {/* Live EPA April 2024 Regulatory Breakdown Bar (MCL vs Hazard Index vs Sentinel Tracer) */}
+          <div className="mt-4 pt-3 border-t border-slate-800/90 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-cyan-400 uppercase block">
+                  EPA Binding C8 MCL (PFOA/PFOS)
+                </span>
+                <span className="font-mono font-bold text-white">
+                  {effluentMap.PFOA} / {effluentMap.PFOS} ppt
+                </span>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                  regMetrics.pfoaCompliant && regMetrics.pfosCompliant
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}
+              >
+                Limit: 4.0 ppt
+              </span>
+            </div>
+
+            <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-purple-400 uppercase block">
+                  EPA Hazard Index (PFBS+PFHxS+PFNA+GenX)
+                </span>
+                <span className="font-mono font-bold text-white">
+                  HI = {regMetrics.hazardIndex}
+                </span>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                  regMetrics.hiCompliant
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}
+              >
+                Limit: HI ≤ 1.0
+              </span>
+            </div>
+
+            <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-amber-400 uppercase block">
+                  EU 2026 DWD Sum-of-20 &amp; C4 Sentinel
+                </span>
+                <span className="font-mono font-bold text-white">
+                  Σ = {regMetrics.euSumOfPfasNgL} ng/L
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-cyan-500/15 text-cyan-300">
+                EU: &lt;100 ng/L
+              </span>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
@@ -919,18 +1084,26 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                         <span className="font-mono font-bold text-sm text-white">
                           {item.species.name}
                         </span>
-                        <span className="text-[11px] text-slate-400">
-                          {item.species.chainType}
+                        <span className="text-[10px] text-slate-400">
+                          {item.species.id === 'PFBA'
+                            ? 'C4 Sentinel Tracer'
+                            : item.species.id === 'PFBS'
+                            ? 'C4 Hazard Index'
+                            : 'C8 EPA 4ppt MCL'}
                         </span>
                       </div>
                       <span
                         className={`text-xs font-mono font-semibold px-1.5 py-0.5 rounded ${
-                          item.remainingDays <= 14
+                          item.isRollupActive
+                            ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40'
+                            : item.remainingDays <= 14
                             ? 'bg-amber-500/20 text-amber-300'
                             : 'bg-slate-800 text-slate-300'
                         }`}
                       >
-                        {item.remainingDays > 0
+                        {item.isRollupActive
+                          ? 'Roll-Up (>C₀)'
+                          : item.remainingDays > 0
                           ? `Breakthrough: ${item.remainingDays}d`
                           : 'Exhausted'}
                       </span>
@@ -983,11 +1156,13 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-3">
-              Short-chain <strong className="text-amber-300">PFBA (C4)</strong> and{' '}
-              <strong className="text-purple-300">PFBS (C4)</strong> migrate through{' '}
-              {facility.mediaType} beds faster than PFOA/PFOS. Mid-bed sensor{' '}
-              <code className="text-cyan-300">C_mid</code> triggers automated lead-lag switchover
-              before effluent exceeds 4.0 ppt.
+              Municipal {facility.mediaType} vessels already feature physical{' '}
+              <strong className="text-cyan-300">mid-bed sample ports (z/L = 0.50)</strong>, but
+              utilities currently sample them manually once a month (14-day lab delay). Retrofitting
+              PFAS-Sentinel onto the existing mid-bed tap captures short-chain{' '}
+              <strong className="text-amber-300">PFBA/PFBS</strong> breakthrough and competitive
+              roll-up (<code className="text-rose-300">Cₜ &gt; C₀</code>) in 15 minutes—triggering
+              automated Lead-Lag valve switchover weeks before effluent breach.
             </p>
 
             <div className="space-y-2">
