@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build info & Python cache
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+
+# Local helper scripts
+*.bat
+
+# Local reports, TUBITAK documents & generated report assets
+*.pdf
+TUBITAK_*
+Xylem_Challenge_*
+PROJE_REHBERI_*
+tubitak_assets/
