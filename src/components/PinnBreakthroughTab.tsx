@@ -206,8 +206,8 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                 {pinnDiagnostics.learnedQ0} ng/g
               </div>
               <div>
-                <span className="text-amber-300 font-bold">Valid R²:</span>{' '}
-                {pinnDiagnostics.empiricalR2}
+                <span className="text-amber-300 font-bold">95% CI / R²:</span> ±
+                {pinnDiagnostics.breakthrough95CiDays}d ({pinnDiagnostics.empiricalR2})
               </div>
             </div>
           </div>
@@ -352,8 +352,8 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                 fontFamily="JetBrains Mono"
               >
                 {speciesConfig.id === 'PFOA' || speciesConfig.id === 'PFOS'
-                  ? 'EPA Binding MCL: 4.0 ppt'
-                  : 'Operational Trigger / MCL: 4.0 ppt'}
+                  ? 'US EPA Binding Statutory MCL: 4.0 ppt'
+                  : `Internal SCADA Early-Warning Trigger: 4.0 ppt (${speciesConfig.statutoryLimitLabel})`}
               </text>
 
               {/* Current Operating Day Vertical Cursor */}
@@ -474,7 +474,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               </text>
               <line x1={padLeft + 16} y1={padTop + 35} x2={padLeft + 36} y2={padTop + 35} stroke="#10B981" strokeWidth="3" />
               <text x={padLeft + 42} y={padTop + 38} fill="#6EE7B7" fontSize="9" fontFamily="JetBrains Mono">
-                PINN + Roll-Up C_t (4 ppt @ Day {effluentPinnDay4Ppt})
+                PINN + Roll-Up C_t (Day {effluentPinnDay4Ppt} ±{pinnDiagnostics.breakthrough95CiDays}d)
               </text>
               <line x1={padLeft + 16} y1={padTop + 50} x2={padLeft + 36} y2={padTop + 50} stroke="#94A3B8" strokeWidth="2" strokeDasharray="3 3" />
               <text x={padLeft + 42} y={padTop + 53} fill="#94A3B8" fontSize="9" fontFamily="JetBrains Mono">
@@ -482,7 +482,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               </text>
               <circle cx={padLeft + 26} cy={padTop + 66} r="3.5" fill="#061320" stroke="#34D399" strokeWidth="2" />
               <text x={padLeft + 42} y={padTop + 69} fill="#E2E8F0" fontSize="9" fontFamily="JetBrains Mono">
-                Empirical Pilot Checkpoints (R²={pinnDiagnostics.empiricalR2})
+                Digitized Pilot GAC Data (R²={pinnDiagnostics.empiricalR2})
               </text>
             </svg>
           </div>
@@ -520,13 +520,13 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div className="bg-[#061320] border border-emerald-500/30 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                Empirical Validation Accuracy
+                Digitized Pilot Fit &amp; 95% CI
               </span>
               <div className="text-lg font-bold font-mono text-emerald-300 mt-0.5">
-                RMSE: {pinnDiagnostics.empiricalRmsePpt} ppt
+                ±{pinnDiagnostics.breakthrough95CiDays}d (RMSE: {pinnDiagnostics.empiricalRmsePpt}p)
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                R² = {pinnDiagnostics.empiricalR2} across 8 pilot column checkpoints
+                R² = {pinnDiagnostics.empiricalR2} vs. digitized pilot GAC ratios (McCleaf 2017)
               </p>
             </div>
           </div>

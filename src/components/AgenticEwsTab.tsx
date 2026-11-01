@@ -13,6 +13,7 @@ import {
   computeBreakthroughConcentration,
   predictBreakthroughTimeDays,
   computeRegulatoryComplianceMetrics,
+  runPinnParameterAssimilation,
 } from '../data/pfasPhysicsEngine';
 
 interface AgenticEwsTabProps {
@@ -108,6 +109,17 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   const focused =
     telemetryBySpecies.find((t) => t.spId === selectedSpecies) || sentinel;
 
+  const sentinelPinnDiag = runPinnParameterAssimilation({
+    speciesId: sentinel.spId,
+    mediaType: facility.mediaType,
+    C0: sentinel.c0,
+    flowRateMGD: effectiveFlowMGD,
+    mediaMassKg: facility.mediaMassKg,
+    nomMgL: facility.matrixDefaults.nomMgL,
+    ebctMinutes: facility.ebctMinutes,
+    includeCompetitiveRollup: true,
+  });
+
   const remainingWholeDays = Math.max(0, Math.floor(sentinel.remainingDays));
   const remainingHours = Math.max(
     0,
@@ -156,9 +168,12 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       step: 2,
       name: 'Node 02 • PINN Breakthrough & Roll-Up Forecasting',
       role: 'Xylem Vue Smart Water Engine (SWE)',
-      status: sentinel.remainingDays > 0 ? `WINDOW: ${remainingWholeDays}d ${remainingHours}h` : 'EXHAUSTION REACHED',
-      detail: `Assimilates live Sensus flow telemetry (Q = ${effectiveFlowMGD} MGD) into the 1D Advection-Sorption PINN. Predicts 4.0 ppt trigger at Day ${sentinel.breakthroughDayEff} (${remainingWholeDays}d ${remainingHours}h remaining).`,
-      payload: `{"model":"PINN_AdvSorp_v2.7","predicted_breach_day":${sentinel.breakthroughDayEff},"remaining_hrs":${totalRemainingHours},"limiting_analyte":"${sentinel.spId}"}`,
+      status:
+        sentinel.remainingDays > 0
+          ? `WINDOW: ${remainingWholeDays}d ${remainingHours}h (±${sentinelPinnDiag.breakthrough95CiDays}d)`
+          : 'EXHAUSTION REACHED',
+      detail: `Assimilates live Sensus flow telemetry (Q = ${effectiveFlowMGD} MGD) into the 1D Advection-Sorption PINN. Predicts 4.0 ppt trigger at Day ${sentinel.breakthroughDayEff} ± ${sentinelPinnDiag.breakthrough95CiDays}d (95% CI, ${remainingWholeDays}d ${remainingHours}h remaining).`,
+      payload: `{"model":"PINN_AdvSorp_v2.8","predicted_breach_day":${sentinel.breakthroughDayEff},"ci95_days":${sentinelPinnDiag.breakthrough95CiDays},"remaining_hrs":${totalRemainingHours},"limiting_analyte":"${sentinel.spId}"}`,
     },
     {
       step: 3,
@@ -278,9 +293,14 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                       effluentPFOS_ppt: effluentMap.PFOS,
                       effluentPFBS_ppt: effluentMap.PFBS,
                       effluentPFBA_ppt: effluentMap.PFBA,
+                      effluentPFHxS_ppt: regMetrics.effPfhxs,
+                      effluentPFNA_ppt: regMetrics.effPfna,
+                      effluentGenX_ppt: regMetrics.effGenx,
                       epaHazardIndex_HI: regMetrics.hazardIndex,
-                      euSumOfPfas_ngL: regMetrics.euSumOfPfasNgL,
+                      euSumOf20Pfas_ngL: regMetrics.euSumOfPfasNgL,
+                      euTotalPfas_ngL: regMetrics.euTotalPfasNgL,
                       predictedEffluentBreachDay: sentinel.breakthroughDayEff,
+                      breakthrough95Ci_days: sentinelPinnDiag.breakthrough95CiDays,
                       remainingHoursToBreach: totalRemainingHours,
                       epaComplianceStatus: regMetrics.overallEpaCompliant
                         ? 'PASS (< 4.0 ppt MCL & HI <= 1.0)'

@@ -615,13 +615,13 @@ export const MipBiosensorTab: React.FC = () => {
 
             <div className="bg-emerald-950/25 border border-emerald-500/40 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                NIP + Sonde + 4×4 Deconvolved
+                Blind Inverse Estimator (Zero truePpt Input)
               </span>
               <div className="text-xl font-bold font-mono text-emerald-200 mt-0.5">
                 {signal.edgeAiCompensatedPpt} ppt
               </div>
               <span className="text-[11px] font-mono text-emerald-400">
-                Residual Calibration Error: {signal.edgeAiErrorPct}% (Non-Circular)
+                predictPfasFromImpedance(ΔR_MIP, ΔR_NIP, Sonde) • Err: {signal.edgeAiErrorPct}%
               </span>
             </div>
           </div>

@@ -111,7 +111,7 @@ export function App() {
     {
       id: 'pinn',
       label: '3. PINN Breakthrough Lab',
-      badge: 'Thomas Kinetics',
+      badge: 'Hybrid PINN + PDE',
       icon: <TrendingUp className="w-4 h-4" />,
     },
     {
@@ -144,7 +144,7 @@ export function App() {
                   PFAS-Sentinel™
                 </h1>
                 <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                  Xylem Vue SWE Compatible
+                  Designed for Xylem Vue (GoAigua SWE)
                 </span>
                 <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   Challenge #2: Water Quality

@@ -26,6 +26,7 @@ import {
   computeBreakthroughConcentration,
   predictBreakthroughTimeDays,
   computeRegulatoryComplianceMetrics,
+  runPinnParameterAssimilation,
 } from '../data/pfasPhysicsEngine';
 
 interface CyberPhysicalTwinTabProps {
@@ -169,6 +170,17 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
   const criticalTelemetry = [...speciesTelemetry].sort(
     (a, b) => a.remainingDays - b.remainingDays
   )[0];
+
+  const criticalPinnDiagnostics = runPinnParameterAssimilation({
+    speciesId: criticalTelemetry.species.id,
+    mediaType: facility.mediaType,
+    C0: criticalTelemetry.c0,
+    flowRateMGD: effectiveFlowMGD,
+    mediaMassKg: facility.mediaMassKg,
+    nomMgL: facility.matrixDefaults.nomMgL,
+    ebctMinutes: facility.ebctMinutes,
+    includeCompetitiveRollup: true,
+  });
 
   const isMidBedWarning = criticalTelemetry.cMid >= 3.0;
   const isEffluentBreachRisk = criticalTelemetry.rawEffluent >= 3.5;
@@ -476,22 +488,28 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 </>
               ) : activeTelemetry.ct >= 4.0 ? (
                 <>
-                  <AlertTriangle className="w-3 h-3" /> TRIGGER EXCEEDED
+                  <AlertTriangle className="w-3 h-3" />{' '}
+                  {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
+                    ? 'MCL EXCEEDED'
+                    : 'SCADA TRIGGER'}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-3 h-3" /> &lt; 4.0 ppt TARGET
+                  <CheckCircle2 className="w-3 h-3" />{' '}
+                  {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
+                    ? '< 4.0 ppt MCL'
+                    : '< 4.0 ppt TRIGGER'}
                 </>
               )}
             </span>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-            <span className="text-slate-400 truncate max-w-[145px]" title={activeTelemetry.species.epaRegulationType}>
+            <span className="text-slate-400 truncate max-w-[165px]" title={activeTelemetry.species.statutoryLimitLabel}>
               {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
-                ? 'EPA Binding MCL: 4.0 ppt'
+                ? 'Statutory MCL: 4.0 ppt'
                 : activeTelemetry.species.id === 'PFBS'
-                ? `EPA HI: ${regMetrics.hazardIndex} (≤1.0)`
-                : 'UCMR5 Sentinel Tracer'}
+                ? `SCADA Trigger (HI=${regMetrics.hazardIndex}≤1)`
+                : 'SCADA Trigger (UCMR5 Tracer)'}
             </span>
             <span className="text-emerald-400 font-mono">
               {activeTelemetry.isRollupActive
@@ -511,7 +529,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               <h3 className="text-2xl font-bold font-mono text-white mt-1">
                 {criticalTelemetry.remainingDays > 0 ? (
                   <>
-                    {remainingWholeDays}d {remainingHours}h
+                    {remainingWholeDays}d {remainingHours}h{' '}
+                    <span className="text-xs font-normal text-cyan-300">
+                      (±{criticalPinnDiagnostics.breakthrough95CiDays}d)
+                    </span>
                   </>
                 ) : leadLagSwitched ? (
                   <span className="text-emerald-400 text-lg">LAG VESSEL ACTIVE</span>
@@ -526,10 +547,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
             <span className="text-slate-400">
-              Exhaustion: Day {criticalTelemetry.breakthroughDayEffluent} (
+              Day {criticalTelemetry.breakthroughDayEffluent} ±{criticalPinnDiagnostics.breakthrough95CiDays}d (
               {computeBedVolumes(criticalTelemetry.breakthroughDayEffluent, facility.ebctMinutes).toLocaleString()} BV)
             </span>
-            <span className="text-cyan-300 font-mono">PINN PDE Twin</span>
+            <span className="text-cyan-300 font-mono">95% CI</span>
           </div>
         </div>
       </div>
@@ -984,35 +1005,37 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             </svg>
           </div>
 
-          {/* Live EPA April 2024 Regulatory Breakdown Bar (MCL vs Hazard Index vs Sentinel Tracer) */}
+          {/* Live EPA April 2024 & EU Jan 2026 Regulatory Breakdown Bar */}
           <div className="mt-4 pt-3 border-t border-slate-800/90 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-mono text-cyan-400 uppercase block">
-                  EPA Binding C8 MCL (PFOA/PFOS)
+                  EPA Binding MCLs (PFOA/PFOS 4ppt | C6/C9/GenX 10ppt)
                 </span>
                 <span className="font-mono font-bold text-white">
-                  {effluentMap.PFOA} / {effluentMap.PFOS} ppt
+                  C8: {effluentMap.PFOA}/{effluentMap.PFOS}p • C6/GenX: {regMetrics.effPfhxs}/{regMetrics.effGenx}p
                 </span>
               </div>
               <span
                 className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
-                  regMetrics.pfoaCompliant && regMetrics.pfosCompliant
+                  regMetrics.pfoaCompliant &&
+                  regMetrics.pfosCompliant &&
+                  regMetrics.coContaminantMclCompliant
                     ? 'bg-emerald-500/20 text-emerald-300'
                     : 'bg-rose-500/20 text-rose-300'
                 }`}
               >
-                Limit: 4.0 ppt
+                4.0 / 10.0 ppt
               </span>
             </div>
 
             <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-mono text-purple-400 uppercase block">
-                  EPA Hazard Index (PFBS+PFHxS+PFNA+GenX)
+                  EPA Hazard Index (PFBS/2000 + C6/C9/GenX/10)
                 </span>
                 <span className="font-mono font-bold text-white">
-                  HI = {regMetrics.hazardIndex}
+                  HI = {regMetrics.hazardIndex} (PFBS: {effluentMap.PFBS} ppt)
                 </span>
               </div>
               <span
@@ -1029,14 +1052,14 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
             <div className="bg-[#061320] border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-mono text-amber-400 uppercase block">
-                  EU 2026 DWD Sum-of-20 &amp; C4 Sentinel
+                  EU Jan 2026 DWD (Sum-20 ≤100 | Total ≤500 ng/L)
                 </span>
                 <span className="font-mono font-bold text-white">
-                  Σ = {regMetrics.euSumOfPfasNgL} ng/L
+                  Σ20: {regMetrics.euSumOfPfasNgL} | Total: {regMetrics.euTotalPfasNgL} ng/L
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-cyan-500/15 text-cyan-300">
-                EU: &lt;100 ng/L
+                100 / 500 ng/L
               </span>
             </div>
           </div>
