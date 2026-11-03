@@ -42,14 +42,16 @@ export const MipBiosensorTab: React.FC = () => {
     turbidityNTU,
     conductivityUsCm,
     nomMgL,
+    assayMode,
+    formFactor,
   });
 
   // Generate Nyquist semicircle points (-Z'' vs Z') for Baseline, NIP Reference, Raw Uncompensated, and Inverse Edge-AI Purified
-  const Rs = 65; // Solution resistance (Ohms)
+  const Rs = formFactor === 'flow-cell' ? 65 : 74; // Solution resistance (Ohms)
   const rctBaseline = 180;
-  const rctNipBlank = rctBaseline + Math.max(8, signal.nipBlankDeltaRct) * 1.4;
-  const rctPurified = rctBaseline + signal.purifiedDeltaRct * 1.4;
-  const rctMeasured = rctBaseline + signal.measuredDeltaRct * 1.4;
+  const rctNipBlank = Math.max(48, rctBaseline + signal.nipBlankDeltaRct * 1.4);
+  const rctPurified = Math.max(52, rctBaseline + signal.purifiedDeltaRct * 1.4);
+  const rctMeasured = Math.max(52, rctBaseline + signal.measuredDeltaRct * 1.4);
 
   const buildNyquistPath = (rct: number) => {
     const points: string[] = [];
@@ -676,11 +678,11 @@ export const MipBiosensorTab: React.FC = () => {
 
             <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
               <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300 font-bold">
-                <span>STAGE 3 • EDGE AI NPU &amp; YSI EXO2 MATRIX CONTEXT BRIDGE</span>
+                <span>STAGE 3 • EDGE AI NPU &amp; XYLEM VUE TELEMETRY BRIDGE</span>
                 <span>STM32U5 / Cortex-M33 + RS-485 Modbus</span>
               </div>
               <p className="text-slate-300 mt-1 text-[11px] leading-relaxed">
-                Polls <strong className="text-cyan-300">Xylem YSI EXO2 / WTW</strong> multiparameter sonde over isolated RS-485 Modbus RTU for real-time water matrix context (pH, Temp, Conductivity, Turbidity, and <strong className="text-amber-300">fDOM [QSU]</strong> as an optical proxy for humic/fulvic NOM). <em>Note: YSI EXO2 does not sense PFAS directly; it supplies the environmental covariates needed to de-embed the MIP impedance signal in &lt;4.2 ms.</em>
+                Co-integrates directly with <strong className="text-cyan-300">Xylem YSI EXO2 / WTW</strong> sondes over isolated RS-485 Modbus RTU (fusing live pH, Temp, Conductivity, Turbidity, and <strong className="text-amber-300">fDOM [QSU]</strong> NOM proxy data with the 32-Ch MIP array), executes Two-Stage Inverse De-Embedding in &lt;4.2 ms, and streams signed OPC-UA / MQTT packets to <strong className="text-cyan-300">Xylem Vue powered by GoAigua</strong>.
               </p>
             </div>
           </div>
@@ -802,7 +804,7 @@ export const MipBiosensorTab: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-cyan-300 font-bold mb-1.5">
               <span>4×4 TIKHONOV MATRIX INVERSION: c_hat = (SᵀS + λI)⁻¹ Sᵀ r_purified</span>
               <span className="text-emerald-300">
-                κ₂(S) = {signal.matrixConditionNumber} • det(S) = {signal.matrixDeterminant} • λ = 0.002
+                κ₂(S) = {signal.matrixConditionNumber} • det(S) = {signal.matrixDeterminant} • λ = 0.015
               </span>
             </div>
             <div className="overflow-x-auto">

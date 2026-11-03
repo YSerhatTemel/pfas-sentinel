@@ -59,14 +59,14 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Engineering Integrity, Literature Validation & Servitization ROI',
       criterion: 'Challenge Fit & Feasibility',
       script:
-        '“Built as a rigorous TRL 3 in-silico digital twin, our kinetic model is benchmarked against published pilot-column breakthrough and C4 roll-up data from Water Research and Environmental Science & Technology. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving over $120,000 annually across a 6-vessel utility while retaining quarterly LC-MS/MS for statutory sign-off.”',
+        '“Built as a rigorous TRL 3 in-silico digital twin, our kinetic model is benchmarked against published pilot-column breakthrough and C4 roll-up data from Water Research and Environmental Science & Technology. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving $112,092 annually across a standard 6-vessel utility while retaining quarterly LC-MS/MS for statutory sign-off.”',
     },
     {
       part: 'Part 4 • 2:25 – 3:00',
       title: 'Measurable Impact & TRL 3 → TRL 6 Validation Roadmap',
       criterion: 'Impact & Scalability',
       script:
-        '“Across a typical 6-vessel municipal plant, extending bed utilization by 28% prevents 15 tons of spent PFAS-laden hazardous waste and 36 tons of Scope 3 CO₂ emissions every year. Following this challenge, our 6-month roadmap focuses on transitioning from TRL 3 numerical simulation to TRL 4–6 wet-lab spike calibration and pilot column testing with Xylem electrochemistry and filtration mentors.”',
+        '“Across a typical 6-vessel municipal plant (9.1-ton GAC vessels), extending bed utilization by 28% prevents 15.3 tons of spent PFAS-laden hazardous waste and 36.7 tons of Scope 3 CO₂ emissions every year. Following this challenge, our 6-month roadmap focuses on transitioning from TRL 3 numerical simulation to TRL 4–6 wet-lab spike calibration and pilot column testing with Xylem electrochemistry and filtration mentors.”',
     },
   ];
 
@@ -257,7 +257,7 @@ export const BusinessAndPitchTab: React.FC = () => {
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Target PINN Lifecycle Extension (20–30%):</span>
+                <span className="text-slate-300">Target PINN Lifecycle Extension (20–35%):</span>
                 <span className="font-mono font-bold text-emerald-300">{savingsRatePct}%</span>
               </div>
               <input

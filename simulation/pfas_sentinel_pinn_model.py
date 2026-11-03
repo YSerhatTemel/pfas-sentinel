@@ -210,7 +210,7 @@ def run_pinn_gradient_assimilation(
     flow_mgd: float = 2.1,
     media_mass_kg: float = 9100.0,
     nom_mg_l: float = 2.1,
-    epochs: int = 40,
+    epochs: int = 24,
 ) -> Dict:
     """
     Genuine Hybrid Physics-Informed Neural Network (PINN) + Analytical Parameter Assimilation Solver.
@@ -334,7 +334,7 @@ def run_pinn_gradient_assimilation(
             dcdz = (c_zp - c_zm) / (2.0 * dz)
 
             c_ratio = max(0.001, min(0.999, c_center / c0))
-            dcdt_thomas = k_cur * c0 * c_ratio * (1.0 - c_ratio)
+            dcdt_thomas = k_cur * (c0 ** 2) * c_ratio * (1.0 - c_ratio)
             adv_residual = (t_char / c0) * (dcdt + u_mtz * dcdz)
             kin_residual = (t_char / c0) * (dcdt - dcdt_thomas)
             pde_res = adv_residual + 0.5 * kin_residual
@@ -344,6 +344,8 @@ def run_pinn_gradient_assimilation(
             xi_c = max(-35.0, min(35.0, (k_cur * q_cur * m_zc) / q_norm - k_cur * c0 * d_c))
             sig_c = 1.0 / (1.0 + math.exp(xi_c))
             _, hid_c = _eval_neural_residual(z_c, d_c / 240.0, sig_c, w1, b1, w2, b2)
+            grad_k_scale += 0.015 * pde_res * sig_c * (1.0 - sig_c) / len(collocation_grid)
+            grad_q_scale += 0.015 * pde_res * sig_c * (1.0 - sig_c) / len(collocation_grid)
             for j in range(4):
                 grad_w2[j] += 0.12 * pde_res * hid_c[j] / len(collocation_grid) + 0.015 * w2[j]
 
@@ -405,9 +407,10 @@ def run_pinn_gradient_assimilation(
     static_rmse_ppt = math.sqrt(static_sq_err / len(sample_days))
 
     # Directly use assimilated [learned_k_th, learned_q0] to predict 4.0 ppt Effluent Breakthrough Day
-    log_term_4ppt = math.log(max(1.05, c0 / 4.0 - 1.0))
+    safe_c0 = max(4.5, c0)
+    log_term_4ppt = math.log(safe_c0 / 4.0 - 1.0)
     assimilated_eff_4ppt_day = round(
-        max(1.0, ((learned_k_th * learned_q0 * media_mass_kg) / q_norm - log_term_4ppt) / (learned_k_th * c0)),
+        max(1.0, ((learned_k_th * learned_q0 * media_mass_kg) / q_norm - log_term_4ppt) / (learned_k_th * safe_c0)),
         1,
     )
 
@@ -537,23 +540,30 @@ def predict_pfas_from_impedance(
     ph: float = 7.1,
     turbidity_ntu: float = 0.45,
     conductivity_us_cm: float = 285.0,
+    fdom_qsu: float = 51.5,
 ) -> Dict:
     """
     STAGE B (Blind Edge AI Estimator):
     Notice that `true_ppt` and `nom_mg_l` DO NOT EXIST in this function's parameters!
     Reconstructs PFAS concentration solely from observable electrode impedances
-    (measured_delta_rct, nip_blank_delta_rct) and standard Xylem YSI EXO2 sonde telemetry.
+    (measured_delta_rct, nip_blank_delta_rct) and standard Xylem YSI EXO2 sonde telemetry (including fdom_qsu).
     """
     sens_map = {"PFOS": 78.0, "PFOA": 72.0, "PFBS": 64.0, "PFBA": 59.0}
     base_sens = sens_map.get(species, 70.0)
 
-    uncompensated_ppt = max(0.0, math.expm1(measured_delta_rct / base_sens))
+    uncompensated_ppt = max(0.05, math.expm1(max(0.05, measured_delta_rct) / base_sens))
+    nip_only_ppt = max(0.05, math.expm1(max(0.5, measured_delta_rct - nip_blank_delta_rct) / base_sens))
 
     diff_rct = measured_delta_rct - nip_blank_delta_rct
     sonde_ionic_est = 0.10 * (
         (temp_c - 20.0) * -1.40 + (ph - 7.0) * -8.8 + (conductivity_us_cm - 300.0) * -0.033
     )
-    sonde_fouling_proxy = 0.16 * max(0.0, nip_blank_delta_rct - sonde_ionic_est * 8.0) + turbidity_ntu * 0.65
+    fdom_contrib = (fdom_qsu - 18.0) * 0.045 if fdom_qsu is not None else 0.0
+    sonde_fouling_proxy = (
+        0.14 * max(0.0, nip_blank_delta_rct - sonde_ionic_est * 8.0)
+        + turbidity_ntu * 0.55
+        + 0.25 * fdom_contrib
+    )
     matrix_corrected_rct = max(0.1, (diff_rct - sonde_ionic_est - sonde_fouling_proxy) / 0.97)
 
     idx_map = {"PFBA": 0, "PFBS": 1, "PFOA": 2, "PFOS": 3}
@@ -574,6 +584,7 @@ def predict_pfas_from_impedance(
     return {
         "purified_delta_rct_ohms": round(purified_delta_rct, 1),
         "uncompensated_ppt": round(uncompensated_ppt, 2),
+        "nip_only_ppt": round(nip_only_ppt, 2),
         "edge_ai_compensated_ppt": round(edge_ai_compensated_ppt, 2),
         "matrix_condition_number": cond_num,
         "matrix_determinant": det_s,

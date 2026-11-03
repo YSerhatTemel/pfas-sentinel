@@ -69,6 +69,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
   activeScenario,
 }) => {
   const effectiveFlowMGD = Number((facility.flowRateMGD * flowMultiplier).toFixed(2));
+  const effectiveEbctMinutes = Number((facility.ebctMinutes / Math.max(0.2, flowMultiplier)).toFixed(2));
+  const nomScenarioMultiplier =
+    activeScenario === 'matrix-storm' ? 2.15 : activeScenario === 'afff-surge' ? 1.25 : 1.0;
+  const effectiveNomMgL = Number((facility.matrixDefaults.nomMgL * nomScenarioMultiplier).toFixed(1));
   const speciesList: ('PFBA' | 'PFBS' | 'PFOA' | 'PFOS')[] = ['PFBA', 'PFBS', 'PFOA', 'PFOS'];
 
   // Dynamic Lag Vessel run-time when promoted to Primary Polishing mode
@@ -89,7 +93,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       day: effectiveDayForLead,
       bedDepthFraction: 0.5,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
       includeCompetitiveRollup: true,
     });
@@ -102,21 +106,21 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       day: effectiveDayForLead,
       bedDepthFraction: 1.0,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
       includeCompetitiveRollup: true,
     });
 
-    // Dynamic Lag Vessel kinetic computation (instead of static multiplier)
+    // Dynamic Lag Vessel kinetic computation (receives Lead Vessel effluent)
     const lagPolishedEffluent = computeBreakthroughConcentration({
       speciesId: spId,
       mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
-      C0: Math.max(4.5, rawEffluent),
+      C0: Math.max(0.4, rawEffluent),
       flowRateMGD: effectiveFlowMGD,
       mediaMassKg: facility.mediaMassKg,
       day: lagVesselEffectiveDay,
       bedDepthFraction: 1.0,
-      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      nomMgL: Math.max(0.8, effectiveNomMgL * 0.45),
       usePinnCorrection: true,
       includeCompetitiveRollup: false,
     });
@@ -132,7 +136,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       bedDepthFraction: 1.0,
       targetPpt: 4.0,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
     });
 
@@ -144,7 +148,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       bedDepthFraction: 0.5,
       targetPpt: 4.0,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
     });
 
@@ -177,8 +181,8 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
     C0: criticalTelemetry.c0,
     flowRateMGD: effectiveFlowMGD,
     mediaMassKg: facility.mediaMassKg,
-    nomMgL: facility.matrixDefaults.nomMgL,
-    ebctMinutes: facility.ebctMinutes,
+    nomMgL: effectiveNomMgL,
+    ebctMinutes: effectiveEbctMinutes,
     includeCompetitiveRollup: true,
   });
 
@@ -192,9 +196,13 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
     PFOA: speciesTelemetry.find((s) => s.species.id === 'PFOA')?.ct ?? 0.2,
     PFOS: speciesTelemetry.find((s) => s.species.id === 'PFOS')?.ct ?? 0.2,
   };
+  // Facility-wide average removal efficiency across all 4 species (independent of UI pill selection)
   const avgRemovalFraction = Math.max(
     0.05,
-    1 - activeTelemetry.ct / Math.max(1.0, activeTelemetry.c0)
+    speciesTelemetry.reduce(
+      (acc, t) => acc + (1 - t.ct / Math.max(1.0, t.c0)),
+      0
+    ) / speciesTelemetry.length
   );
   const regMetrics = computeRegulatoryComplianceMetrics({
     effluentPpt: effluentMap,
@@ -212,7 +220,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       day: operatingDay,
       bedDepthFraction: z,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
       includeCompetitiveRollup: true,
     });
@@ -225,12 +233,12 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
     const conc = computeBreakthroughConcentration({
       speciesId: selectedSpecies,
       mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
-      C0: Math.max(6.0, activeTelemetry.rawEffluent),
+      C0: Math.max(0.4, activeTelemetry.rawEffluent),
       flowRateMGD: effectiveFlowMGD,
       mediaMassKg: facility.mediaMassKg,
       day: lagVesselEffectiveDay,
       bedDepthFraction: z,
-      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      nomMgL: Math.max(0.8, effectiveNomMgL * 0.45),
       usePinnCorrection: true,
       includeCompetitiveRollup: false,
     });
@@ -273,7 +281,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                   : 'bg-[#10263F] text-slate-300 border-slate-700 hover:border-cyan-500/50'
               }`}
             >
-              1. Baseline Operation (Day 118)
+              1. Baseline Operation (Day {facility.currentOperatingDay})
             </button>
             <button
               onClick={() => onTriggerScenario('short-chain')}
@@ -326,7 +334,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-400">Bed Run Time (t / BV):</span>
                 <span className="font-mono font-bold text-cyan-300">
-                  Day {operatingDay} ({computeBedVolumes(operatingDay, facility.ebctMinutes).toLocaleString()} BV)
+                  Day {operatingDay} ({computeBedVolumes(operatingDay, effectiveEbctMinutes).toLocaleString()} BV)
                 </span>
               </div>
               <input
@@ -416,7 +424,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>YSI pH: {facility.matrixDefaults.pH}</span>
-            <span>NOM: {facility.matrixDefaults.nomMgL} mg/L</span>
+            <span>NOM: {effectiveNomMgL} mg/L</span>
             <span className="text-cyan-400 font-mono">Q: {effectiveFlowMGD} MGD</span>
           </div>
         </div>
@@ -529,15 +537,17 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 PINN Breakthrough Window
               </p>
               <h3 className="text-2xl font-bold font-mono text-white mt-1">
-                {pinnRemainingDays > 0 ? (
+                {leadLagSwitched ? (
+                  <span className="text-emerald-400 text-lg">
+                    LAG POLISHING ({pinnRemainingDays > 0 ? `+${remainingWholeDays}d` : 'ACTIVE'})
+                  </span>
+                ) : pinnRemainingDays > 0 ? (
                   <>
                     {remainingWholeDays}d {remainingHours}h{' '}
                     <span className="text-xs font-normal text-cyan-300">
                       (±{criticalPinnDiagnostics.breakthrough95CiDays}d)
                     </span>
                   </>
-                ) : leadLagSwitched ? (
-                  <span className="text-emerald-400 text-lg">LAG VESSEL ACTIVE</span>
                 ) : (
                   <span className="text-rose-400 text-lg">BREAKTHROUGH NOW</span>
                 )}
@@ -550,7 +560,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
             <span className="text-slate-400">
               Assimilated Day {pinnAssimilatedBreachDay} ±{criticalPinnDiagnostics.breakthrough95CiDays}d (
-              {computeBedVolumes(pinnAssimilatedBreachDay, facility.ebctMinutes).toLocaleString()} BV)
+              {computeBedVolumes(pinnAssimilatedBreachDay, effectiveEbctMinutes).toLocaleString()} BV)
             </span>
             <span className="text-cyan-300 font-mono" title="Out-of-sample Holdout Test RMSE (Days 155–210)">
               Test RMSE: {criticalPinnDiagnostics.testHoldoutRmsePpt}p
@@ -701,7 +711,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 pH {facility.matrixDefaults.pH} | {facility.matrixDefaults.tempC}°C
               </text>
               <text x="45" y="308" fill="#FCD34D" fontSize="9" fontFamily="JetBrains Mono">
-                fDOM: {Math.round(facility.matrixDefaults.nomMgL * 24.5)} QSU (NOM Proxy)
+                fDOM: {Math.round(effectiveNomMgL * 24.5)} QSU (NOM Proxy)
               </text>
 
               {/* Node 1: Influent MIP Sensor Pod (C0) */}
@@ -1062,7 +1072,13 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                   Σ20: {regMetrics.euSumOfPfasNgL} | Total: {regMetrics.euTotalPfasNgL} ng/L
                 </span>
               </div>
-              <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-cyan-500/15 text-cyan-300">
+              <span
+                className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                  regMetrics.euCompliant
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}
+              >
                 100 / 500 ng/L
               </span>
             </div>

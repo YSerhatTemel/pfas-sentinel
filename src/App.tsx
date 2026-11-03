@@ -241,6 +241,7 @@ export function App() {
 
         {activeTab === 'pinn' && (
           <PinnBreakthroughTab
+            key={facility.id}
             facility={facility}
             operatingDay={operatingDay}
             setOperatingDay={setOperatingDay}
@@ -258,6 +259,7 @@ export function App() {
             setLeadLagSwitched={setLeadLagSwitched}
             mitigatorDispatched={mitigatorDispatched}
             setMitigatorDispatched={setMitigatorDispatched}
+            activeScenario={activeScenario}
           />
         )}
 

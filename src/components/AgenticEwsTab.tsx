@@ -26,28 +26,34 @@ interface AgenticEwsTabProps {
   setLeadLagSwitched: (v: boolean) => void;
   mitigatorDispatched: boolean;
   setMitigatorDispatched: (v: boolean) => void;
+  activeScenario?: 'normal' | 'short-chain' | 'afff-surge' | 'matrix-storm';
 }
 
 export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   facility,
   operatingDay,
-  selectedSpecies,
+  selectedSpecies: _selectedSpecies,
   flowMultiplier,
   c0Multiplier,
   leadLagSwitched,
   setLeadLagSwitched,
   mitigatorDispatched,
   setMitigatorDispatched,
+  activeScenario = 'normal',
 }) => {
   const [activeAgentStep, setActiveAgentStep] = useState<number>(4);
   const [showAuditModal, setShowAuditModal] = useState<boolean>(false);
   const [scadaControlMode, setScadaControlMode] = useState<'human-in-the-loop' | 'autonomous'>(
-    'human-in-the-loop'
+    'autonomous'
   );
   const [operatorApproved, setOperatorApproved] = useState<boolean>(true);
 
   // Dynamically compute live telemetry for the active facility, day, and multipliers
   const effectiveFlowMGD = Number((facility.flowRateMGD * flowMultiplier).toFixed(2));
+  const effectiveEbctMinutes = Number((facility.ebctMinutes / Math.max(0.2, flowMultiplier)).toFixed(2));
+  const nomScenarioMultiplier =
+    activeScenario === 'matrix-storm' ? 2.15 : activeScenario === 'afff-surge' ? 1.25 : 1.0;
+  const effectiveNomMgL = Number((facility.matrixDefaults.nomMgL * nomScenarioMultiplier).toFixed(1));
   const speciesList: ('PFBA' | 'PFBS' | 'PFOA' | 'PFOS')[] = ['PFBA', 'PFBS', 'PFOA', 'PFOS'];
   const lagVesselEffectiveDay = leadLagSwitched
     ? Math.max(12, Math.round((operatingDay - 95) * 0.35))
@@ -63,7 +69,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       day: operatingDay,
       bedDepthFraction: 0.5,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
       includeCompetitiveRollup: true,
     });
@@ -75,19 +81,19 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       day: operatingDay,
       bedDepthFraction: 1.0,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
       includeCompetitiveRollup: true,
     });
     const lagPolished = computeBreakthroughConcentration({
       speciesId: spId,
       mediaType: facility.mediaType === 'GAC' ? 'GAC' : 'IX',
-      C0: Math.max(4.5, rawEff),
+      C0: Math.max(0.4, rawEff),
       flowRateMGD: effectiveFlowMGD,
       mediaMassKg: facility.mediaMassKg,
       day: lagVesselEffectiveDay,
       bedDepthFraction: 1.0,
-      nomMgL: Math.max(0.8, facility.matrixDefaults.nomMgL * 0.45),
+      nomMgL: Math.max(0.8, effectiveNomMgL * 0.45),
       usePinnCorrection: true,
       includeCompetitiveRollup: false,
     });
@@ -100,7 +106,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       mediaMassKg: facility.mediaMassKg,
       bedDepthFraction: 1.0,
       targetPpt: 4.0,
-      nomMgL: facility.matrixDefaults.nomMgL,
+      nomMgL: effectiveNomMgL,
       usePinnCorrection: true,
     });
     const remainingDays = Number((breakthroughDayEff - operatingDay).toFixed(1));
@@ -110,8 +116,6 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   const sentinel =
     [...telemetryBySpecies].sort((a, b) => a.remainingDays - b.remainingDays)[0] ||
     telemetryBySpecies[0];
-  const focused =
-    telemetryBySpecies.find((t) => t.spId === selectedSpecies) || sentinel;
 
   const sentinelPinnDiag = runPinnParameterAssimilation({
     speciesId: sentinel.spId,
@@ -119,8 +123,8 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     C0: sentinel.c0,
     flowRateMGD: effectiveFlowMGD,
     mediaMassKg: facility.mediaMassKg,
-    nomMgL: facility.matrixDefaults.nomMgL,
-    ebctMinutes: facility.ebctMinutes,
+    nomMgL: effectiveNomMgL,
+    ebctMinutes: effectiveEbctMinutes,
     includeCompetitiveRollup: true,
   });
 
@@ -132,7 +136,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     Math.round((pinnRemainingDays - remainingWholeDays) * 24)
   );
   const totalRemainingHours = Math.max(0, Math.round(pinnRemainingDays * 24));
-  const currentBedVolumes = computeBedVolumes(operatingDay, facility.ebctMinutes);
+  const currentBedVolumes = computeBedVolumes(operatingDay, effectiveEbctMinutes);
   const savedMediaKg = Math.round(facility.mediaMassKg * 0.28);
 
   const effluentMap: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', number> = {
@@ -141,16 +145,25 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     PFOA: telemetryBySpecies.find((s) => s.spId === 'PFOA')?.ct ?? 0.2,
     PFOS: telemetryBySpecies.find((s) => s.spId === 'PFOS')?.ct ?? 0.2,
   };
-  const avgRemovalFraction = Math.max(0.05, 1 - focused.ct / Math.max(1.0, focused.c0));
+  const avgRemovalFraction = Math.max(
+    0.05,
+    telemetryBySpecies.reduce((acc, t) => acc + (1 - t.ct / Math.max(1.0, t.c0)), 0) /
+      telemetryBySpecies.length
+  );
   const regMetrics = computeRegulatoryComplianceMetrics({
     effluentPpt: effluentMap,
     coContaminantsInfluentPpt: facility.coContaminantsPpt,
     removalEfficiencyFraction: avgRemovalFraction,
   });
 
+  const canActuatePlc = scadaControlMode === 'autonomous' || operatorApproved;
+
   const executeFullAutonomousWorkflow = () => {
     setActiveAgentStep(1);
     setTimeout(() => setActiveAgentStep(2), 450);
+    if (!canActuatePlc) {
+      return;
+    }
     setTimeout(() => {
       setActiveAgentStep(3);
       setLeadLagSwitched(true);
@@ -167,13 +180,13 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       name: 'Node 01 • Edge Telemetry & YSI EXO2 Context Fusion',
       role: 'Microfluidic MIP + YSI EXO2 (fDOM/pH) Sonde',
       status: 'SYNCED (15-min cycle)',
-      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt. YSI EXO2 supplies non-PFAS matrix context (pH ${facility.matrixDefaults.pH}, fDOM ${Math.round(facility.matrixDefaults.nomMgL * 24.5)} QSU).`,
-      payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_exo2_ph":${facility.matrixDefaults.pH},"ysi_fdom_qsu":${Math.round(facility.matrixDefaults.nomMgL * 24.5)}}`,
+      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt. YSI EXO2 supplies non-PFAS matrix context (pH ${facility.matrixDefaults.pH}, fDOM ${Math.round(effectiveNomMgL * 24.5)} QSU).`,
+      payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_exo2_ph":${facility.matrixDefaults.pH},"ysi_fdom_qsu":${Math.round(effectiveNomMgL * 24.5)}}`,
     },
     {
       step: 2,
       name: 'Node 02 • PINN Breakthrough & Roll-Up Forecasting',
-      role: 'Designed for Xylem Vue (GoAigua SWE)',
+      role: 'Xylem Vue Smart Water Engine (SWE)',
       status:
         pinnRemainingDays > 0
           ? `WINDOW: ${remainingWholeDays}d ${remainingHours}h (±${sentinelPinnDiag.breakthrough95CiDays}d)`
@@ -183,26 +196,23 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     },
     {
       step: 3,
-      name: 'Node 03 • Interlocked SCADA Lead-Lag Valve Control',
-      role:
-        scadaControlMode === 'human-in-the-loop'
-          ? 'Human-in-the-Loop PLC Interlock (Operator Sign-Off)'
-          : 'Autonomous OPC-UA / Modbus PLC Actuator Bridge',
+      name: 'Node 03 • Automated SCADA Lead-Lag Valve Control',
+      role: 'OPC-UA / Modbus PLC Actuator Bridge',
       status: leadLagSwitched
         ? 'EXECUTED (VALVE ACTUATED)'
-        : scadaControlMode === 'human-in-the-loop'
-        ? 'AWAITING / VERIFIED BY OPERATOR'
-        : 'READY TO ACTUATE',
+        : !canActuatePlc
+        ? 'HOLD (AWAITING OPERATOR SIGN-OFF)'
+        : 'READY TO ACTUATE (INTERLOCKS PASS)',
       detail:
-        'Verifies 3 hardware safety interlocks (Modbus heartbeat, 32-Ch EIS CV < 10%, vessel ΔP < 18 psi) before commanding motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel.',
-      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","governance":"${scadaControlMode.toUpperCase()}","interlocks_ok":true,"plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}"}`,
+        'Commands motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel to Primary Lead before short-chain C4 roll-up or C8 MCL breach occurs (verified by 3 PLC safety interlocks).',
+      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","governance":"${scadaControlMode.toUpperCase()}","interlocks_ok":${canActuatePlc},"plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}"}`,
     },
     {
       step: 4,
       name: 'Node 04 • Evoqua O&M Logistics & Compliance Telemetry',
       role: 'Servitization ERP & Regulatory Audit Log',
       status: mitigatorDispatched ? 'WORK ORDER & AUDIT LOGGED' : 'STANDBY DISPATCH',
-      detail: `Schedules Just-In-Time Evoqua ${facility.mediaType} media regeneration (avoiding ~${savedMediaKg.toLocaleString()} kg premature media disposal per vessel) and exports timestamped EPA/EU compliance telemetry.`,
+      detail: `Schedules Just-In-Time Evoqua ${facility.mediaType} ${facility.mediaType === 'IX' ? 'resin replacement' : 'media regeneration'} (avoiding ~${savedMediaKg.toLocaleString()} kg premature media disposal per vessel) and exports timestamped EPA/EU compliance telemetry.`,
       payload: `{"erp_ticket":"EVO-2026-8841","facility":"${facility.id}","saved_media_kg":${savedMediaKg},"epa_hi":${regMetrics.hazardIndex},"eu_sum_ngl":${regMetrics.euSumOfPfasNgL}}`,
     },
   ];
@@ -377,7 +387,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                 <span className="text-slate-400">YSI/WTW Sonde Matrix:</span>
                 <span className="text-emerald-300">
                   pH {facility.matrixDefaults.pH} | {facility.matrixDefaults.tempC}°C | NOM{' '}
-                  {facility.matrixDefaults.nomMgL} mg/L
+                  {effectiveNomMgL} mg/L
                 </span>
               </div>
               <div className="flex justify-between">
@@ -441,16 +451,6 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
           <div className="flex items-center gap-2">
             <div className="flex bg-[#061320] p-1 rounded-lg border border-slate-800 text-xs font-mono">
               <button
-                onClick={() => setScadaControlMode('human-in-the-loop')}
-                className={`px-2.5 py-1 rounded font-semibold transition-all ${
-                  scadaControlMode === 'human-in-the-loop'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Human-in-the-Loop (Recommended)
-              </button>
-              <button
                 onClick={() => setScadaControlMode('autonomous')}
                 className={`px-2.5 py-1 rounded font-semibold transition-all ${
                   scadaControlMode === 'autonomous'
@@ -458,7 +458,17 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Auto Closed-Loop Sim
+                Autonomous Closed-Loop (Default)
+              </button>
+              <button
+                onClick={() => setScadaControlMode('human-in-the-loop')}
+                className={`px-2.5 py-1 rounded font-semibold transition-all ${
+                  scadaControlMode === 'human-in-the-loop'
+                    ? 'bg-cyan-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Operator Co-Pilot Mode
               </button>
             </div>
             {scadaControlMode === 'human-in-the-loop' && (
@@ -593,13 +603,25 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">PFOA / PFOS Effluent:</span>
-              <span className="font-mono text-emerald-400 font-bold">
+              <span
+                className={`font-mono font-bold ${
+                  regMetrics.pfoaCompliant && regMetrics.pfosCompliant
+                    ? 'text-emerald-400'
+                    : 'text-rose-400'
+                }`}
+              >
                 {effluentMap.PFOA} / {effluentMap.PFOS} ppt (MCL: 4.0)
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">PFBA / PFBS Effluent:</span>
-              <span className="font-mono text-emerald-400 font-bold">
+              <span
+                className={`font-mono font-bold ${
+                  effluentMap.PFBA <= 4.0 && effluentMap.PFBS <= 4.0
+                    ? 'text-emerald-400'
+                    : 'text-amber-400'
+                }`}
+              >
                 {effluentMap.PFBA} / {effluentMap.PFBS} ppt
               </span>
             </div>
@@ -607,10 +629,14 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               <span className="text-slate-400">Compliance Status:</span>
               <span
                 className={`font-mono font-bold ${
-                  regMetrics.overallEpaCompliant ? 'text-emerald-300' : 'text-rose-400'
+                  regMetrics.overallEpaCompliant && regMetrics.euCompliant
+                    ? 'text-emerald-300'
+                    : 'text-rose-400'
                 }`}
               >
-                {regMetrics.overallEpaCompliant ? 'EPA & EU COMPLIANT' : 'SWITCHOVER REQUIRED'}
+                {regMetrics.overallEpaCompliant && regMetrics.euCompliant
+                  ? 'EPA & EU COMPLIANT'
+                  : 'SWITCHOVER REQUIRED'}
               </span>
             </div>
           </div>
@@ -654,7 +680,11 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
               <span className="font-mono text-emerald-400 font-bold">-25% to -30% Avoided</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Reactivation Kiln CO₂e Saved:</span>
+              <span className="text-slate-400">
+                {facility.mediaType === 'IX'
+                  ? 'Resin Incineration CO₂e Saved:'
+                  : 'Reactivation Kiln CO₂e Saved:'}
+              </span>
               <span className="font-mono text-emerald-400 font-bold">
                 {((savedMediaKg / 1000) * 2.4).toFixed(1)} tCO₂e / vessel changeout
               </span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -41,6 +41,21 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
   const [includeCompetitiveRollup, setIncludeCompetitiveRollup] = useState<boolean>(true);
   const [showEmpiricalScatter, setShowEmpiricalScatter] = useState<boolean>(true);
 
+  useEffect(() => {
+    setCustomC0(facility.influentProfile[focusSpecies]);
+    setCustomFlowMGD(facility.flowRateMGD);
+    setCustomMassKg(facility.mediaMassKg);
+    setCustomNom(facility.matrixDefaults.nomMgL);
+  }, [facility.id]);
+
+  const effectiveEbctMinutes = Number(
+    (
+      facility.ebctMinutes *
+      (facility.flowRateMGD / Math.max(0.2, customFlowMGD)) *
+      (customMassKg / Math.max(500, facility.mediaMassKg))
+    ).toFixed(2)
+  );
+
   const speciesConfig = PFAS_SPECIES[focusSpecies];
 
   // Run genuine PINN Gradient Descent PDE + Mid-Bed Telemetry Assimilation Solver
@@ -51,7 +66,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     flowRateMGD: customFlowMGD,
     mediaMassKg: customMassKg,
     nomMgL: customNom,
-    ebctMinutes: facility.ebctMinutes,
+    ebctMinutes: effectiveEbctMinutes,
     includeCompetitiveRollup,
   });
 
