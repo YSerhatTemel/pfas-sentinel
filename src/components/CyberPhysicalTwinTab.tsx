@@ -241,10 +241,12 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
     return { z, conc, satPct };
   });
 
-  const remainingWholeDays = Math.max(0, Math.floor(criticalTelemetry.remainingDays));
+  const pinnAssimilatedBreachDay = criticalPinnDiagnostics.assimilatedEffluent4PptDay;
+  const pinnRemainingDays = Number((pinnAssimilatedBreachDay - operatingDay).toFixed(1));
+  const remainingWholeDays = Math.max(0, Math.floor(pinnRemainingDays));
   const remainingHours = Math.max(
     0,
-    Math.round((criticalTelemetry.remainingDays - remainingWholeDays) * 24)
+    Math.round((pinnRemainingDays - remainingWholeDays) * 24)
   );
 
   return (
@@ -527,7 +529,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 PINN Breakthrough Window
               </p>
               <h3 className="text-2xl font-bold font-mono text-white mt-1">
-                {criticalTelemetry.remainingDays > 0 ? (
+                {pinnRemainingDays > 0 ? (
                   <>
                     {remainingWholeDays}d {remainingHours}h{' '}
                     <span className="text-xs font-normal text-cyan-300">
@@ -547,10 +549,12 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
             <span className="text-slate-400">
-              Day {criticalTelemetry.breakthroughDayEffluent} ±{criticalPinnDiagnostics.breakthrough95CiDays}d (
-              {computeBedVolumes(criticalTelemetry.breakthroughDayEffluent, facility.ebctMinutes).toLocaleString()} BV)
+              Assimilated Day {pinnAssimilatedBreachDay} ±{criticalPinnDiagnostics.breakthrough95CiDays}d (
+              {computeBedVolumes(pinnAssimilatedBreachDay, facility.ebctMinutes).toLocaleString()} BV)
             </span>
-            <span className="text-cyan-300 font-mono">95% CI</span>
+            <span className="text-cyan-300 font-mono" title="Out-of-sample Holdout Test RMSE (Days 155–210)">
+              Test RMSE: {criticalPinnDiagnostics.testHoldoutRmsePpt}p
+            </span>
           </div>
         </div>
       </div>
@@ -687,8 +691,8 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 stroke="#38BDF8"
                 strokeWidth="1.2"
               />
-              <text x="45" y="263" fill="#38BDF8" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">
-                YSI / WTW + SENSUS
+              <text x="45" y="263" fill="#38BDF8" fontSize="9.5" fontWeight="700" fontFamily="JetBrains Mono">
+                YSI EXO2 (fDOM) + SENSUS
               </text>
               <text x="45" y="279" fill="#E2E8F0" fontSize="10" fontFamily="JetBrains Mono">
                 Flow Q: {effectiveFlowMGD} MGD
@@ -696,8 +700,8 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               <text x="45" y="294" fill="#94A3B8" fontSize="9.5" fontFamily="JetBrains Mono">
                 pH {facility.matrixDefaults.pH} | {facility.matrixDefaults.tempC}°C
               </text>
-              <text x="45" y="308" fill="#94A3B8" fontSize="9.5" fontFamily="JetBrains Mono">
-                Cond: {facility.matrixDefaults.conductivityUsCm} μS/cm
+              <text x="45" y="308" fill="#FCD34D" fontSize="9" fontFamily="JetBrains Mono">
+                fDOM: {Math.round(facility.matrixDefaults.nomMgL * 24.5)} QSU (NOM Proxy)
               </text>
 
               {/* Node 1: Influent MIP Sensor Pod (C0) */}

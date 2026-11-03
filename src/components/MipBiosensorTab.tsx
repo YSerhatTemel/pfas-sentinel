@@ -676,13 +676,11 @@ export const MipBiosensorTab: React.FC = () => {
 
             <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
               <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300 font-bold">
-                <span>STAGE 3 • EDGE AI NPU &amp; XYLEM VUE TELEMETRY BRIDGE</span>
+                <span>STAGE 3 • EDGE AI NPU &amp; YSI EXO2 MATRIX CONTEXT BRIDGE</span>
                 <span>STM32U5 / Cortex-M33 + RS-485 Modbus</span>
               </div>
               <p className="text-slate-300 mt-1 text-[11px] leading-relaxed">
-                Polls Xylem YSI / WTW sonde (pH, Temp, Cond, Turbidity) over isolated RS-485 Modbus
-                RTU, executes the Two-Stage Inverse De-Embedding neural matrix in &lt;4.2 ms, and
-                streams signed OPC-UA / MQTT JSON packets to Xylem Vue powered by GoAigua.
+                Polls <strong className="text-cyan-300">Xylem YSI EXO2 / WTW</strong> multiparameter sonde over isolated RS-485 Modbus RTU for real-time water matrix context (pH, Temp, Conductivity, Turbidity, and <strong className="text-amber-300">fDOM [QSU]</strong> as an optical proxy for humic/fulvic NOM). <em>Note: YSI EXO2 does not sense PFAS directly; it supplies the environmental covariates needed to de-embed the MIP impedance signal in &lt;4.2 ms.</em>
               </p>
             </div>
           </div>
@@ -801,9 +799,11 @@ export const MipBiosensorTab: React.FC = () => {
 
           {/* 4x4 Cross-Selectivity Matrix S Table */}
           <div className="mt-3 bg-[#061320] border border-slate-800 rounded-lg p-3">
-            <div className="flex items-center justify-between text-[11px] font-mono text-cyan-300 font-bold mb-1.5">
-              <span>4×4 MIP CROSS-REACTIVITY MATRIX S (c_hat = (SᵀS + λI)⁻¹ Sᵀ ΔR_purified)</span>
-              <span className="text-emerald-300">8–15% Bleed Resolved</span>
+            <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-cyan-300 font-bold mb-1.5">
+              <span>4×4 TIKHONOV MATRIX INVERSION: c_hat = (SᵀS + λI)⁻¹ Sᵀ r_purified</span>
+              <span className="text-emerald-300">
+                κ₂(S) = {signal.matrixConditionNumber} • det(S) = {signal.matrixDeterminant} • λ = 0.002
+              </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-[10px]">
@@ -828,6 +828,14 @@ export const MipBiosensorTab: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-slate-400">
+              <span>
+                Solver: <strong className="text-slate-200">Exact 4×4 Gauss-Jordan Inversion (solveTikhonov4x4Deconvolution)</strong>
+              </span>
+              <span className="text-cyan-300">
+                YSI EXO2 fDOM Proxy: {Math.round(nomMgL * 24.5)} QSU (Non-PFAS Matrix Context)
+              </span>
             </div>
           </div>
         </div>

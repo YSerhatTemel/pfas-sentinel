@@ -41,6 +41,10 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
 }) => {
   const [activeAgentStep, setActiveAgentStep] = useState<number>(4);
   const [showAuditModal, setShowAuditModal] = useState<boolean>(false);
+  const [scadaControlMode, setScadaControlMode] = useState<'human-in-the-loop' | 'autonomous'>(
+    'human-in-the-loop'
+  );
+  const [operatorApproved, setOperatorApproved] = useState<boolean>(true);
 
   // Dynamically compute live telemetry for the active facility, day, and multipliers
   const effectiveFlowMGD = Number((facility.flowRateMGD * flowMultiplier).toFixed(2));
@@ -120,12 +124,14 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     includeCompetitiveRollup: true,
   });
 
-  const remainingWholeDays = Math.max(0, Math.floor(sentinel.remainingDays));
+  const pinnBreachDay = sentinelPinnDiag.assimilatedEffluent4PptDay;
+  const pinnRemainingDays = Number((pinnBreachDay - operatingDay).toFixed(1));
+  const remainingWholeDays = Math.max(0, Math.floor(pinnRemainingDays));
   const remainingHours = Math.max(
     0,
-    Math.round((sentinel.remainingDays - remainingWholeDays) * 24)
+    Math.round((pinnRemainingDays - remainingWholeDays) * 24)
   );
-  const totalRemainingHours = Math.max(0, Math.round(sentinel.remainingDays * 24));
+  const totalRemainingHours = Math.max(0, Math.round(pinnRemainingDays * 24));
   const currentBedVolumes = computeBedVolumes(operatingDay, facility.ebctMinutes);
   const savedMediaKg = Math.round(facility.mediaMassKg * 0.28);
 
@@ -158,31 +164,38 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
   const agentNodes = [
     {
       step: 1,
-      name: 'Node 01 • Edge Telemetry & Mid-Bed Front Perception',
-      role: 'Microfluidic MIP + YSI/WTW Sonde Fusion',
+      name: 'Node 01 • Edge Telemetry & YSI EXO2 Context Fusion',
+      role: 'Microfluidic MIP + YSI EXO2 (fDOM/pH) Sonde',
       status: 'SYNCED (15-min cycle)',
-      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt.`,
-      payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_ph":${facility.matrixDefaults.pH},"nom_mgl":${facility.matrixDefaults.nomMgL}}`,
+      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt. YSI EXO2 supplies non-PFAS matrix context (pH ${facility.matrixDefaults.pH}, fDOM ${Math.round(facility.matrixDefaults.nomMgL * 24.5)} QSU).`,
+      payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_exo2_ph":${facility.matrixDefaults.pH},"ysi_fdom_qsu":${Math.round(facility.matrixDefaults.nomMgL * 24.5)}}`,
     },
     {
       step: 2,
       name: 'Node 02 • PINN Breakthrough & Roll-Up Forecasting',
-      role: 'Xylem Vue Smart Water Engine (SWE)',
+      role: 'Designed for Xylem Vue (GoAigua SWE)',
       status:
-        sentinel.remainingDays > 0
+        pinnRemainingDays > 0
           ? `WINDOW: ${remainingWholeDays}d ${remainingHours}h (±${sentinelPinnDiag.breakthrough95CiDays}d)`
           : 'EXHAUSTION REACHED',
-      detail: `Assimilates live Sensus flow telemetry (Q = ${effectiveFlowMGD} MGD) into the 1D Advection-Sorption PINN. Predicts 4.0 ppt trigger at Day ${sentinel.breakthroughDayEff} ± ${sentinelPinnDiag.breakthrough95CiDays}d (95% CI, ${remainingWholeDays}d ${remainingHours}h remaining).`,
-      payload: `{"model":"PINN_AdvSorp_v2.8","predicted_breach_day":${sentinel.breakthroughDayEff},"ci95_days":${sentinelPinnDiag.breakthrough95CiDays},"remaining_hrs":${totalRemainingHours},"limiting_analyte":"${sentinel.spId}"}`,
+      detail: `Assimilates live Sensus flow telemetry (Q = ${effectiveFlowMGD} MGD) into learned PINN parameters (q₀ = ${sentinelPinnDiag.learnedQ0} ng/g, Holdout Test RMSE = ${sentinelPinnDiag.testHoldoutRmsePpt} ppt vs. Static ${sentinelPinnDiag.staticBaselineRmsePpt} ppt). Predicts 4.0 ppt trigger at Day ${pinnBreachDay} ± ${sentinelPinnDiag.breakthrough95CiDays}d.`,
+      payload: `{"model":"PINN_AdvSorp_v2.9","assimilated_breach_day":${pinnBreachDay},"ci95_days":${sentinelPinnDiag.breakthrough95CiDays},"holdout_test_rmse_ppt":${sentinelPinnDiag.testHoldoutRmsePpt},"limiting_analyte":"${sentinel.spId}"}`,
     },
     {
       step: 3,
-      name: 'Node 03 • Automated SCADA Lead-Lag Valve Control',
-      role: 'OPC-UA / Modbus PLC Actuator Bridge',
-      status: leadLagSwitched ? 'EXECUTED (VALVE ACTUATED)' : 'READY TO ACTUATE',
+      name: 'Node 03 • Interlocked SCADA Lead-Lag Valve Control',
+      role:
+        scadaControlMode === 'human-in-the-loop'
+          ? 'Human-in-the-Loop PLC Interlock (Operator Sign-Off)'
+          : 'Autonomous OPC-UA / Modbus PLC Actuator Bridge',
+      status: leadLagSwitched
+        ? 'EXECUTED (VALVE ACTUATED)'
+        : scadaControlMode === 'human-in-the-loop'
+        ? 'AWAITING / VERIFIED BY OPERATOR'
+        : 'READY TO ACTUATE',
       detail:
-        'Commands motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel to Primary Lead before short-chain C4 roll-up or C8 MCL breach occurs.',
-      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}","flow_mgd":${effectiveFlowMGD}}`,
+        'Verifies 3 hardware safety interlocks (Modbus heartbeat, 32-Ch EIS CV < 10%, vessel ΔP < 18 psi) before commanding motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel.',
+      payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","governance":"${scadaControlMode.toUpperCase()}","interlocks_ok":true,"plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}"}`,
     },
     {
       step: 4,
@@ -299,12 +312,18 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                       epaHazardIndex_HI: regMetrics.hazardIndex,
                       euSumOf20Pfas_ngL: regMetrics.euSumOfPfasNgL,
                       euTotalPfas_ngL: regMetrics.euTotalPfasNgL,
-                      predictedEffluentBreachDay: sentinel.breakthroughDayEff,
+                      predictedEffluentBreachDay_PINN: pinnBreachDay,
+                      staticThomasBaselineBreachDay: sentinelPinnDiag.staticBaselineEffluent4PptDay,
+                      pinnTrainRmse_ppt: sentinelPinnDiag.trainRmsePpt,
+                      pinnHoldoutTestRmse_ppt: sentinelPinnDiag.testHoldoutRmsePpt,
+                      staticBaselineRmse_ppt: sentinelPinnDiag.staticBaselineRmsePpt,
                       breakthrough95Ci_days: sentinelPinnDiag.breakthrough95CiDays,
                       remainingHoursToBreach: totalRemainingHours,
                       epaComplianceStatus: regMetrics.overallEpaCompliant
                         ? 'PASS (< 4.0 ppt MCL & HI <= 1.0)'
                         : 'ACTION_REQUIRED',
+                      scadaGovernanceMode: scadaControlMode,
+                      operatorInterlockApproved: operatorApproved,
                       leadLagScadaState: leadLagSwitched ? 'LAG_POLISHING_ACTIVE' : 'PRIMARY_LEAD',
                       mitigatorFleetStatus: mitigatorDispatched ? 'DISPATCHED_ON_SITE' : 'STANDBY_READY',
                       estimatedUnwastedMediaSaved_kg: savedMediaKg,
@@ -407,6 +426,86 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Industrial SCADA Safety Interlocks, Human-in-the-Loop Governance & Fail-Safe Watchdog */}
+      <div className="bg-[#0B1D30] border border-slate-800 rounded-xl p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-300 font-bold block">
+              MUNICIPAL SCADA CYBER-PHYSICAL GOVERNANCE • FAIL-SAFE PLC INTERLOCK ARCHITECTURE
+            </span>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Municipal drinking water utilities require strict hardware interlocks and operator oversight before actuating primary lead-lag valves (`MV-104` / `MV-105`).
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-[#061320] p-1 rounded-lg border border-slate-800 text-xs font-mono">
+              <button
+                onClick={() => setScadaControlMode('human-in-the-loop')}
+                className={`px-2.5 py-1 rounded font-semibold transition-all ${
+                  scadaControlMode === 'human-in-the-loop'
+                    ? 'bg-cyan-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Human-in-the-Loop (Recommended)
+              </button>
+              <button
+                onClick={() => setScadaControlMode('autonomous')}
+                className={`px-2.5 py-1 rounded font-semibold transition-all ${
+                  scadaControlMode === 'autonomous'
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Auto Closed-Loop Sim
+              </button>
+            </div>
+            {scadaControlMode === 'human-in-the-loop' && (
+              <button
+                onClick={() => setOperatorApproved(!operatorApproved)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
+                  operatorApproved
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                {operatorApproved ? '✓ Operator Sign-Off: ARMED' : '⚠ Operator Sign-Off: HOLD'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-xs">
+          <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
+            <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300 font-bold">
+              <span>INTERLOCK 01 • SONDE HEARTBEAT</span>
+              <span>PASS (1.2s &lt; 5.0s)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Monitors RS-485 Modbus RTU heartbeat from Xylem YSI EXO2 sonde. If context telemetry drops, freezes valve actuation and reverts to conservative static Thomas curve.
+            </p>
+          </div>
+          <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
+            <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300 font-bold">
+              <span>INTERLOCK 02 • 32-CH EIS VARIANCE</span>
+              <span>PASS (CV = 2.4% &lt; 10%)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Requires intra-group replicate electrode agreement across the 7 working channels per PFAS sub-class (Grubbs&apos; outlier rejection) to prevent air-bubble false alarms.
+            </p>
+          </div>
+          <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
+            <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300 font-bold">
+              <span>INTERLOCK 03 • HYDRAULIC ΔP GATE</span>
+              <span>PASS (ΔP = 8.4 &lt; 18 psi)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Verifies lag vessel differential pressure and air-release venting status before opening butterfly valves MV-104 &amp; MV-105, preventing media bed fluidization shock.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* 4-Stage Pipeline Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -523,7 +622,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
             <div className="flex justify-between">
               <span className="text-slate-400">Sentinel Species:</span>
               <span className="font-mono text-white">
-                {sentinel.spId} (Breach @ Day {sentinel.breakthroughDayEff})
+                {sentinel.spId} (Assimilated Breach @ Day {pinnBreachDay})
               </span>
             </div>
             <div className="flex justify-between">

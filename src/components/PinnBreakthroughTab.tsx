@@ -13,6 +13,7 @@ import {
 import {
   FacilityProfile,
   PFAS_SPECIES,
+  PILOT_DATASET_PROVENANCE,
   PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS,
   computeBedVolumes,
   computeBreakthroughConcentration,
@@ -57,42 +58,10 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
   // Generate time-series points from Day 0 to Day 240
   const daysArray = Array.from({ length: 49 }, (_, i) => i * 5); // 0, 5, 10 ... 240
 
-  // Compute Mid-Bed (z/L = 0.5) and Effluent (z/L = 1.0) curves for the focused species
-  const midBedDay4Ppt = predictBreakthroughTimeDays({
-    speciesId: focusSpecies,
-    mediaType: facility.mediaType,
-    C0: customC0,
-    flowRateMGD: customFlowMGD,
-    mediaMassKg: customMassKg,
-    bedDepthFraction: 0.5,
-    targetPpt: 4.0,
-    nomMgL: customNom,
-    usePinnCorrection: true,
-  });
-
-  const effluentPinnDay4Ppt = predictBreakthroughTimeDays({
-    speciesId: focusSpecies,
-    mediaType: facility.mediaType,
-    C0: customC0,
-    flowRateMGD: customFlowMGD,
-    mediaMassKg: customMassKg,
-    bedDepthFraction: 1.0,
-    targetPpt: 4.0,
-    nomMgL: customNom,
-    usePinnCorrection: true,
-  });
-
-  const effluentStaticDay4Ppt = predictBreakthroughTimeDays({
-    speciesId: focusSpecies,
-    mediaType: facility.mediaType,
-    C0: customC0,
-    flowRateMGD: customFlowMGD,
-    mediaMassKg: customMassKg,
-    bedDepthFraction: 1.0,
-    targetPpt: 4.0,
-    nomMgL: 1.0,
-    usePinnCorrection: false,
-  });
+  // Directly use PINN-assimilated [learnedKth, learnedQ0] breakthrough predictions
+  const midBedDay4Ppt = pinnDiagnostics.assimilatedMidBed4PptDay;
+  const effluentPinnDay4Ppt = pinnDiagnostics.assimilatedEffluent4PptDay;
+  const effluentStaticDay4Ppt = pinnDiagnostics.staticBaselineEffluent4PptDay;
 
   const advanceWarningDays = Math.max(0, Number((effluentPinnDay4Ppt - midBedDay4Ppt).toFixed(1)));
   const blindBreakthroughGapDays = Math.max(
@@ -421,28 +390,63 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                 />
               )}
 
-              {/* Empirical Pilot Column Validation Points (Scatter Overlay) */}
-              {showEmpiricalScatter &&
-                pinnDiagnostics.empiricalPoints.map((pt, i) => (
-                  <g key={i}>
-                    <circle
-                      cx={toX(pt.day)}
-                      cy={toY(pt.measuredMidBedPpt)}
-                      r="3.5"
-                      fill="#061320"
-                      stroke="#FBBF24"
-                      strokeWidth="2"
-                    />
-                    <circle
-                      cx={toX(pt.day)}
-                      cy={toY(pt.measuredEffluentPpt)}
-                      r="3.5"
-                      fill="#061320"
-                      stroke="#34D399"
-                      strokeWidth="2"
-                    />
-                  </g>
-                ))}
+              {/* Empirical Pilot Column Validation Points (TRAIN Days 30..135 vs HOLDOUT TEST Days 155..210) */}
+              {showEmpiricalScatter && (
+                <g>
+                  <line
+                    x1={toX(145)}
+                    y1={padTop}
+                    x2={toX(145)}
+                    y2={padTop + chartHeight}
+                    stroke="#A855F7"
+                    strokeWidth="1.2"
+                    strokeDasharray="4 3"
+                  />
+                  <text
+                    x={toX(145) + 4}
+                    y={padTop + 26}
+                    fill="#D8B4FE"
+                    fontSize="8.5"
+                    fontWeight="700"
+                    fontFamily="JetBrains Mono"
+                  >
+                    Holdout Test Split (Days 155–210) →
+                  </text>
+                  {pinnDiagnostics.empiricalPoints.map((pt, i) => {
+                    const isTest = pt.split === 'TEST';
+                    return (
+                      <g key={i}>
+                        {isTest && (
+                          <circle
+                            cx={toX(pt.day)}
+                            cy={toY(pt.measuredMidBedPpt)}
+                            r="6.5"
+                            fill="none"
+                            stroke="#A855F7"
+                            strokeWidth="1.2"
+                          />
+                        )}
+                        <circle
+                          cx={toX(pt.day)}
+                          cy={toY(pt.measuredMidBedPpt)}
+                          r="3.5"
+                          fill="#061320"
+                          stroke="#FBBF24"
+                          strokeWidth="2"
+                        />
+                        <circle
+                          cx={toX(pt.day)}
+                          cy={toY(pt.measuredEffluentPpt)}
+                          r="3.5"
+                          fill="#061320"
+                          stroke="#34D399"
+                          strokeWidth="2"
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+              )}
 
               {/* Highlight Advance Warning Window between Mid-Bed 4 ppt and Effluent 4 ppt */}
               {midBedDay4Ppt < 240 && effluentPinnDay4Ppt < 240 && (
@@ -520,13 +524,17 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
             <div className="bg-[#061320] border border-emerald-500/30 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                Digitized Pilot Fit &amp; 95% CI
+                Holdout Test vs. Static Baseline
               </span>
               <div className="text-lg font-bold font-mono text-emerald-300 mt-0.5">
-                ±{pinnDiagnostics.breakthrough95CiDays}d (RMSE: {pinnDiagnostics.empiricalRmsePpt}p)
+                {pinnDiagnostics.testHoldoutRmsePpt}p{' '}
+                <span className="text-xs text-slate-400">
+                  vs. {pinnDiagnostics.staticBaselineRmsePpt}p (Static)
+                </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                R² = {pinnDiagnostics.empiricalR2} vs. digitized pilot GAC ratios (McCleaf 2017)
+                Train RMSE: {pinnDiagnostics.trainRmsePpt}p (Days 30–135) • 95% CI: ±
+                {pinnDiagnostics.breakthrough95CiDays}d
               </p>
             </div>
           </div>
@@ -777,7 +785,32 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               Prior k_Th: <strong>{pinnDiagnostics.priorStaticKth}</strong> → Assimilated k_Th:{' '}
               <strong className="text-cyan-300">{pinnDiagnostics.learnedKth}</strong>
             </span>
+            <span className="px-2.5 py-1 rounded bg-purple-950/30 border border-purple-500/40 text-purple-200">
+              Train RMSE: <strong>{pinnDiagnostics.trainRmsePpt}p</strong> | Holdout Test RMSE:{' '}
+              <strong className="text-emerald-300">{pinnDiagnostics.testHoldoutRmsePpt}p</strong> vs.
+              Static: <strong className="text-amber-300">{pinnDiagnostics.staticBaselineRmsePpt}p</strong>
+            </span>
           </div>
+        </div>
+
+        {/* Pilot Dataset Provenance & Train/Test Protocol Metadata Box */}
+        <div className="mb-4 bg-[#061320] border border-cyan-500/30 rounded-xl p-3.5 text-xs space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-mono font-bold text-cyan-300 uppercase">
+              Digitized Pilot GAC Dataset Provenance &amp; Out-of-Sample Evaluation Protocol
+            </span>
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
+              Train (n=5: Days 30–135) → Holdout Test (n=3: Days 155–210)
+            </span>
+          </div>
+          <p className="text-slate-300">
+            <strong className="text-white">Source &amp; Sorbent Conditions:</strong>{' '}
+            {PILOT_DATASET_PROVENANCE.sourceStudies} • {PILOT_DATASET_PROVENANCE.sorbentAndHydraulicSpec}
+          </p>
+          <p className="text-slate-400 font-mono text-[11px]">
+            <strong className="text-emerald-300">Protocol:</strong>{' '}
+            {PILOT_DATASET_PROVENANCE.trainTestProtocol} ({PILOT_DATASET_PROVENANCE.digitizationUncertainty})
+          </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-xs font-mono">
