@@ -3,40 +3,43 @@
 **Challenge #2: Water Quality — Xylem Global Student Innovation Challenge 2026**  
 **Technology Readiness Level:** TRL 2–3 (Analytical, Numerical & Cyber-Physical In-Silico Proof-of-Concept)  
 **Target Platform:** Xylem Vue powered by GoAigua (Smart Water Engine — SWE) & Evoqua Water Technologies  
-**License:** [MIT License](LICENSE) | **Python Version:** 3.8+ (Zero External Dependencies) | **Web Stack:** TypeScript / React 18 / Vite / Tailwind CSS
+**Stack:** TypeScript / React 18 / Vite / Tailwind CSS · Python 3.8+ (standard library only) · [MIT License](LICENSE)
 
-[![TRL 2-3](https://img.shields.io/badge/TRL-2--3%20In--Silico%20Proof%20of%20Concept-blue.svg)](#technology-readiness-level--trl-framing)
-[![US EPA NPDWR](https://img.shields.io/badge/US%20EPA-4.0%20ppt%20MCL%20Compliant-emerald.svg)](#regulatory-positioning--dual-threshold-strategy)
-[![EU DWD 2026](https://img.shields.io/badge/EU%20DWD%202026-Sum%20of%2020%20%E2%89%A4%20100%20ng%2FL-purple.svg)](#regulatory-positioning--dual-threshold-strategy)
+[![TRL 2-3](https://img.shields.io/badge/TRL-2--3%20In--Silico%20PoC-blue.svg)](#6-technology-readiness-level--in-silico-disclosure)
+[![US EPA](https://img.shields.io/badge/US%20EPA-PFOA%2FPFOS%20MCL%204.0%20ppt-brightgreen.svg)](#5-regulatory-positioning--dual-threshold-strategy)
+[![EU DWD](https://img.shields.io/badge/EU%20DWD%202026-Sum%20of%2020%20%E2%89%A4%20100%20ng%2FL-purple.svg)](#5-regulatory-positioning--dual-threshold-strategy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 1. Executive Summary
 
-### The Municipal Dilemma
-Municipal water utilities treating per- and polyfluoroalkyl substances ("forever chemicals") with Granular Activated Carbon (GAC) or Selective Ion Exchange (IX) vessels face a critical operational blind spot:
-- **Laboratory Turnaround Latency:** Compliance monitoring relies on centralized High-Performance Liquid Chromatography–Tandem Mass Spectrometry (**LC-MS/MS**; US EPA Methods 533 & 537.1). Turnaround times span **10 to 14 days** and cost **$300–$500 per sample**.
-- **Chromatographic Roll-Up & Blind Breakthrough:** Between sample rounds, utilities have zero real-time visibility into the internal Mass Transfer Zone (MTZ). Weakly adsorbing short-chain PFAS (e.g., **PFBA**, **PFBS**) break through early and undergo competitive displacement by incoming natural organic matter (NOM) and long-chain PFAS (**PFOA**, **PFOS**). This phenomenon—chromatographic roll-up—causes effluent concentrations to temporarily exceed raw influent levels ($C_t > C_0$).
-- **Premature Media Changeout Waste:** Fearing severe statutory violations of the binding **US EPA 4.0 ppt Maximum Contaminant Level (MCL)** or **EU Jan 2026 Drinking Water Directive ($100\text{ ng/L}$)**, plant operators prematurely dump and replace filtration media every 6 to 9 months on a rigid calendar basis—discarding **20% to 30% of usable adsorption capacity**.
+### Problem
+Municipal utilities removing PFAS ("forever chemicals") with Granular Activated Carbon (GAC) or Selective Ion Exchange (IX) vessels operate with a critical blind spot:
 
-### The PFAS-Sentinel Solution
-**PFAS-Sentinel™** is a cyber-physical hardware-enabled SaaS framework that integrates:
-1. **In-Line Microfluidic Sensor Pod:** Directly retrofits existing industrial vessel `1/4" NPT` sampling ports (Influent, Mid-Bed at $z/L = 0.50$, and Effluent) via an industrial pressure-reducing manifold, coupling a 32-channel Molecularly Imprinted Polymer (MIP) electrochemical chip with real-time **Xylem YSI EXO2** sonde telemetry.
-2. **Physics-Informed Neural Network (PINN) PDE Twin:** Hosted on **Xylem Vue powered by GoAigua**, the digital twin assimilates 15-minute mid-bed telemetry into a 1D Advection-Sorption partial differential equation (PDE) backbone, predicting effluent breakthrough curves weeks before regulatory limits are breached.
-3. **Automated SCADA & Servitization Integration:** Closed-loop PLC safety interlocks actuate lead-lag switchover valves and schedule just-in-time **Evoqua** media replacement, eliminating emergency changeout surcharges.
+- **Laboratory latency:** Compliance monitoring relies on centralized LC-MS/MS (US EPA Methods 533 / 537.1) with **10–14 day turnaround** and **\$300–\$500 per sample**.
+- **Blind breakthrough & chromatographic roll-up:** Between sampling rounds there is no visibility into the internal Mass Transfer Zone (MTZ). Weakly adsorbed short-chain PFAS (**PFBA**, **PFBS**) break through early and can be displaced by NOM and long-chain PFAS (**PFOA**, **PFOS**), temporarily producing effluent concentrations above influent ($C_t > C_0$).
+- **Premature media changeout:** To avoid violating the binding **US EPA 4.0 ppt MCL** (PFOA/PFOS) or the **EU 2026 Drinking Water Directive**, operators replace media on conservative calendar schedules — discarding an estimated **20–30% of usable adsorption capacity**.
 
-### Quantified Impact (Standard 6-Vessel Municipal Plant)
-| Metric | Conventional Calendar Operation | PFAS-Sentinel™ Digital Twin | Net Benefit |
-| :--- | :--- | :--- | :--- |
-| **Telemetry Frequency** | Bi-weekly grab sample (14-day lab lag) | Automated in-line every **15 minutes** | **Real-time visibility** |
-| **GAC/IX Media Utilization** | Discarded at ~70% bed life | Optimized to **98% breakthrough front** | **+28% bed life extension** |
-| **Annual Media Replacement** | $396,000 / year (6 vessels @ $66k/vessel) | $285,120 / year | **$110,880 gross media savings** |
-| **Annual Laboratory Testing** | $46,800 / year (104 LC-MS/MS samples) | $15,600 / year (quarterly certification) | **$31,200 testing savings** |
-| **System OPEX (SaaS + Cartridges)** | $0 / year | $30,000 / year ($11.80/cartridge + platform) | Absorbed into servitization model |
-| **Net Municipal OPEX Savings** | Baseline | **+$112,092 / year net savings** | **Payback in 4.2 months** |
-| **Hazardous Waste Diverted** | Baseline landfill / high-temp incineration | **15.3 metric tons / year avoided** | Reduced secondary toxic liability |
-| **Avoided Scope 3 Emissions** | Baseline thermal regeneration footprint | **36.7 metric tCO₂e / year avoided** | Net-zero utility alignment |
+### Solution
+**PFAS-Sentinel™** is a hardware-enabled SaaS concept that combines:
+
+1. **In-line microfluidic sensor pod** — retrofits existing `1/4" NPT` vessel sample ports (influent, mid-bed at $z/L = 0.50$, effluent) through a pressure-reducing manifold, pairing a 32-channel Molecularly Imprinted Polymer (MIP) electrochemical cartridge with **Xylem YSI EXO2** sonde telemetry.
+2. **Physics-Informed Neural Network (PINN) digital twin** — designed for **Xylem Vue powered by GoAigua**, assimilating 15-minute mid-bed telemetry into a 1D advection-sorption PDE backbone to forecast effluent breakthrough weeks in advance.
+3. **SCADA & servitization integration** — PLC safety interlocks gate lead-lag valve switchover and just-in-time **Evoqua** media service, with **Xylem MitiGATOR™** mobile units as contingency.
+
+### Modeled Impact (Representative 6-Vessel Plant — see [Section 8](#8-municipal-economic--environmental-model))
+| Metric | Value |
+| :--- | :--- |
+| Net annual utility OPEX savings | **\$112,092 / yr** |
+| Media bed-life extension | **28%** |
+| Spent hazardous media avoided | **15.3 t / yr** |
+| Scope 3 emissions avoided | **36.7 tCO₂e / yr** |
+| Disposable cartridge target BOM | **\$11.80** |
+| Reusable reader pod target BOM | **\$148.00** |
+
+> [!NOTE]
+> All figures are model outputs from the in-silico twin under stated assumptions (Section 8). They are targets to be validated in TRL 4–6, not field measurements.
 
 ---
 
@@ -44,260 +47,184 @@ Municipal water utilities treating per- and polyfluoroalkyl substances ("forever
 
 ```mermaid
 flowchart TD
-    subgraph Hydraulic_Infrastructure["1. Municipal Hydraulic Adsorption Infrastructure (Lead-Lag Vessels)"]
-        RawWater["Raw Groundwater Influent (C₀)"] --> LeadVessel["Lead Adsorption Vessel (GAC / IX Resin, 50–80 psi)"]
-        LeadVessel --> LagVessel["Lag Adsorption Vessel (Polishing Stage)"]
-        LagVessel --> TreatedWater["Treated Potable Effluent to Distribution (Ct < 4.0 ppt)"]
-    end
+    A["Raw groundwater influent C0"] --> B["Lead vessel GAC or IX, 50-80 psi"]
+    B --> C["Lag vessel polishing stage"]
+    C --> D["Treated effluent to distribution"]
 
-    subgraph Sampling_Interface["2. Industrial Sampling Interface & Pressure Conditioning"]
-        MidBedPort["Vessel Mid-Bed Sample Port (z/L = 0.50, 1/4'' NPT) OR Inter-Vessel Manifold"]
-        Regulator["316L SS Pressure Reducing Regulator (50–80 psi ➔ 2.5 psi Laminar Flow)"]
-        PreFilter["0.22 μm PVDF In-Line Pre-Filter (Removes NOM Colloids & Carbon Fines)"]
-        
-        LeadVessel -.->|Slipstream 0.5 mL/min| MidBedPort
-        MidBedPort --> Regulator --> PreFilter
-    end
+    B -.->|slipstream 0.5 mL/min| E["Mid-bed port z/L = 0.50 or inter-vessel manifold tap"]
+    E --> F["316L SS pressure regulator, 50-80 psi to 2.5 psi"]
+    F --> G["0.22 um PVDF pre-filter"]
 
-    subgraph Sensor_Pod["3. PFAS-Sentinel™ 32-Channel Microfluidic Sensor Pod ($148 Reusable Pod + $11.80 Snap-In Cartridge)"]
-        MicroFluidicCell["Cyclic Olefin Copolymer (COC) Microfluidic Flow Cell"]
-        MIP_Array["32-Ch Electrode Array: 28 MIP (PFBA, PFBS, PFOA, PFOS) + 4 NIP Blanks"]
-        AFE["Analog Devices AD5940 High-Precision Impedance AFE (0.1 Hz – 200 kHz)"]
-        PiezoPurge["Piezo Micro-Pump & Auto-Purge DI/Acidic Rinse Cycle (14-Day Lifespan)"]
-        
-        PreFilter --> MicroFluidicCell
-        MicroFluidicCell <--> MIP_Array
-        MIP_Array --> AFE
-        PiezoPurge -.-> MicroFluidicCell
-    end
+    G --> H["COC microfluidic flow cell"]
+    H --> I["32-ch electrode array: 28 MIP + 4 NIP blanks"]
+    I --> J["AD5940 EIS analog front-end"]
+    K["Auto-purge valve and pulse desorption"] -.-> H
 
-    subgraph Context_Fusion["4. Edge Telemetry & Auxiliary Sonde Fusion"]
-        Sonde["Xylem YSI EXO2 / WTW Multiparameter Sonde (pH, Temp, Turbidity, fDOM proxy for NOM)"]
-        EdgeMCU["ARM Cortex-M33 Edge Processor (NEMA 4X / IP67 Enclosure)"]
-        Tikhonov["Exact 4x4 Tikhonov Deconvolution Engine: S⁻¹ (κ₂(S) = 1.34, λ = 0.015)"]
-        
-        AFE --> EdgeMCU
-        Sonde -->|Modbus RS-485| EdgeMCU
-        EdgeMCU --> Tikhonov
-    end
+    J --> L["ARM Cortex-M33 edge node"]
+    M["Xylem YSI EXO2 sonde: pH, temp, cond, turbidity, fDOM"] -- "Modbus RS-485" --> L
+    L --> N["4x4 Tikhonov deconvolution, lambda = 0.015"]
 
-    subgraph Digital_Twin["5. Xylem Vue powered by GoAigua (Smart Water Engine - SWE)"]
-        VueCloud["Xylem Vue Cloud Gateway (OPC-UA / MQTT TLS 1.3)"]
-        SensusMeter["Xylem Sensus / MJK In-Line Magnetic Flow Meter (Q)"]
-        PINN_PDE["1D Spatiotemporal Advection-Sorption PINN PDE Solver (Thomas Backbone + Neural Residual)"]
-        ForecastEngine["Effluent Breakthrough & MTZ Front Prediction Engine (±95% CI)"]
-        
-        Tikhonov -->|15-Min PFAS Telemetry| VueCloud
-        SensusMeter -->|Volumetric Flow Q| VueCloud
-        VueCloud --> PINN_PDE
-        PINN_PDE --> ForecastEngine
-    end
+    N -->|15-min PFAS telemetry, MQTT or OPC-UA| O["Xylem Vue powered by GoAigua"]
+    P["Xylem Sensus / MJK flow meter Q"] --> O
+    O --> Q["1D advection-sorption PINN twin"]
+    Q --> R["Breakthrough forecast with 95% CI"]
 
-    subgraph Actuation_Dispatch["6. SCADA Actuation & Evoqua Servitization Dispatch"]
-        PLC["Plant PLC / SCADA (Triple Safety Interlock: ΔP < 18 psi, Sonde Heartbeat, CV < 10%)"]
-        Valves["Motorized Lead-Lag Switchover Valves (MV-104 / MV-105)"]
-        EvoquaDispatch["Automated Evoqua Media Regeneration Dispatch & MitiGATOR™ Mobile Units"]
-        
-        ForecastEngine -->|Action Trigger: C_mid ≥ 4.0 ppt| PLC
-        PLC --> Valves
-        PLC --> EvoquaDispatch
-    end
+    R -->|mid-bed trigger 4.0 ppt| S["Plant PLC / SCADA with 3 safety interlocks"]
+    S --> T["Lead-lag valves MV-104 / MV-105"]
+    S --> U["Evoqua media service and MitiGATOR dispatch"]
 
-    classDef primary fill:#061320,stroke:#00D2FF,stroke-width:2px,color:#fff;
-    classDef secondary fill:#0B1D30,stroke:#10B981,stroke-width:2px,color:#fff;
-    classDef accent fill:#1B1238,stroke:#A855F7,stroke-width:2px,color:#fff;
-    classDef warning fill:#2A1408,stroke:#F59E0B,stroke-width:2px,color:#fff;
-
-    class RawWater,LeadVessel,LagVessel,TreatedWater primary;
-    class MidBedPort,Regulator,PreFilter secondary;
-    class MicroFluidicCell,MIP_Array,AFE,PiezoPurge secondary;
-    class Sonde,EdgeMCU,Tikhonov accent;
-    class VueCloud,SensusMeter,PINN_PDE,ForecastEngine accent;
-    class PLC,Valves,EvoquaDispatch warning;
+    classDef hydraulic fill:#061320,stroke:#00D2FF,color:#ffffff
+    classDef sensor fill:#0B1D30,stroke:#10B981,color:#ffffff
+    classDef cloud fill:#1B1238,stroke:#A855F7,color:#ffffff
+    classDef control fill:#2A1408,stroke:#F59E0B,color:#ffffff
+    class A,B,C,D hydraulic
+    class E,F,G,H,I,J,K sensor
+    class L,M,N,O,P,Q,R cloud
+    class S,T,U control
 ```
 
----
-
-## 3. Mathematical Foundations & PINN PDE Formulation
-
-### 1. 1D Advection-Dispersion-Sorption Governing PDE
-Within the packed bed adsorber, transport of each PFAS species along normalized bed depth $\tilde{z} = z/L \in [0, 1]$ is governed by:
-
-$$\frac{\partial C}{\partial t} + u_{\text{MTZ}} \frac{\partial C}{\partial \tilde{z}} = D_{\text{ax}} \frac{\partial^2 C}{\partial \tilde{z}^2} - \frac{\rho_b}{\epsilon} \frac{\partial q}{\partial t}$$
-
-Where:
-- $u_{\text{MTZ}} = \frac{Q \cdot C_0}{q_0 \cdot M_{\text{bed}}}$ is the characteristic velocity of the Mass Transfer Zone ($m/\text{day}$).
-- $D_{\text{ax}}$ is the axial hydrodynamic dispersion coefficient.
-- $\rho_b, \epsilon$ are the bulk bed density ($\text{kg/m}^3$) and bed porosity.
-- $q(z, t)$ is the solid-phase adsorption capacity ($\text{mg/g}$).
-
-### 2. Bohart-Adams / Thomas Sorption Backbone
-The rate of solid-phase mass transfer under second-order reversible kinetics follows the Thomas formulation:
-
-$$\frac{\partial q}{\partial t} = k_{\text{Th}} \left( q_0 C - q C \right) \implies \frac{d C_{\text{base}}}{d t} = k_{\text{Th}} C_0 C_{\text{base}} \left(1 - \frac{C_{\text{base}}}{C_0}\right)$$
-
-Analytical solution along normalized dimensionless coordinates $\tau = k_{\text{Th}} C_0 (t - \tilde{z} \cdot \text{EBCT})$:
-
-$$\frac{C_{\text{Thomas}}(\tilde{z}, t)}{C_0} = \frac{1}{1 + \exp\left( \frac{k_{\text{Th}} q_0 M_{\text{bed}}}{Q} \tilde{z} - k_{\text{Th}} C_0 t \right)}$$
-
-### 3. Hybrid PINN Architecture & Parameter Assimilation
-To overcome the limitations of idealized analytical solutions in the presence of competitive multi-solute chromatographic roll-up, PFAS-Sentinel implements a **hybrid Physics-Informed Neural Network**:
-
-$$\hat{C}(\tilde{z}, t) = C_{\text{Thomas}}(\tilde{z}, t; \theta_{\text{phys}}) + \mathcal{N}_{\mathbf{W}}(\tilde{z}, \tilde{t})$$
-
-Where $\theta_{\text{phys}} = [k_{\text{Th}}, q_0]$ are learnable kinetic parameters and $\mathcal{N}_{\mathbf{W}}$ is a 2-layer residual multilayer perceptron with hyperbolic tangent activations. The unified loss function optimized via analytical backpropagation and Adam optimizer is:
-
-$$\mathcal{L}_{\text{PINN}}(\theta_{\text{phys}}, \mathbf{W}) = \underbrace{\frac{1}{N_{\text{obs}}} \sum_{i=1}^{N_{\text{obs}}} \left( \hat{C}(z_{\text{mid}}, t_i) - C_{\text{mid}}^{\text{obs}}(t_i) \right)^2}_{\mathcal{L}_{\text{data}} \text{ (Mid-Bed Assimilation)}} + \lambda_{\text{PDE}} \underbrace{\frac{1}{N_{\text{colloc}}} \sum_{j=1}^{N_{\text{colloc}}} \left\| \frac{\partial \hat{C}}{\partial t} + u_{\text{MTZ}} \frac{\partial \hat{C}}{\partial \tilde{z}} - \mathcal{S}_{\text{kin}}(\hat{C}) \right\|^2}_{\mathcal{L}_{\text{PDE}} \text{ (Physics Residual Collocation)}}$$
-
-Crucially, the learned parameters ($\hat{k}_{\text{Th}}, \hat{q}_0$) and neural residual directly govern both the effluent trajectory $\hat{C}(z=1, t)$ and the 95% confidence interval of breakthrough day calculation, eliminating empirical curve fitting.
-
-### 4. Electrochemical MIP Signal Inversion & Tikhonov Regularization
-Electrochemical Impedance Spectroscopy (EIS) measures charge-transfer resistance change $\Delta R_{\text{ct}}$ induced by target molecule binding within the imprinted cavities. Residual non-specific adsorption from natural organic matter (NOM) is cancelled via 4 Non-Imprinted Polymer (NIP) blank channels and optical fDOM context:
-
-$$\Delta R_{\text{ct,purified}} = \Delta R_{\text{ct,MIP}} - \alpha_{\text{NOM}}(\text{fDOM}) \cdot \Delta R_{\text{ct,NIP}}$$
-
-Cross-reactivity between short-chain (PFBA, PFBS) and long-chain (PFOA, PFOS) structural analogs is deconvolved via an exact $4\times 4$ Tikhonov-regularized inverse:
-
-$$\hat{\mathbf{c}} = \left(\mathbf{S}^\top \mathbf{S} + \lambda \mathbf{I}\right)^{-1} \mathbf{S}^\top \Delta \mathbf{r}_{\text{purified}}$$
-
-With condition number $\kappa_2(\mathbf{S}) = 1.34$ and determinant $\det(\mathbf{S}) = 0.941$, the system is strictly non-singular and numerically stable against measurement noise.
+**Signal chain summary:** vessel sample port → pressure regulation & filtration → 32-channel MIP/NIP cartridge → AD5940 EIS → edge inversion with YSI EXO2 context → Xylem Vue PINN twin → PLC/SCADA actuation & Evoqua dispatch.
 
 ---
 
-## 4. Hardware Engineering, Fluidic Interfacing & Durability
+## 3. Mathematical Foundations
 
-### Industrial Pressure Stepping (50–80 psi $\to$ 2.5 psi)
-Municipal GAC and IX vessels operate at high hydraulic pressure (**50 to 80 psi / 3.4 to 5.5 bar**). Direct injection of this line pressure would mechanically fracture microfluidic membranes and cause turbulent shearing over electrode surfaces.
-- **316L Stainless Steel Dual-Stage Regulator:** Steps incoming vessel slipstream down from 50–80 psi to **2.5 psi (0.17 bar)**, establishing steady laminar microfluidic flow ($0.5\text{ mL/min}$).
-- **Inline $0.22\,\mu\text{m}$ PVDF Pre-Filter Disc:** Intercepts suspended carbon fines, micro-particulates, and biofouling colloids before the sample enters the microfluidic analysis chamber.
+### 3.1 Governing advection-sorption PDE
+Along normalized bed depth $\tilde{z} = z/L \in [0, 1]$:
 
-### Piezo-Actuated Auto-Purge & Cartridge Longevity
-- **Regeneration Wash Protocol:** Following each 15-minute measurement cycle, a miniature piezo-actuated 3-way solenoid valve routes a 30-second acidic/DI rinse pulse across the electrode array, dislodging weakly bound non-specific matrix compounds.
-- **14-Day Disposable Service Interval:** Each snap-in cartridge executes **~1,340 discrete EIS assays** over a 14-day operational window before replacement, fitting seamlessly into bi-weekly utility technician walkthroughs.
+$$\frac{\partial C}{\partial t} + u_{\text{MTZ}} \frac{\partial C}{\partial \tilde{z}} = S_{\text{kin}}(C), \qquad u_{\text{MTZ}} = \frac{Q\,C_0}{q_0\,M}$$
 
-### Retrofit Port Versatility
-PFAS-Sentinel is designed for universal mechanical integration:
-1. **Mid-Bed Sampling Port ($z/L = 0.50$):** Installs directly into the standard `1/4" NPT` threaded port present on modern GAC/IX contactors.
-2. **Inter-Vessel Manifold Tap:** For older facilities lacking intermediate vessel taps, the sensor pod attaches to the interconnecting pipe manifold between Lead and Lag vessels, continuously monitoring Lead Effluent before it enters the Lag vessel.
+### 3.2 Thomas (Bohart-Adams) backbone
+
+$$\frac{C_{\text{Thomas}}(\tilde{z}, t)}{C_0} = \frac{1}{1 + \exp\left( \dfrac{k_{\text{Th}}\, q_0\, M\, \tilde{z}}{Q} - k_{\text{Th}}\, C_0\, t \right)}$$
+
+### 3.3 Hybrid PINN
+
+$$\hat{C}(\tilde{z}, t) = C_{\text{Thomas}}(\tilde{z}, t; k_{\text{Th}}, q_0) + \mathcal{N}_{\mathbf{W}}(\tilde{z}, \tilde{t})$$
+
+$$\mathcal{L}_{\text{PINN}} = \frac{1}{N_{\text{obs}}}\sum_{i} \left(\hat{C}(z_{\text{mid}}, t_i) - C^{\text{obs}}_{\text{mid}}(t_i)\right)^2 + \lambda_{\text{PDE}} \frac{1}{N_{\text{col}}}\sum_{j} \left(\frac{\partial \hat{C}}{\partial t} + u_{\text{MTZ}}\frac{\partial \hat{C}}{\partial \tilde{z}} - S_{\text{kin}}(\hat{C})\right)^2$$
+
+The physical parameters $k_{\text{Th}}, q_0$ and the 2-layer residual network $\mathcal{N}_{\mathbf{W}}$ are optimized jointly (analytical backpropagation + Adam). The learned parameters directly drive the effluent trajectory and the 4.0 ppt breakthrough forecast (± 95% CI).
+
+**Validation protocol:** temporal forward-chaining split — train on mid-bed checkpoints at days 30, 60, 90, 115, 135; evaluate on unseen days 155, 180, 210; compare against a static Thomas baseline.
+
+### 3.4 Electrochemical inversion & deconvolution
+NIP blank channels and the YSI EXO2 fDOM signal (optical NOM proxy) remove non-specific drift; cross-reactivity between C4/C8 analogs is resolved by a Tikhonov-regularized $4\times4$ inverse:
+
+$$\hat{\mathbf{c}} = \left(\mathbf{S}^\top\mathbf{S} + \lambda\mathbf{I}\right)^{-1}\mathbf{S}^\top\,\Delta\mathbf{r}_{\text{purified}}, \qquad \lambda = 0.015,\ \kappa_2(\mathbf{S}) = 1.34,\ \det(\mathbf{S}) = 0.941$$
+
+> [!NOTE]
+> The YSI EXO2 sonde does **not** measure PFAS. It supplies matrix context (pH, temperature, conductivity, turbidity, fDOM) for compensation.
+
+---
+
+## 4. Hardware, Hydraulic Interfacing & Durability
+
+| Topic | Design |
+| :--- | :--- |
+| **Pressure stepping** | Vessels operate at 50–80 psi. A 316L stainless regulator reduces slipstream pressure to **2.5 psi** for laminar microfluidic flow (~0.5 mL/min). |
+| **Particle protection** | In-line **0.22 µm** pre-filter removes carbon fines and colloids before the flow cell. |
+| **Fouling / saturation control** | Auto-purge solenoid flush plus mild electrochemical pulse desorption between measurement cycles. |
+| **Cartridge service interval** | Target **30 days** per snap-in cartridge (~2,880 assays at a 15-minute cadence). |
+| **Port compatibility** | (1) Mid-bed `1/4" NPT` port at $z/L = 0.50$ where available; (2) **inter-vessel manifold tap** (lead-vessel effluent) on lead-lag trains without a mid-bed port. |
+| **Safety interlocks** | YSI EXO2 Modbus heartbeat watchdog · replicate CV < 10% gate · vessel ΔP < 18 psi interlock. Human-in-the-loop approval mode is supported. |
 
 ---
 
 ## 5. Regulatory Positioning & Dual-Threshold Strategy
 
-### US EPA National Primary Drinking Water Regulation (NPDWR)
-Promulgated in April 2024 (89 FR 32532), the US EPA established enforceable standards for PFAS in drinking water:
-- **PFOA:** Binding Maximum Contaminant Level (**MCL = 4.0 ppt / ng/L**).
-- **PFOS:** Binding Maximum Contaminant Level (**MCL = 4.0 ppt / ng/L**).
-- **PFHxS, PFNA, GenX:** Individual **MCLs = 10.0 ppt**.
-- **Hazard Index (HI) & Status Disclosure:** The EPA's multi-analyte Hazard Index (co-occurrence formula for PFBS, PFHxS, PFNA, and GenX) is currently undergoing technical and legal reconsideration. PFAS-Sentinel's architecture is fully future-proofed: our software layer dynamically supports individual MCL enforcement, sum-of-species limits, or compound hazard indexing via modular SCADA rules without hardware modification.
-- **PFBA / PFBS as Early Sentinel Tracers:** Due to shorter perfluoroalkyl chains ($C_4$), PFBA and PFBS exhibit significantly lower solid-water partition coefficients ($K_d$). They migrate rapidly through the bed, reaching the mid-bed ($z/L = 0.50$) **45 to 60 days before PFOA or PFOS breakthrough occurs at the effluent**. Monitoring PFBA provides an indisputable advance warning of mass-transfer front velocity.
+**US EPA NPDWR (April 2024, 89 FR 32532)**
+- **PFOA and PFOS: MCL 4.0 ppt** — the binding federal baseline; compliance timeline 2029–2031.
+- PFHxS, PFNA, HFPO-DA (GenX): MCL 10 ppt; Hazard Index for mixtures incl. PFBS.
+- EPA has announced reconsideration of parts of the rule (notably the Hazard Index and some individual limits). PFAS-Sentinel's SCADA rule layer is configurable (individual MCLs, sums, or hazard indices) without hardware changes.
 
-### European Union Drinking Water Directive (DWD 2020/2184)
-Effective January 2026, the EU mandates:
-- **"Sum of 20 PFAS" $\le 100\text{ ng/L}$ (0.10 $\mu\text{g/L}$)**.
-- **"PFAS Total" $\le 500\text{ ng/L}$**.
-PFAS-Sentinel's multi-channel deconvolution covers all critical European target compounds.
+**EU Drinking Water Directive (EU) 2020/2184 — applicable from January 2026**
+- "Sum of 20 PFAS" ≤ 100 ng/L; "PFAS Total" ≤ 500 ng/L.
 
-### Dual-Threshold Control Strategy
-To guarantee zero compliance violations while maximizing media utilization, PFAS-Sentinel enforces a strict two-tier operational hierarchy:
-1. **Internal SCADA Action Trigger (4.0 ppt at Mid-Bed, $z/L = 0.50$):** Used strictly inside the plant control loop to trigger automated valve actuation, lead-lag rotation, and Evoqua regeneration scheduling weeks in advance.
-2. **Statutory Effluent Limit (4.0 ppt MCL at Final Effluent, $z/L = 1.0$):** Official public health compliance baseline, verified quarterly by certified LC-MS/MS laboratory analysis.
+**Why PFBA / PFBS?** Short-chain C4 PFAS have lower affinity for GAC and migrate faster, so they reach the mid-bed port first. They serve as **early sentinel tracers of MTZ progression**, while PFOA/PFOS remain the compliance targets. In the in-silico benchmark, PFBA crosses 4 ppt at the mid-bed around day 89, whereas PFOA reaches 4 ppt at the effluent around day 319.
+
+**Two thresholds, two roles**
+1. **Internal SCADA trigger** — 4.0 ppt at the mid-bed port; triggers lead-lag rotation and service scheduling.
+2. **Statutory limit** — MCL at final effluent; certified by retained quarterly LC-MS/MS.
 
 ---
 
-## 6. Technology Readiness Level & TRL 2–3 In-Silico Disclosure
+## 6. Technology Readiness Level & In-Silico Disclosure
 
-PFAS-Sentinel is transparently submitted as a **TRL 2–3 (Analytical, Numerical & Cyber-Physical In-Silico Proof-of-Concept)**:
+> [!IMPORTANT]
+> PFAS-Sentinel is a **TRL 2–3 computational proof-of-concept**. Sensor signals and breakthrough observations are generated by forward numerical models; they are **not field measurements**.
 
-> **Academic & In-Silico Disclosure:**
-> Physical electrochemical impedance spectroscopy (EIS) response signals and dynamic adsorption data are synthetically generated from rigorous forward numerical models grounded in peer-reviewed experimental literature.
-> - **Electrochemical Validation:** Forward sensor simulations are calibrated against the stand-alone microfluidic MIP architectures of *Oseyemi & Rezai (Sept 2025)* and the amine-functionalized nanocarbon transducer sensitivities of *University of Connecticut (UConn, 2024–2025)*.
-> - **Adsorption Kinetic Validation:** Breakthrough profiles, bed volumes (BV), and competitive chromatographic roll-up factors are benchmarked directly against empirical pilot-scale GAC column datasets from *McCleaf et al. (Water Research 2017)* and *Park et al. (Environmental Science & Technology 2020)*.
-> - **Prevention of "Inverse Crime":** The forward data generator incorporates independent stochastic thermal fluctuations, non-linear cross-analyte binding interference, matrix humic acid degradation, and Gaussian noise ($\sigma = 0.08$). The blind edge inverse estimator (`predictPfasFromImpedance`) possesses **zero ground-truth parameter leakage**, operating strictly on raw observable resistance changes ($\Delta R_{\text{ct}}$) and secondary YSI EXO2 sonde telemetry.
+- **Breakthrough data:** synthetic testbench mapped to each facility (Q, M, C0, media), shaped by digitized pilot GAC curves from *McCleaf et al. (2017)* and *Park et al. (2020)*.
+- **Avoiding "inverse crime":** the forward sensor simulator (`simulatePhysicalSensorImpedance`) and the blind estimator (`predictPfasFromImpedance`) are separated. The estimator receives no ground-truth concentration or NOM value — only observable ΔR<sub>ct</sub> (MIP/NIP) and sonde telemetry. The forward model includes noise, temperature effects, and cross-binding not present in the inverse model.
+- **Known limitation:** because the forward and inverse models share a modeling framework, reported accuracy (e.g., ~4.5% MAE) is an upper bound to be re-evaluated on wet-lab data.
 
-### TRL 3 $\to$ TRL 6 Commercialization Roadmap
 ```mermaid
 flowchart LR
-    TRL3["TRL 3 (Current)<br/>In-Silico Digital Twin &<br/>Non-Circular PDE Solver"] --> TRL4["TRL 4 (Months 1–2)<br/>Wet-Lab Spike Testing<br/>32-Ch COC Cleanroom Cartridge<br/>AD5940 Custom PCB"]
-    TRL4 --> TRL5["TRL 5 (Months 3–4)<br/>RSSCT Continuous Flow<br/>14-Day Piezo Wash Durability<br/>Inter-Vessel Pilot Validation"]
-    TRL5 --> TRL6["TRL 6 (Months 5–6)<br/>Municipal Utility Slipstream<br/>Live Xylem Vue SWE Telemetry<br/>Evoqua Fleet Dispatch"]
-    
-    classDef step fill:#0B1D30,stroke:#00D2FF,stroke-width:2px,color:#fff;
-    class TRL3,TRL4,TRL5,TRL6 step;
+    T3["TRL 3 - current: in-silico twin"] --> T4["TRL 4 - months 1-2: wet-lab spike calibration vs EPA 533"]
+    T4 --> T5["TRL 5 - months 3-4: RSSCT continuous-flow, 30-day cartridge"]
+    T5 --> T6["TRL 6 - months 5-6: utility slipstream pilot with Xylem Vue"]
 ```
 
 ---
 
-## 7. Hardware Bill of Materials (BOM) & Unit Economics
+## 7. Hardware Bill of Materials (Target BOM @ 10k units/yr)
 
-### Disposable 32-Channel Sensor Cartridge (Target BOM @ 10k units/year)
-| Subsystem | Component & Specification | Unit Cost (USD) |
-| :--- | :--- | :--- |
-| **Molecular Recognition** | Stand-Alone MIP Membrane (32-ch templated for C4/C8 sub-classes) | $4.20 |
-| **Transducer Array** | Screen-printed amine-functionalized nanocarbon electrode chip + Ag/AgCl | $3.85 |
-| **Microfluidics & Filter** | Injection-molded Cyclic Olefin Copolymer (COC) cell with $0.22\,\mu\text{m}$ PVDF pre-filter | $3.75 |
-| **Total Disposable Cartridge BOM** | **Snap-in 14-day cartridge (1,340 discrete assays)** | **$11.80** |
+**Disposable 32-channel cartridge**
 
-### Reusable In-Line Field Reader Pod (NEMA 4X / IP67 Enclosure)
-| Subsystem | Component & Specification | Unit Cost (USD) |
-| :--- | :--- | :--- |
-| **Potentiostat / EIS AFE** | Analog Devices AD5940 High-Precision EIS Front-End + ADG732 32:1 Mux | $28.50 |
-| **Edge Compute & Comms** | Dual-Core ARM Cortex-M33 + NPU Edge Node (Modbus RS-485 / MQTT TLS 1.3) | $42.00 |
-| **Industrial Fluidics** | 316L SS Piezo Micro-Pump, Auto-Purge Solenoid Valve & $1/4''\text{ NPT}$ Manifold | $77.50 |
-| **Total Reusable Reader Pod BOM** | **Permanent field node amortized over 5+ years** | **$148.00** |
+| Subsystem | Component | Unit cost |
+| :--- | :--- | ---: |
+| Molecular recognition | Stand-alone MIP membrane (C4/C8 sub-classes) | \$4.20 |
+| Transducer array | Amine-functionalized nanocarbon electrodes + Ag/AgCl | \$3.85 |
+| Microfluidics & redox | COC flow cell, [Fe(CN)₆]³⁻/⁴⁻ mediator, 0.22 µm pre-filter | \$3.75 |
+| **Total** | | **\$11.80** |
 
----
+**Reusable reader pod (NEMA 4X)**
 
-## 8. Quantitative Municipal Economic & Environmental Model
-
-Financial analysis for a representative **6-vessel municipal water treatment facility** treating ~3 MGD (million gallons per day) with lead-lag GAC contactors (vessel capacity: 20,000 lbs / 9.1 metric tons of media each):
-
-| Financial & Environmental Parameter | Conventional Utility Baseline | PFAS-Sentinel™ Servitization | Net Utility Savings |
-| :--- | :--- | :--- | :--- |
-| **Media Replacement Interval** | Rigid 9-month calendar schedule | Dynamic 11.5-month PINN MTZ optimization | **+28% bed utilization** |
-| **Annual Media Replacement Cost** | $396,000 / yr (6 vessels @ $66,000/changeout) | $285,120 / yr | **+$110,880 / yr** |
-| **Compliance Laboratory Testing** | $46,800 / yr (104 bi-weekly LC-MS/MS tests) | $15,600 / yr (quarterly statutory verification) | **+$31,200 / yr** |
-| **Gross Annual Operating Savings** | — | — | **+$142,080 / yr** |
-| **PFAS-Sentinel Annual Service Cost** | $0 | -$30,000 / yr ($1,840 cartridges + $28,160 SaaS) | -$30,000 / yr |
-| **Net Municipal OPEX Savings** | **$0** | **+$112,092 / year** | **Payback: 4.2 Months** |
-| **Hazardous Waste Diverted** | Baseline disposal of spent carbon | **15.3 metric tons / year avoided** | Environmental benefit |
-| **Scope 3 GHG Emissions Avoided** | High-temperature thermal reactivation | **36.7 metric tCO₂e / year avoided** | Net-zero alignment |
+| Subsystem | Component | Unit cost |
+| :--- | :--- | ---: |
+| EIS front-end | AD5940 impedance AFE + ADG732 32:1 mux | \$28.50 |
+| Edge compute & comms | ARM Cortex-M33 + NPU (Modbus / MQTT, TLS 1.3) | \$42.00 |
+| Industrial fluidics | 316L micro-pump, auto-purge valve, `1/4" NPT` manifold | \$77.50 |
+| **Total** | | **\$148.00** |
 
 ---
 
-## 9. Local Installation & Quickstart
+## 8. Municipal Economic & Environmental Model
 
-### Prerequisites
-- **Node.js:** v18.0.0 or higher
-- **npm:** v9.0.0 or higher
-- **Python:** v3.8 or higher (Standard Library only for core simulation; no pip packages required)
+Assumptions (identical to the interactive calculator in `BusinessAndPitchTab.tsx`): 6 vessels · 9.1 t media per vessel · \$85,000 media cost per vessel-year · bi-weekly LC-MS/MS at \$420/sample · 28% bed-life extension · PFAS-Sentinel fee \$14,400 per vessel-year · 2.4 tCO₂e per tonne of media avoided.
 
-### Web Dashboard & Cyber-Physical Twin (TypeScript / Vite)
+| Item | Calculation | Annual value |
+| :--- | :--- | ---: |
+| Baseline media OPEX | 6 × \$85,000 | \$510,000 |
+| Media savings | 28% × \$510,000 | +\$142,800 |
+| Baseline lab testing | 6 × 26 × \$420 | \$65,520 |
+| Lab savings (quarterly LC-MS/MS retained) | 85% × \$65,520 | +\$55,692 |
+| PFAS-Sentinel service fee (SaaS + cartridges) | 6 × \$14,400 | −\$86,400 |
+| **Net utility savings** | | **+\$112,092** |
+| Hazardous media avoided | 6 × 9.1 t × 28% | **15.3 t** |
+| Scope 3 emissions avoided | 15.3 t × 2.4 | **36.7 tCO₂e** |
+
+---
+
+## 9. Running Locally
+
+**Prerequisites:** Node.js 18+, npm 9+, Python 3.8+.
+
 ```bash
-# 1. Clone repository
 git clone https://github.com/YSerhatTemel/pfas-sentinel.git
 cd pfas-sentinel
-
-# 2. Install dependencies
 npm install
-
-# 3. Start local development server
-npm run dev
-
-# 4. Build optimized production bundle
-npm run build
+npm run dev      # development server
+npm run build    # production bundle
 ```
 
-### Python PINN Spatiotemporal Simulation & Non-Circular Inverse Testbench
-The core physics model is implemented in pure Python with **zero external dependencies**:
+Python PINN simulation and blind inverse EIS testbench (standard library only):
+
 ```bash
 python simulation/pfas_sentinel_pinn_model.py
 ```
 
-*Optional:* For extended scientific plotting and matrix visualization:
-```bash
-pip install -r requirements.txt
-```
+Optional scientific packages for extended analysis: `pip install -r requirements.txt`.
 
 ---
 
@@ -305,51 +232,38 @@ pip install -r requirements.txt
 
 ```text
 pfas-sentinel/
-├── .github/                       # CI/CD workflows and repository metadata
-├── public/                        # Static assets and icons
+├── .github/workflows/deploy.yml     # GitHub Pages deployment
 ├── simulation/
-│   └── pfas_sentinel_pinn_model.py# Standalone Python PINN PDE solver & blind EIS inverse engine
+│   └── pfas_sentinel_pinn_model.py  # Python PINN PDE solver & blind EIS inverse engine
 ├── src/
-│   ├── components/                # React UI modules for Xylem Vue SWE interface
-│   │   ├── AgenticEwsTab.tsx      # SCADA early-warning triggers & Evoqua automated dispatch
-│   │   ├── BusinessAndPitchTab.tsx# Servitization economics, BOM & municipal ROI calculator
-│   │   ├── CyberPhysicalTwinTab.tsx# 3D/2D hydraulic lead-lag digital twin & MTZ wave animation
-│   │   ├── MipBiosensorTab.tsx    # 32-ch electrochemical impedance spectroscopy & deconvolution
-│   │   └── PinnBreakthroughTab.tsx# Spatiotemporal PINN PDE breakthrough curves & train/test split
-│   ├── data/
-│   │   └── pfasPhysicsEngine.ts   # Core physics engine, Tikhonov deconvolution & PINN math
-│   ├── App.tsx                    # Main navigation shell & facility context provider
-│   ├── index.css                  # Tailwind CSS design system
-│   └── main.tsx                   # Application entry point
-├── GITHUB_YUKLE.bat               # Automated GitHub repository synchronization script
-├── LICENSE                        # MIT Open-Source License
-├── package.json                   # Web application manifest and dependencies
-├── requirements.txt               # Optional Python scientific dependencies
-├── tsconfig.json                  # TypeScript compiler configuration
-├── vite.config.ts                 # Vite bundler configuration
-└── README.md                      # Comprehensive project documentation & specifications
+│   ├── components/
+│   │   ├── AgenticEwsTab.tsx        # SCADA early warning & Evoqua dispatch
+│   │   ├── BusinessAndPitchTab.tsx  # Servitization economics & ROI calculator
+│   │   ├── CyberPhysicalTwinTab.tsx # Lead-lag hydraulic twin & MTZ visualization
+│   │   ├── MipBiosensorTab.tsx      # 32-ch EIS, deconvolution & BOM
+│   │   └── PinnBreakthroughTab.tsx  # PINN breakthrough curves & train/test split
+│   ├── data/pfasPhysicsEngine.ts    # Physics engine, Tikhonov inversion, PINN
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
+├── LICENSE
+├── requirements.txt
+├── package.json
+└── README.md
 ```
 
 ---
 
-## 11. Academic & Industrial References
+## 11. References
 
-1. **US Environmental Protection Agency (EPA):** *National Primary Drinking Water Regulation: Per- and Polyfluoroalkyl Substances (PFAS)*, 40 CFR Part 141, 89 FR 32532, Effective June 2024.
-2. **European Parliament & Council:** *Directive (EU) 2020/2184 on the quality of water intended for human consumption (Drinking Water Directive)*, Entry into force Jan 2026.
-3. **McCleaf, P., Englund, F., Östlund, A., et al.:** *Removal of per- and polyfluoroalkyl substances (PFASs) from water by granular activated carbon and ion exchange.* **Water Research**, 120, 77–87 (2017).
-4. **Park, M., Wu, S., Lopez, I.J., et al.:** *Adsorption of PFAS from impacted groundwater: Breakthrough curves, competitive sorption, and chromatographic roll-up dynamics.* **Environmental Science & Technology**, 54(11), 6967–6977 (2020).
-5. **Oseyemi, A. & Rezai, P.:** *Stand-alone microfluidic molecularly imprinted polymer membranes for rapid electrochemical isolation and detection of fluorinated organics.* **Sensors and Actuators B: Chemical**, 416, 136122 (Sept 2025).
-6. **American Water Works Association (AWWA):** *Financial Cost Impact of US EPA National Primary Drinking Water Regulations for PFAS on Drinking Water Utilities*, Technical Report, Denver, CO (2024).
-7. **Xylem Inc. & Evoqua Water Technologies:** *Municipal PFAS Removal Case Studies: Kennebunk, Kennebunkport & Wells Water District (KKWWD, Maine) and Security Water District (SHWSD, Colorado)*, Published Field Whitepapers (2023–2025).
+1. US EPA. *PFAS National Primary Drinking Water Regulation*, 89 FR 32532 (April 2024).
+2. Directive (EU) 2020/2184 on the quality of water intended for human consumption.
+3. McCleaf, P. et al. *Water Research* 120, 77–87 (2017) — PFAS removal in GAC and anion exchange column tests.
+4. Park, M. et al. *Environmental Science & Technology* 54(3), 1867–1876 (2020) — PFAS breakthrough in GAC treatment.
+5. Oseyemi & Rezai (2025) — stand-alone microfluidic MIP membrane architecture.
+6. AWWA — national cost analysis of the PFAS NPDWR (2024).
+7. Xylem / Evoqua published municipal PFAS case studies (KKWWD, Maine; SHWSD, Colorado).
 
 ---
 
-## 12. Team & Project Information
-
-- **Challenge:** Xylem Global Student Innovation Challenge 2026
-- **Track:** Challenge #2: Water Quality
-- **Project Lead & Author:** Yusuf Serhat Temel
-- **Repository:** [https://github.com/YSerhatTemel/pfas-sentinel](https://github.com/YSerhatTemel/pfas-sentinel)
-- **Submission Date:** November 2026
-
-*PFAS-Sentinel™ is dedicated to open-source water quality innovation and the rapid eradication of forever chemicals from global drinking water networks.*
+**Repository:** https://github.com/YSerhatTemel/pfas-sentinel · Xylem Global Student Innovation Challenge 2026 — Challenge #2: Water Quality
