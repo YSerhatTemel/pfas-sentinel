@@ -94,7 +94,7 @@ ANALYTES: Dict[str, PfasAnalyte] = {
 }
 
 # Digitized Empirical Breakthrough Profiles (C/C0 fractions at sample days [30, 60, 90, 115, 135, 155, 180, 210])
-# Derived from published pilot-scale GAC column studies (McCleaf et al., Water Research 2017; Park et al., EST 2020)
+# Derived from published pilot-scale GAC column studies (McCleaf et al., Water Research 2017; Park et al., Water Research 2020)
 # Format: species -> {"mid_c_c0": [...], "eff_c_c0": [...]} at nominal DOC ~ 2.0 mg/L
 PUBLISHED_PILOT_GAC_RATIOS: Dict[str, Dict[str, List[float]]] = {
     "PFBA": {

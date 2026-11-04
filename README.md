@@ -10,6 +10,18 @@
 [![EU DWD](https://img.shields.io/badge/EU%20DWD%202026-Sum%20of%2020%20%E2%89%A4%20100%20ng%2FL-purple.svg)](#5-regulatory-positioning--dual-threshold-strategy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**🔗 Live interactive demo:** https://yserhattemel.github.io/pfas-sentinel/
+
+> [!NOTE]
+> PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
+
+### How PFAS-Sentinel addresses the judging criteria
+| Criterion | Where to look |
+| :--- | :--- |
+| **Impact** — meaningfulness & reach | Modeled savings, avoided hazardous waste and emissions ([Section 8](#8-municipal-economic--environmental-model)); EPA/EU compliance relevance ([Section 5](#5-regulatory-positioning--dual-threshold-strategy)) |
+| **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports, pressure/filtration interface ([Section 4](#4-hardware-hydraulic-interfacing--durability)); honest TRL 2–3 status & 6-month TRL 6 roadmap ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
+| **Innovation** — originality | Mid-bed PFBA/PFBS sentinel sensing + hybrid PINN breakthrough twin + 4×4 MIP/NIP deconvolution ([Sections 2–3](#2-cyber-physical-system-architecture)) |
+
 ---
 
 ## 1. Executive Summary
@@ -258,8 +270,8 @@ pfas-sentinel/
 
 1. US EPA. *PFAS National Primary Drinking Water Regulation*, 89 FR 32532 (April 2024).
 2. Directive (EU) 2020/2184 on the quality of water intended for human consumption.
-3. McCleaf, P. et al. *Water Research* 120, 77–87 (2017) — PFAS removal in GAC and anion exchange column tests.
-4. Park, M. et al. *Environmental Science & Technology* 54(3), 1867–1876 (2020) — PFAS breakthrough in GAC treatment.
+3. McCleaf, P., Englund, S., Östlund, A., et al. (2017). Removal efficiency of multiple PFASs in drinking water using GAC and anion exchange column tests. *Water Research* 120, 77–87. https://doi.org/10.1016/j.watres.2017.04.057
+4. Park, M., Wu, S., Lopez, I. J., et al. (2020). Adsorption of PFAS in groundwater by granular activated carbons: Roles of hydrophobicity of PFAS and carbon characteristics. *Water Research* 170, 115364. https://doi.org/10.1016/j.watres.2019.115364
 5. Oseyemi & Rezai (2025) — stand-alone microfluidic MIP membrane architecture.
 6. AWWA — national cost analysis of the PFAS NPDWR (2024).
 7. Xylem / Evoqua published municipal PFAS case studies (KKWWD, Maine; SHWSD, Colorado).
