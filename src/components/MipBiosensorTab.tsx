@@ -91,8 +91,8 @@ export const MipBiosensorTab: React.FC = () => {
       title: 'Layer 3: Amine-Functionalized Nanocarbon 32-Ch Electrode Array',
       subtitle: 'Electrostatic protonated amine (-NH₃⁺) attraction + Redox Gate Effect',
       detail:
-        'Amine-functionalized graphene/CNT nanocomposite (inspired by UConn & Verralize architectures) amplifies charge-transfer resistance (ΔRct) of the embedded [Fe(CN)₆]³⁻/⁴⁻ mediator when PFAS molecules occupy MIP cavities.',
-      badge: 'LOD: 0.8 ppt (ng/L)',
+        'Amine-functionalized graphene/CNT nanocomposite (inspired by Verralize nanocarbon and 2witech MIP-electrochemical architectures) amplifies charge-transfer resistance (ΔRct) of the embedded [Fe(CN)₆]³⁻/⁴⁻ mediator when PFAS molecules occupy MIP cavities.',
+      badge: 'Target LOD: 0.8–4 ppt (ng/L)',
     },
     {
       id: 4,
@@ -125,9 +125,9 @@ export const MipBiosensorTab: React.FC = () => {
               Microfluidic Stand-Alone MIP &amp; Amine-Functionalized Nanocarbon Sensor Array
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-3xl">
-              Synthesizing 2024–2025 peer-reviewed electrochemical architectures (UConn amine-functionalized
-              sensing, Oseyemi &amp; Rezai Sept 2025 stand-alone microfluidic MIP, Rowan University &amp;
-              Verralize multiplexed platforms) into a proposed industrial cartridge targeting EPA’s{' '}
+              Synthesizing 2024–2026 electrochemical PFAS sensing work (Oseyemi &amp; Rezai stand-alone
+              microfluidic MIP membrane, 2witech MIP-electrochemical screening, Verralize nanocarbon
+              biosensors, Rowan University low-cost sensors) into a proposed industrial cartridge targeting EPA’s{' '}
               <strong className="text-cyan-300">4.0 ppt threshold in 12–15 minutes</strong> via
               differential NIP subtraction and 4×4 cross-selectivity deconvolution.
             </p>
@@ -196,7 +196,7 @@ export const MipBiosensorTab: React.FC = () => {
             Interrogation:{' '}
             <strong className="text-white">
               {assayMode === 'quantitative'
-                ? '12–15 Min Pre-Concentration + [Fe(CN)₆]³⁻/⁴⁻ EIS Gate-Effect (LOD: 0.8–4.0 ppt)'
+                ? '12–15 Min Pre-Concentration + [Fe(CN)₆]³⁻/⁴⁻ EIS Gate-Effect (Target LOD: 0.8–4.0 ppt)'
                 : '<2 Min High-Speed DPV/EIS Plume Triage for AFFF Emergency Response'}
             </strong>
           </span>

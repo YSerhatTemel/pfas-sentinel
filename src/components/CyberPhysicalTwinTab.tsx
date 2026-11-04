@@ -340,7 +340,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               <input
                 type="range"
                 min={10}
-                max={220}
+                max={400}
                 value={operatingDay}
                 onChange={(e) => setOperatingDay(Number(e.target.value))}
                 className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
@@ -993,7 +993,7 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                 {activeTelemetry.ct} ppt (HI: {regMetrics.hazardIndex})
               </text>
               <text x="714" y="244" fill="#E2E8F0" fontSize="8.5" fontFamily="JetBrains Mono">
-                {activeTelemetry.ct < 4.0 ? 'EPA 2027/2029 COMPLIANT' : 'ACTION REQUIRED'}
+                {activeTelemetry.ct < 4.0 ? 'EPA 4 ppt COMPLIANT' : 'ACTION REQUIRED'}
               </text>
 
               {/* Xylem MitiGATOR Mobile Response Fleet Badge */}

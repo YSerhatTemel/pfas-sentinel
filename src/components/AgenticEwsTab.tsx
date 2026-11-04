@@ -301,7 +301,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
         </div>
       </div>
 
-      {/* Expandable EPA 2027/2029 & EU 2026 Compliance Telemetry Log Drawer */}
+      {/* Expandable EPA & EU 2026 Compliance Telemetry Log Drawer */}
       {showAuditModal && (
         <div className="bg-[#061320] border-2 border-cyan-400/70 rounded-xl p-5 shadow-2xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
@@ -324,7 +324,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
                     operatingDay,
                     bedVolumesProcessed: currentBedVolumes,
                     regulatoryFramework: [
-                      'US EPA April 2024 Final PFAS Rule (4.0 ppt PFOA/PFOS MCL + Hazard Index HI <= 1.0 - April 2027/2029)',
+                      'US EPA April 2024 PFAS Rule: 4.0 ppt PFOA/PFOS MCL (compliance 2029, extension to 2031 announced May 2025; HI rescission proposed)',
                       'EU Drinking Water Directive (2020/2184) Mandatory January 2026 Sum-of-20 PFAS Limit (100 ng/L)',
                     ],
                     liveTelemetryVerification: {

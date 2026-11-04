@@ -70,8 +70,8 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     includeCompetitiveRollup,
   });
 
-  // Generate time-series points from Day 0 to Day 240
-  const daysArray = Array.from({ length: 49 }, (_, i) => i * 5); // 0, 5, 10 ... 240
+  // Generate time-series points from Day 0 to Day 400 (covers PFOA/PFOS effluent breakthrough)
+  const daysArray = Array.from({ length: 81 }, (_, i) => i * 5); // 0, 5, 10 ... 400
 
   // Directly use PINN-assimilated [learnedKth, learnedQ0] breakthrough predictions
   const midBedDay4Ppt = pinnDiagnostics.assimilatedMidBed4PptDay;
@@ -84,7 +84,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     Number((effluentStaticDay4Ppt - effluentPinnDay4Ppt).toFixed(1))
   );
 
-  // Peak roll-up concentration check across the 240-day window
+  // Peak roll-up concentration check across the 400-day window
   const peakEffluentPpt = Math.max(
     ...daysArray.map((d) =>
       computeBreakthroughConcentration({
@@ -110,7 +110,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
   const padTop = 20;
   const maxY = Math.max(35, customC0 * (includeCompetitiveRollup ? 1.38 : 1.08));
 
-  const toX = (day: number) => padLeft + (day / 240) * (chartWidth - padLeft - 20);
+  const toX = (day: number) => padLeft + (day / 400) * (chartWidth - padLeft - 20);
   const toY = (ppt: number) =>
     padTop + chartHeight - (Math.min(maxY, ppt) / maxY) * chartHeight;
 
@@ -142,7 +142,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
   const epa4PptY = toY(4.0);
   const influentC0Y = toY(customC0);
-  const currentDayX = toX(Math.min(240, operatingDay));
+  const currentDayX = toX(Math.min(400, operatingDay));
 
   return (
     <div className="space-y-6">
@@ -269,7 +269,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               })}
 
               {/* Vertical Day Grid Lines */}
-              {[0, 40, 80, 120, 160, 200, 240].map((d) => {
+              {[0, 50, 100, 150, 200, 250, 300, 350, 400].map((d) => {
                 const x = toX(d);
                 return (
                   <g key={d}>
@@ -464,7 +464,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               )}
 
               {/* Highlight Advance Warning Window between Mid-Bed 4 ppt and Effluent 4 ppt */}
-              {midBedDay4Ppt < 240 && effluentPinnDay4Ppt < 240 && (
+              {midBedDay4Ppt < 400 && effluentPinnDay4Ppt < 400 && (
                 <g>
                   <circle
                     cx={toX(midBedDay4Ppt)}
@@ -642,7 +642,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               <input
                 type="range"
                 min={10}
-                max={220}
+                max={400}
                 step={1}
                 value={operatingDay}
                 onChange={(e) => setOperatingDay(Number(e.target.value))}

@@ -42,7 +42,7 @@ export function App() {
   useEffect(() => {
     if (!isPlaying) return;
     const timer = setInterval(() => {
-      setOperatingDay((prev) => (prev >= 215 ? 30 : prev + 2));
+      setOperatingDay((prev) => (prev >= 395 ? 30 : prev + 3));
     }, 650);
     return () => clearInterval(timer);
   }, [isPlaying]);
@@ -123,7 +123,7 @@ export function App() {
     {
       id: 'business',
       label: '5. Servitization ROI & Pitch',
-      badge: 'Grand Prize',
+      badge: 'Impact & ROI',
       icon: <Award className="w-4 h-4" />,
     },
   ];
@@ -150,7 +150,7 @@ export function App() {
                   Challenge #2: Water Quality
                 </span>
                 <span className="hidden lg:inline-block px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  TRL 3 In-Silico Twin
+                  TRL 2–3 In-Silico Twin
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -162,7 +162,7 @@ export function App() {
           {/* Right Benchmark Facility Selector */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-slate-400 hidden md:inline">
-              Xylem Reference Twin:
+              Representative Facility:
             </span>
             <div className="flex items-center gap-1 bg-[#0B1D30] p-1 rounded-lg border border-slate-800">
               {XYLEM_FACILITIES.map((fac) => (

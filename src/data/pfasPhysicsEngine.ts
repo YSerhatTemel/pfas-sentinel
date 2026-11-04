@@ -202,9 +202,9 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
     name: 'Kennebunk, Kennebunkport & Wells Water District (KKWWD)',
     shortName: 'KKWWD Maine (GAC)',
     location: 'Maine, USA (EPA Region 1)',
-    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS | HI ≤ 1.0 | Compliance 2027/2029)',
+    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS | Compliance 2029, extension to 2031 announced)',
     mediaType: 'GAC',
-    mediaBrand: 'Evoqua UltraCarb™ Coconut-Shell Granular Activated Carbon',
+    mediaBrand: 'Evoqua AquaCarb® Coconut-Based GAC, Lead-Lag (as in published KKWWD case)',
     flowRateMGD: 2.1,
     mediaMassKg: 9100,
     ebctMinutes: 11.5,
@@ -228,16 +228,16 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
       nomMgL: 2.1,
     },
     benchmarkNote:
-      'Parameterized from published municipal coconut-shell GAC specifications modeled on Xylem/Evoqua’s Maine KKWWD deployment. Key operational challenge: early short-chain PFBA/PFBS breakthrough and chromatographic roll-up prior to long-chain PFOA/PFOS exhaustion.',
+      'Representative lead-lag coconut-based GAC train inspired by the published Xylem/Evoqua KKWWD (Maine) case study; flow, media mass and influent levels are illustrative assumptions, not utility data. Key operational challenge: early short-chain PFBA/PFBS breakthrough and chromatographic roll-up prior to long-chain PFOA/PFOS exhaustion.',
   },
   {
     id: 'shwsd-colorado',
     name: 'Stratmoor Hills Water & Sanitation District (SHWSD)',
     shortName: 'Stratmoor Hills CO (Selective IX)',
     location: 'Colorado Springs, CO, USA',
-    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS + Hazard Index HI ≤ 1.0)',
+    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS | HI rescission proposed)',
     mediaType: 'IX',
-    mediaBrand: 'Evoqua PSR2+™ Single-Use Selective Ion Exchange Resin',
+    mediaBrand: 'Evoqua Selective Single-Use Ion Exchange Resin (as in published SHWSD case)',
     flowRateMGD: 1.1,
     mediaMassKg: 3800,
     ebctMinutes: 2.8,
@@ -261,12 +261,12 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
       nomMgL: 1.3,
     },
     benchmarkNote:
-      'Parameterized from published 1.1 MGD selective single-use IX resin specifications modeled on Xylem/Evoqua’s Colorado SHWSD groundwater treatment facility impacted by historical AFFF plumes.',
+      'Representative selective single-use IX design inspired by the published Xylem/Evoqua Stratmoor Hills (Colorado) case study (4 vessels, 350 gpm). Flow is scaled up to 1.1 MGD here as an illustrative assumption; groundwater reportedly impacted by historical AFFF use.',
   },
   {
     id: 'brabant-eu',
-    name: 'Brabant Water & Semiconductor Industrial PPP',
-    shortName: 'Brabant Water NL (EU Hybrid)',
+    name: 'Representative EU Hybrid GAC-IX Train (Dutch Groundwater Profile)',
+    shortName: 'EU Hybrid NL (Representative)',
     location: 'North Brabant, Netherlands (EU)',
     regulatoryRegime: 'EU Drinking Water Directive 2026 (100 ng/L Sum) & EPA 4 ppt Standard',
     mediaType: 'HYBRID',
@@ -294,7 +294,7 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
       nomMgL: 2.8,
     },
     benchmarkNote:
-      'Parameterized from European municipal/industrial hybrid GAC-IX treatment trains utilizing Xylem Vue powered by GoAigua Digital Twin architecture.',
+      'Illustrative European lead GAC + lag selective IX polishing train under the EU DWD Sum-of-20 limit; a hypothetical profile, not a specific utility or Xylem deployment.',
   },
 ];
 
@@ -512,7 +512,7 @@ function evalNeuralResidual(
 
 /**
  * Physics-Guided Hybrid Neural Network (PINN-style) Breakthrough & Parameter Assimilation Solver.
- * - ZERO ground-truth parameter leakage: never reads targetCapFactor or targetKinFactor.
+ * - No ground-truth parameter leakage: never reads targetCapFactor or targetKinFactor.
  * - Optimizes physical parameters theta_phys = [kTh_eff, q0_eff] and 2-layer neural network weights
  *   theta_NN = [W1, b1, W2, b2] with Adam. The data term uses exact analytical backpropagation; the PDE
  *   penalty uses finite-difference residuals with an approximate (surrogate) gradient, not exact autodiff:
@@ -1610,10 +1610,10 @@ export const PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS: PublishedLiteratureBe
     pinnModelAgreement: `Model reproduces PFBA 4 ppt breakthrough at ${computeBedVolumes(kkwwdDefaultPfbaDiag.assimilatedEffluent4PptDay, 11.5).toLocaleString()} BV (Day ${kkwwdDefaultPfbaDiag.assimilatedEffluent4PptDay} ± ${kkwwdDefaultPfbaDiag.breakthrough95CiDays}d 95% CI) with 128% C₀ competitive roll-up overshoot (R² = ${kkwwdDefaultPfbaDiag.empiricalR2}).`,
   },
   {
-    studyCitation: 'US EPA / AWWA Pilot GAC & Selective IX Evaluation (EPA 815-R-24-001, 2024)',
-    mediaAndScale: 'Full-Scale Lead-Lag Municipal GAC & Single-Use Polystyrenic IX Vessels',
+    studyCitation: 'NOM / DOC competition in GAC adsorption (general literature; site-specific magnitude)',
+    mediaAndScale: 'Lead-Lag Municipal GAC & Single-Use Selective IX Vessels',
     keyEmpiricalFinding:
-      'Background Natural Organic Matter (DOC > 2.0 mg/L) reduces effective GAC adsorption capacity q₀ by 10%–35% via pore blockage compared to clean deionized isotherms.',
+      'Background natural organic matter competes for and blocks adsorption sites, lowering effective PFAS capacity q₀ relative to clean-water isotherms; the size of the effect is site-specific and must be measured (planned RSSCT, TRL 5).',
     pinnModelAgreement:
       'Mid-bed PINN assimilation automatically adjusts q₀ downward by 7%–32% across variable NOM (2.1–6.5 mg/L DOC) without offline lab recalibration.',
   },
@@ -1709,7 +1709,7 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
     physicalCause:
       'Highly hydrophobic PFOS/PFOA and NOM displace previously adsorbed short-chain PFBA/PFBS from GAC pores, causing temporary effluent spikes >120% of influent C₀.',
     pfasSentinelMitigation:
-      'Retrofits onto existing vessel Mid-Bed sample ports (z/L = 0.50) to detect the PFBA sentinel wave and actuate Lead-Lag valves weeks before roll-up reaches effluent.',
+      'Retrofits onto existing vessel Mid-Bed sample ports (z/L = 0.50) to track the PFBA tracer wave and roll-up in the twin; Lead-Lag actuation is scheduled from the PFOA/PFOS effluent forecast, with C4 roll-up flagged to operators.',
     trlTarget: 'Coupled 1D Advection-Sorption PINN + Roll-Up Solver Live in Twin',
   },
   {
@@ -1739,15 +1739,15 @@ export interface ResearchPillar {
 
 export const RESEARCH_SYNTHESIS_PILLARS: ResearchPillar[] = [
   {
-    institution: 'Oseyemi & Rezai (Microfluidic Stand-Alone MIP)',
-    year: 'Sept 2025',
+    institution: 'Oseyemi & Rezai, York University (Meas. Sci. Technol. 2026; preprint 2025)',
+    year: '2025–2026',
     technologyFocus: 'Self-supporting microfluidic Molecularly Imprinted Polymer membrane without fragile support beads',
     pfasSentinelIntegration: 'Forms Layer 2 of the proposed cartridge, addressing MOF hand-packing sorption variance',
   },
   {
-    institution: 'University of Connecticut (UConn)',
+    institution: '2witech Solutions (NIEHS SBIR R43ES035347)',
     year: '2024–2025',
-    technologyFocus: 'Amine-functionalized electrode surfaces achieving sub-part-per-trillion (<1 ppt) PFAS sensitivity in lab spikes',
+    technologyFocus: 'Portable MIP + electrochemical PFAS screening device reported across 1–200 ppt, under validation with real contaminated groundwater',
     pfasSentinelIntegration: 'Protonated amine (-NH₃⁺) electrostatic pre-concentration on Layer 3 nanocarbon transducer',
   },
   {
@@ -1757,15 +1757,15 @@ export const RESEARCH_SYNTHESIS_PILLARS: ResearchPillar[] = [
     pfasSentinelIntegration: 'Provides the physical Advection-Sorption & competitive desorption backbone for our PINN Twin',
   },
   {
-    institution: 'Rowan University & 2witech Platforms',
-    year: '2024–2025',
-    technologyFocus: 'Portable electrochemical impedance analyzers and multi-modal cross-validation for perfluoroalkyl substances',
+    institution: 'Rowan University (NSF-funded, 2025–2027)',
+    year: '2025–2027',
+    technologyFocus: 'Low-cost PFAS sensor research and an MIP electrochemical sensor for landfill leachate (preliminary LOD in the low hundreds of ppt for PFOA)',
     pfasSentinelIntegration: 'Informs dual-mode interrogation: <2 min rapid plume screening & 12–15 min quantitative EIS',
   },
   {
-    institution: 'Verralize & Analog Devices AD5940 Architecture',
-    year: '2024–2025',
-    technologyFocus: 'Multiplexed nanocarbon biosensor cartridge & single-chip 0.1 Hz–200 kHz EIS potentiostat AFE',
+    institution: 'Verralize (company-reported) & Analog Devices AD5940 AFE',
+    year: '2025–2026',
+    technologyFocus: 'Portable nanocarbon electrochemical PFAS biosensor reported at 4 ppt in 12–15 min (vendor claim), plus single-chip EIS potentiostat AFE',
     pfasSentinelIntegration: 'Enables 32-channel multiplexed array & $11.80 target disposable cartridge unit economics',
   },
 ];
@@ -1801,50 +1801,50 @@ export const REGULATORY_TIMELINE: RegulatoryMilestone[] = [
     status: 'UPCOMING DEADLINE',
   },
   {
-    date: 'April 2029',
+    date: 'May 2025 → 2031',
     authority: 'US EPA (Federal)',
-    title: 'Final Treatment Facility Commissioning',
-    mandate: 'Utilities exceeding 4.0 ppt or HI > 1.0 must have full-scale GAC, Selective IX, or RO treatment systems installed, operational, and continuously compliant.',
+    title: 'PFOA/PFOS Kept; Deadline Extended',
+    mandate: 'EPA announced it will keep the 4.0 ppt PFOA/PFOS MCLs, extend compliance from April 2029 to April 2031, and rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits (proposed rules followed). PFOA/PFOS remain the durable treatment target.',
     status: 'UPCOMING DEADLINE',
   },
 ];
 
-export interface MarketMetricBar {
+export interface MarketSizingRow {
   label: string;
-  percentage: number;
-  detail: string;
+  value: string;
+  source: string;
   color: string;
 }
 
-export const MARKET_OPERATIONAL_SHARES_2026: MarketMetricBar[] = [
+export const US_MARKET_SIZING: MarketSizingRow[] = [
   {
-    label: 'Adsorption & Separation Dominance (GAC / Selective IX / Membrane)',
-    percentage: 74.5,
-    detail: 'Granular Activated Carbon and Ion Exchange command the vast majority of municipal PFAS installations',
+    label: 'Public water systems covered by the US rule',
+    value: '~66,000',
+    source: 'US EPA PFAS NPDWR (April 2024)',
     color: '#00B4D8',
   },
   {
-    label: 'Media Replacement & O&M Share of Total System Lifetime Cost',
-    percentage: 42.5,
-    detail: '40%–45% of total 20-year lifecycle expenditure goes to replacing or regenerating spent GAC & IX beds',
-    color: '#F59E0B',
-  },
-  {
-    label: 'European Regional Market Share (Driven by EU DWD 2026 Mandate)',
-    percentage: 36.3,
-    detail: 'Harmonized January 2026 EU monitoring alongside rapid North American growth under EPA 2027/2029 rules',
+    label: 'Systems expected to need treatment (6–10%)',
+    value: '~4,000–6,600',
+    source: 'US EPA PFAS NPDWR (April 2024)',
     color: '#10B981',
   },
   {
-    label: 'High-Pressure Membrane (RO / NF) System Share',
-    percentage: 30.7,
-    detail: 'Higher energy & concentrate disposal cost; GAC & Selective IX preferred for high-flow municipal utilities',
+    label: 'Annual national compliance cost',
+    value: '$1.5B – $3.5B / yr',
+    source: 'US EPA final rule ($1.5B); AWWA 2024 update with Corona Environmental & Black & Veatch ($2.7–3.5B)',
+    color: '#F59E0B',
+  },
+  {
+    label: 'Treatment capital over the next 5 years',
+    value: '$37B – $48B',
+    source: 'AWWA 2024 updated national cost estimate',
     color: '#A855F7',
   },
   {
-    label: 'Smart Water Digitalization & Predictive Maintenance Allocation',
-    percentage: 16.0,
-    detail: 'Utility capital shift toward real-time digital twins and automated compliance telemetry',
+    label: 'PFAS-Sentinel addressable revenue (US)',
+    value: '$115M – $570M / yr',
+    source: 'Own estimate: 4,000–6,600 systems × 2–6 vessels × $14,400 per vessel-year (upper bound)',
     color: '#38BDF8',
   },
 ];
@@ -1868,7 +1868,7 @@ export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
     keyPainPointValidated:
       'EPA Method 533 / 537.1 centralized LC-MS/MS testing costs $300–$500/sample with 10–14 day lab turnaround latency, forcing utilities to apply conservative safety margins on lead-bed changeouts.',
     interviewQuote:
-      'Documented Industry Bottleneck: Utilities operating without real-time breakthrough visibility must replace or regenerate lead GAC vessels 20%–30% early to guarantee zero exceedance of the 4.0 ppt federal MCL.',
+      'Working hypothesis (to validate in utility interviews): without real-time breakthrough visibility, operators change lead media on conservative schedules, discarding an estimated 20%–30% of usable capacity. The business case breaks even at only 6% (Business tab).',
     designImpactOnPfasSentinel:
       'Retrofits existing Mid-Bed (z/L = 0.50) sample ports with 15-minute automated telemetry & SCADA Lead-Lag switchover.',
   },
@@ -1878,12 +1878,12 @@ export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
     keyPainPointValidated:
       'Full-scale municipal coconut-shell GAC (UltraCarb™) and selective IX (PSR2+™) vessels require precise lead-lag rotation and mobile emergency backup during peak seasonal flow or AFFF plume surges.',
     interviewQuote:
-      'Documented Operational Practice: Standard municipal GAC/IX vessels already feature physical mid-bed sampling taps, but rely on manual grab samples shipped off-site rather than continuous in-line sensors.',
+      'Published practice: the KKWWD system runs lead-lag GAC vessels in series and SHWSD runs four selective IX vessels in single- or two-pass mode — both rely on off-site lab results to time media service.',
     designImpactOnPfasSentinel:
-      'Parameterized our Digital Twin directly on KKWWD (2.1 MGD GAC) and SHWSD (1.1 MGD IX) hydraulic and media specifications.',
+      'Built representative facility profiles inspired by the KKWWD (lead-lag GAC) and SHWSD (selective IX) case studies; flows and masses are illustrative assumptions.',
   },
   {
-    group: 'Peer-Reviewed Column Breakthrough Literature (Water Research & EST)',
+    group: 'Peer-Reviewed Column Breakthrough Literature (Water Research)',
     sampleSize: 'McCleaf et al. 2017; Park et al. 2020',
     keyPainPointValidated:
       'Short-chain C4 PFAS (PFBA, PFBS) break through GAC columns 2–3× earlier than PFOA/PFOS and suffer competitive desorption roll-up (Ct > C0) when displaced by long-chain PFAS and humic NOM.',
