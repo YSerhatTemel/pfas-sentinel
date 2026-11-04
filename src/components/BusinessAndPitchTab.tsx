@@ -66,7 +66,7 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Measurable Impact & TRL 3 → TRL 6 Validation Roadmap',
       criterion: 'Impact',
       script:
-        '“Across a typical 6-vessel municipal plant (9.1-ton GAC vessels), extending bed utilization by 28% prevents 15.3 tons of spent PFAS-laden hazardous waste and 36.7 tons of Scope 3 CO₂ emissions every year. Following this challenge, our 6-month roadmap focuses on transitioning from TRL 3 numerical simulation to TRL 4–6 wet-lab spike calibration and pilot column testing with Xylem electrochemistry and filtration mentors.”',
+        '“Across a typical 6-vessel municipal plant (9.1-ton GAC vessels), extending bed utilization by 28% prevents 15.3 tons of spent PFAS-laden hazardous waste and 36.7 tons of Scope 3 CO₂ emissions every year. Our 12-month roadmap runs two tracks: a software-first Phase 0 that tests the forecast twin on a utility’s existing grab-sample records with no new hardware, and a sensor track from wet-lab calibration (TRL 4) through column testing (TRL 5) to a utility slipstream pilot (TRL 6) with Xylem mentors.”',
     },
   ];
 
@@ -334,9 +334,9 @@ export const BusinessAndPitchTab: React.FC = () => {
               className="bg-[#061320] border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-2.5"
             >
               <div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <h4 className="text-xs font-bold text-cyan-300">{st.group}</h4>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">
+                  <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 sm:shrink-0">
                     {st.sampleSize}
                   </span>
                 </div>
@@ -371,9 +371,9 @@ export const BusinessAndPitchTab: React.FC = () => {
               key={idx}
               className="bg-[#061320] border border-slate-800 rounded-xl p-4 space-y-2"
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <h4 className="text-xs font-bold text-amber-300">{lim.challenge}</h4>
-                <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 shrink-0">
+                <span className="self-start text-[10px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 sm:shrink-0 sm:max-w-[45%]">
                   {lim.trlTarget.split('→')[0]}
                 </span>
               </div>
@@ -455,14 +455,37 @@ export const BusinessAndPitchTab: React.FC = () => {
             Post-Challenge Validation Roadmap • Advancing from TRL 3 Simulation to TRL 6 Pilot
           </span>
           <h3 className="text-base font-bold text-white mt-0.5">
-            Proposed 6-Month Hardware &amp; Pilot Verification Plan with Mentors &amp; Utility Partners
+            Proposed 12-Month Software, Hardware &amp; Pilot Verification Plan with Mentors &amp; Utility Partners
           </h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-4xl">
+            Two tracks run in parallel. The software track (Phase 0) needs no new hardware and can
+            create value on its own; the sensor track de-risks the MIP cartridge step by step. If the
+            sensor slips, the utility still benefits from the forecast twin.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="bg-[#061320] border border-purple-500/40 rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-mono font-bold text-purple-300">Months 1 – 4 (Phase 0)</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/15 text-purple-300">
+                Software-First, No New Hardware
+              </span>
+            </div>
+            <h4 className="text-xs font-bold text-white">
+              Forecast Twin on Existing Grab Samples &amp; Lab Data
+            </h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Utilities already take periodic mid-bed and effluent grab samples for LC-MS/MS. The twin
+              learns from exactly this kind of sparse data — the current model is trained on only five
+              mid-bed checkpoints. Run it in a Xylem Vue sandbox on a partner utility&apos;s historical
+              records and score its PFOA/PFOS breakthrough forecasts against what actually happened.
+            </p>
+          </div>
+
           <div className="bg-[#061320] border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-cyan-300">Months 1 – 2 (TRL 3 → 4)</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-mono font-bold text-cyan-300">Months 1 – 4 (TRL 3 → 4)</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300">
                 Wet-Lab Spike Calibration
               </span>
@@ -478,8 +501,8 @@ export const BusinessAndPitchTab: React.FC = () => {
           </div>
 
           <div className="bg-[#061320] border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-amber-300">Months 3 – 4 (TRL 4 → 5)</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-mono font-bold text-amber-300">Months 5 – 8 (TRL 4 → 5)</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300">
                 Bench-Scale GAC Column
               </span>
@@ -495,8 +518,8 @@ export const BusinessAndPitchTab: React.FC = () => {
           </div>
 
           <div className="bg-[#061320] border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-emerald-300">Months 5 – 6 (TRL 5 → 6)</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-mono font-bold text-emerald-300">Months 9 – 12 (TRL 5 → 6)</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
                 Utility Slipstream Pilot
               </span>
@@ -506,8 +529,8 @@ export const BusinessAndPitchTab: React.FC = () => {
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               Connect a side-stream sensor pod to a partner utility GAC vessel’s 1/4&quot; NPT mid-bed
-              sample tap; stream live OPC-UA/MQTT telemetry into Xylem Vue sandbox and verify
-              projected 25–30% media lifecycle extension.
+              sample tap; stream live OPC-UA/MQTT telemetry into Xylem Vue sandbox and measure the
+              real media lifecycle extension (modeled 28%; break-even 6%).
             </p>
           </div>
         </div>

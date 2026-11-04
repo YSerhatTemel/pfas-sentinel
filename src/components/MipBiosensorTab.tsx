@@ -623,7 +623,7 @@ export const MipBiosensorTab: React.FC = () => {
               <div className="text-xl font-bold font-mono text-emerald-200 mt-0.5">
                 {signal.edgeAiCompensatedPpt} ppt
               </div>
-              <span className="text-[11px] font-mono text-emerald-400">
+              <span className="text-[11px] font-mono text-emerald-400 break-words [overflow-wrap:anywhere]">
                 predictPfasFromImpedance(ΔR_MIP, ΔR_NIP, Sonde) • Err: {signal.edgeAiErrorPct}%
               </span>
             </div>

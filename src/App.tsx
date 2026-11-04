@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Activity,
   Award,
+  BookOpen,
   Bot,
   Cpu,
   Droplets,
@@ -18,11 +19,13 @@ import { MipBiosensorTab } from './components/MipBiosensorTab';
 import { PinnBreakthroughTab } from './components/PinnBreakthroughTab';
 import { AgenticEwsTab } from './components/AgenticEwsTab';
 import { BusinessAndPitchTab } from './components/BusinessAndPitchTab';
+import { GlossaryPanel } from './components/GlossaryPanel';
 
 type TabId = 'twin' | 'biosensor' | 'pinn' | 'agentic' | 'business';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<TabId>('twin');
+  const [showGlossary, setShowGlossary] = useState<boolean>(false);
   const [facilityId, setFacilityId] = useState<string>(XYLEM_FACILITIES[0].id);
   const facility: FacilityProfile =
     XYLEM_FACILITIES.find((f) => f.id === facilityId) || XYLEM_FACILITIES[0];
@@ -131,7 +134,7 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#061320] text-slate-100 flex flex-col">
       {/* Top Industrial Header Bar */}
-      <header className="sticky top-0 z-30 bg-[#061320]/95 backdrop-blur-md border-b border-slate-800/90 px-4 lg:px-8 py-3">
+      <header className="relative md:sticky md:top-0 z-30bg-[#061320]/95 backdrop-blur-md border-b border-slate-800/90 px-4 lg:px-8 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           {/* Brand Logo & Xylem Vue Native Badge */}
           <div className="flex items-center gap-3">
@@ -210,11 +213,23 @@ export function App() {
               </button>
             );
           })}
+          <button
+            onClick={() => setShowGlossary(!showGlossary)}
+            className={`ml-auto flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+              showGlossary
+                ? 'bg-amber-500/20 text-amber-200 border-amber-500/50'
+                : 'bg-transparent text-amber-300 border-amber-500/30 hover:bg-amber-500/10'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            Key Terms
+          </button>
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6">
+        {showGlossary && <GlossaryPanel onClose={() => setShowGlossary(false)} />}
         {activeTab === 'twin' && (
           <CyberPhysicalTwinTab
             facility={facility}

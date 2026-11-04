@@ -10,7 +10,7 @@
 [![EU DWD](https://img.shields.io/badge/EU%20DWD%202026-Sum%20of%2020%20%E2%89%A4%20100%20ng%2FL-purple.svg)](#5-regulatory-positioning--dual-threshold-strategy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**🔗 Live interactive demo:** https://yserhattemel.github.io/pfas-sentinel/
+**🔗 Live interactive demo:** https://yserhattemel.github.io/pfas-sentinel/ · New to the terminology? See [Key terms, explained](#key-terms-explained).
 
 > [!NOTE]
 > PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
@@ -19,7 +19,7 @@
 | Criterion | Where to look |
 | :--- | :--- |
 | **Impact** — meaningfulness & reach | Modeled savings, avoided hazardous waste and emissions, sensitivity and US market size ([Section 8](#8-municipal-economic--environmental-model)); EPA/EU compliance relevance ([Section 5](#5-regulatory-positioning--dual-threshold-strategy)) |
-| **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports, pressure/filtration interface ([Section 4](#4-hardware-hydraulic-interfacing--durability)); honest TRL 2–3 status & 6-month TRL 6 roadmap ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
+| **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports, pressure/filtration interface ([Section 4](#4-hardware-hydraulic-interfacing--durability)); honest TRL 2–3 status & 12-month roadmap with a software-first Phase 0 ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
 | **Innovation** — originality | Mid-bed PFBA/PFBS sentinel sensing + hybrid PINN breakthrough twin + 4×4 MIP/NIP deconvolution ([Sections 2–3](#2-cyber-physical-system-architecture)) |
 | **Ecosystem fit** — how it plugs into Xylem | One sensor pod + one twin, wired into six existing Xylem/Evoqua offerings ([table below](#xylem-ecosystem-integration)) |
 
@@ -78,6 +78,44 @@ Municipal utilities removing PFAS ("forever chemicals") with Granular Activated 
 
 > [!NOTE]
 > All figures are model outputs from the in-silico twin under stated assumptions (Section 8). They are targets to be validated in TRL 4–6, not field measurements.
+
+### Key terms, explained
+The project uses specialist vocabulary from water treatment, electrochemistry and machine learning. Rather than drop the precise terms, each one is explained below — what it is, and why it matters for PFAS-Sentinel. The same glossary opens from the **Key Terms** button in the live demo.
+
+**Water treatment**
+
+| Term | What it is | Why it matters here |
+| :--- | :--- | :--- |
+| **PFAS (short-chain C4 vs long-chain C8)** | Per- and polyfluoroalkyl substances, "forever chemicals". The number is the length of the carbon chain: PFBA/PFBS have 4 carbons, PFOA/PFOS have 8. | Short chains stick to carbon weakly and move through the filter first; long chains stick strongly and are the ones the US limit (4 ppt) targets. |
+| **GAC / Selective IX** | Granular activated carbon and selective ion-exchange resin: the two main media used in pressure vessels to remove PFAS from drinking water. | Both get "used up" over time and must be replaced; replacing too early wastes money and creates hazardous waste. |
+| **Lead-lag train** | Two vessels in series. The lead vessel does most of the work; the lag vessel polishes and acts as a safety barrier. | When the lead vessel is spent, valves swap the roles and only the lead media is replaced. Timing this swap is the decision PFAS-Sentinel supports. |
+| **Mid-bed port (z/L = 0.50)** | A sampling tap halfway down the vessel. z is the depth from the top, L the total bed depth, so z/L = 0.50 is the middle. | Contaminants reach the middle months before the outlet, so a reading here is an early look at what the outlet will see later. |
+| **Mass Transfer Zone (MTZ)** | The band of media that is actively adsorbing. Above it the media is saturated; below it the media is still clean. | The MTZ moves down the bed like a slow wave. Tracking its position is what lets the twin forecast when the outlet will exceed the limit. |
+| **Breakthrough & Bed Volumes (BV)** | Breakthrough is when a contaminant starts appearing at the outlet. One bed volume is the amount of water equal to the volume of the media bed. | Bed volumes let results from columns of different sizes be compared; the literature reports PFAS breakthrough in BV. |
+| **Chromatographic roll-up (Cₜ > C₀)** | Strongly held long-chain PFAS push weakly held short-chain PFAS back off the carbon, so the outlet can briefly carry more short-chain PFAS than the inlet. | Grab samples taken every few weeks can miss these spikes completely; continuous mid-bed data can see them coming. |
+| **MCL / Hazard Index** | Maximum Contaminant Level: the legal limit in drinking water (4.0 ppt for PFOA and PFOS in the US). The Hazard Index is a combined score for a PFAS mixture. | EPA plans to keep the PFOA/PFOS MCLs and rescind the Hazard Index, so PFOA/PFOS are the targets that drive actuation in this design. |
+| **LC-MS/MS (EPA Method 533 / 537.1)** | Liquid chromatography with tandem mass spectrometry: the certified laboratory method for measuring PFAS at parts-per-trillion levels. | It is accurate but slow (10–14 days) and costly ($300–$500 per sample). PFAS-Sentinel keeps it for quarterly compliance but adds continuous data in between. |
+| **RSSCT** | Rapid Small-Scale Column Test: a lab column filled with crushed media that reproduces months of full-scale operation in days or weeks. | It is the planned TRL 5 step for testing the sensor cartridge and the twin on real breakthrough curves without a full-scale plant. |
+
+**Sensor**
+
+| Term | What it is | Why it matters here |
+| :--- | :--- | :--- |
+| **MIP / NIP** | A molecularly imprinted polymer has cavities shaped like the target molecule, so PFAS fit in and most other molecules do not. A non-imprinted polymer (NIP) is the same material without the cavities. | The NIP picks up everything except specific PFAS binding, so subtracting NIP from MIP removes background signal from organic matter and salts. |
+| **EIS & ΔRct** | Electrochemical impedance spectroscopy measures how easily charge passes through the electrode surface. Rct is the charge-transfer resistance. | When PFAS fill the MIP cavities they block a redox probe, Rct rises, and that change (ΔRct) is converted into a concentration. |
+| **4×4 Tikhonov deconvolution** | A matrix calculation that separates four overlapping signals (PFBA, PFBS, PFOA, PFOS), because each sensor channel responds a little to all four. Tikhonov regularization keeps the answer stable when the data is noisy. | Without it, a high PFOS level could be misread as PFOA, which would distort the forecast. |
+| **fDOM / NOM** | Natural organic matter (NOM) is dissolved material from soil and plants. fDOM is its fluorescent part, measured optically by the YSI EXO2 sonde. | NOM competes with PFAS for carbon and fouls sensors; the fDOM reading lets both the sensor and the twin correct for it. |
+| **Debye length** | The thin layer near a charged surface where ions in the water screen the charge (Gouy-Chapman theory). It shrinks as the water gets saltier. | It changes how strongly charged PFAS are attracted to the electrode, so the edge inversion corrects for conductivity. |
+
+**Digital twin & business**
+
+| Term | What it is | Why it matters here |
+| :--- | :--- | :--- |
+| **PINN / physics-guided hybrid twin** | A physics-informed neural network combines a physical equation (here, the 1D advection-sorption model of the moving MTZ) with a small neural network that learns the corrections physics misses. | Physics keeps forecasts sensible with very little data; the network adapts to each plant. Our version uses an approximate gradient for the physics term, so we call it PINN-style. |
+| **95% confidence interval (CI)** | The range of days within which the predicted breakthrough is expected to fall 95% of the time. | Actuation uses the early end of the range (breach day minus CI), so uncertainty makes the system more cautious, not less. |
+| **Agentic early warning system (EWS)** | A chain of software steps that reads data, forecasts, decides and prepares actions (valve swap, service order) — with human sign-off or interlocks before anything moves. | It turns a forecast into a scheduled action instead of a chart someone must remember to check. |
+| **Servitization** | Selling an outcome as a service (here a per-vessel subscription with cartridges included) instead of selling equipment up front. | Utilities avoid capital cost and pay from the media savings; Xylem gains recurring revenue alongside Evoqua media service. |
+| **TRL (Technology Readiness Level)** | A 1–9 scale of maturity: TRL 3 is a proof of concept, TRL 4 lab validation, TRL 5 validation in a relevant environment, TRL 6 a prototype demonstrated in that environment. | PFAS-Sentinel is at TRL 2–3 (simulation); the 12-month roadmap targets TRL 6. |
 
 ---
 
@@ -212,12 +250,19 @@ Where a utility also targets short-chain species (e.g. under the EU Sum-of-20), 
 - **Avoiding "inverse crime":** the forward sensor simulator (`simulatePhysicalSensorImpedance`) and the blind estimator (`predictPfasFromImpedance`) are separated. The estimator receives no ground-truth concentration or NOM value — only observable ΔR<sub>ct</sub> (MIP/NIP) and sonde telemetry. The forward model includes noise, temperature effects, and cross-binding not present in the inverse model.
 - **Known limitation:** because the forward and inverse models share a modeling framework, reported accuracy (≈2% mean absolute error across the 5-matrix benchmark, computed live in the app; up to ~11% for single low-concentration readings near 0.2 ppt in the Python testbench) is an optimistic bound to be re-evaluated on wet-lab data.
 
+### 12-month validation roadmap (two parallel tracks)
+
 ```mermaid
 flowchart LR
-    T3["TRL 3 - current: in-silico twin"] --> T4["TRL 4 - months 1-2: wet-lab spike calibration vs EPA 533"]
-    T4 --> T5["TRL 5 - months 3-4: RSSCT continuous-flow, 30-day cartridge"]
-    T5 --> T6["TRL 6 - months 5-6: utility slipstream pilot with Xylem Vue"]
+    T3["TRL 3 - today: in-silico twin"] --> P0["Phase 0 - months 1-4: forecast twin on existing grab-sample data, no new hardware"]
+    T3 --> T4["TRL 4 - months 1-4: MIP fabrication and wet-lab spike calibration vs EPA 533"]
+    T4 --> T5["TRL 5 - months 5-8: RSSCT continuous-flow column, 30-day cartridge"]
+    P0 --> T6["TRL 6 - months 9-12: utility slipstream pilot with Xylem Vue"]
+    T5 --> T6
 ```
+
+- **Phase 0 (software-first).** Utilities already collect periodic mid-bed and effluent grab samples for LC-MS/MS. The twin is built to learn from this kind of sparse data — the current model is trained on only five mid-bed checkpoints (days 30, 60, 90, 115, 135). Running it on a partner utility's historical records in a Xylem Vue sandbox tests the forecasting value **before any sensor exists**, and gives a fallback product if the sensor track slips.
+- **Sensor track (TRL 4 → 6).** Each stage has a go/no-go measure: limit of detection and cross-selectivity against EPA Method 533 (TRL 4), 30-day cartridge stability in a rapid small-scale column test (TRL 5), and measured media-life extension at a utility slipstream (TRL 6; modeled 28%, break-even 6%).
 
 ---
 
