@@ -9,12 +9,16 @@ import {
 } from 'lucide-react';
 import {
   FacilityProfile,
+  PFAS_SPECIES,
   computeBedVolumes,
   computeBreakthroughConcentration,
   predictBreakthroughTimeDays,
   computeRegulatoryComplianceMetrics,
   runPinnParameterAssimilation,
 } from '../data/pfasPhysicsEngine';
+
+// Typical media procurement + Evoqua service scheduling lead time (configurable per utility)
+const SERVICE_LEAD_TIME_DAYS = 60;
 
 interface AgenticEwsTabProps {
   facility: FacilityProfile;
@@ -113,9 +117,16 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     return { spId, c0, cMid, rawEff, ct, breakthroughDayEff, remainingDays };
   });
 
+  // Lead-lag actuation is gated by the compliance-limiting analyte (binding MCL species only).
+  // C4 tracers (PFBA/PFBS) reach the mid-bed first and track MTZ progression, but switching on
+  // them would discard capacity months before any PFOA/PFOS exceedance.
+  const complianceTelemetry = telemetryBySpecies.filter(
+    (t) => PFAS_SPECIES[t.spId].epaRegulationType === 'Binding Federal MCL (4.0 ppt)'
+  );
   const sentinel =
-    [...telemetryBySpecies].sort((a, b) => a.remainingDays - b.remainingDays)[0] ||
+    [...complianceTelemetry].sort((a, b) => a.remainingDays - b.remainingDays)[0] ||
     telemetryBySpecies[0];
+  const mtzTracer = telemetryBySpecies.find((t) => t.spId === 'PFBA') || telemetryBySpecies[0];
 
   const sentinelPinnDiag = runPinnParameterAssimilation({
     speciesId: sentinel.spId,
@@ -136,6 +147,12 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
     Math.round((pinnRemainingDays - remainingWholeDays) * 24)
   );
   const totalRemainingHours = Math.max(0, Math.round(pinnRemainingDays * 24));
+  // Actuation rule: switch only once the conservative (lower-CI) breach forecast enters the
+  // media service lead time. The demo buttons remain available as a manual override.
+  const conservativeRemainingDays = Number(
+    (pinnRemainingDays - sentinelPinnDiag.breakthrough95CiDays).toFixed(1)
+  );
+  const withinServiceWindow = conservativeRemainingDays <= SERVICE_LEAD_TIME_DAYS;
   const currentBedVolumes = computeBedVolumes(operatingDay, effectiveEbctMinutes);
   const savedMediaKg = Math.round(facility.mediaMassKg * 0.28);
 
@@ -180,7 +197,7 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       name: 'Node 01 • Edge Telemetry & YSI EXO2 Context Fusion',
       role: 'Microfluidic MIP + YSI EXO2 (fDOM/pH) Sonde',
       status: 'SYNCED (15-min cycle)',
-      detail: `Reads ${sentinel.spId} concentration of ${sentinel.cMid} ppt at Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV) while Effluent is at ${sentinel.ct} ppt. YSI EXO2 supplies non-PFAS matrix context (pH ${facility.matrixDefaults.pH}, fDOM ${Math.round(effectiveNomMgL * 24.5)} QSU).`,
+      detail: `Reads C4 MTZ tracer ${mtzTracer.spId} at ${mtzTracer.cMid} ppt and compliance-limiting ${sentinel.spId} at ${sentinel.cMid} ppt at the Mid-Bed sample port (z/L = 0.50, ${currentBedVolumes.toLocaleString()} BV); ${sentinel.spId} effluent is at ${sentinel.ct} ppt. YSI EXO2 supplies non-PFAS matrix context (pH ${facility.matrixDefaults.pH}, fDOM ${Math.round(effectiveNomMgL * 24.5)} QSU).`,
       payload: `{"node":"MID_BED_02","species":"${sentinel.spId}","c_mid_ppt":${sentinel.cMid},"effluent_ppt":${sentinel.ct},"ysi_exo2_ph":${facility.matrixDefaults.pH},"ysi_fdom_qsu":${Math.round(effectiveNomMgL * 24.5)}}`,
     },
     {
@@ -200,11 +217,13 @@ export const AgenticEwsTab: React.FC<AgenticEwsTabProps> = ({
       role: 'OPC-UA / Modbus PLC Actuator Bridge',
       status: leadLagSwitched
         ? 'EXECUTED (VALVE ACTUATED)'
+        : !withinServiceWindow
+        ? `MONITOR (BREACH ${conservativeRemainingDays}d OUT > ${SERVICE_LEAD_TIME_DAYS}d WINDOW)`
         : !canActuatePlc
         ? 'HOLD (AWAITING OPERATOR SIGN-OFF)'
         : 'READY TO ACTUATE (INTERLOCKS PASS)',
       detail:
-        'Commands motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel to Primary Lead before short-chain C4 roll-up or C8 MCL breach occurs (verified by 3 PLC safety interlocks).',
+        `Commands motorized butterfly valves MV-104 & MV-105 to promote the Lag Polishing Vessel to Primary Lead only when the conservative ${sentinel.spId} effluent MCL breach forecast (breach day − 95% CI) falls inside the ${SERVICE_LEAD_TIME_DAYS}-day media service lead time (currently ${conservativeRemainingDays} d). C4 tracer alerts refine the forecast but never actuate on their own (verified by 3 PLC safety interlocks; manual override available).`,
       payload: `{"scada_cmd":"SET_LEAD_LAG_CONFIG","governance":"${scadaControlMode.toUpperCase()}","interlocks_ok":${canActuatePlc},"plc_tag":"MV_104_105","state":"${leadLagSwitched ? 'LAG_POLISH_ENGAGED' : 'PRIMARY_LEAD'}"}`,
     },
     {

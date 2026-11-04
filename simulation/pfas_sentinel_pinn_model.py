@@ -1,6 +1,6 @@
 """
-PFAS-Sentinel: Bohart-Adams / Thomas Advection-Sorption Model, Genuine Physics-Informed
-Neural Network (PINN) Spatiotemporal PDE Solver, Chromatographic Roll-Up Simulator &
+PFAS-Sentinel: Bohart-Adams / Thomas Advection-Sorption Model, Physics-Guided Hybrid
+Neural Network (PINN-style) Breakthrough Assimilation Solver, Chromatographic Roll-Up Simulator &
 Blind Inverse EIS + 4x4 Cross-Selectivity Deconvolution Engine
 ==========================================================================================
 Xylem Global Student Innovation Challenge 2026 - Challenge #2: Water Quality
@@ -15,8 +15,9 @@ Governing Coupled Spatiotemporal PDE & Kinetic System:
        dC_base/dt = k_Th * C0 * C_base * (1 - C_base / C0)
     3. Hybrid PINN Architecture (Physics Backbone + 2-Layer Neural Residual Correction):
        C_hat(z_tilde, t) = C_Thomas(z_tilde, t; k_Th, q0) + N_W(z_tilde, t_tilde)
-       Trained via analytical backpropagation on digitized pilot GAC column observations
-       and interior spatiotemporal PDE collocation points (ZERO ground-truth parameter leakage).
+       Data term: exact analytical backpropagation on digitized pilot GAC column observations.
+       PDE term: finite-difference residual at interior collocation points, penalized with an
+       approximate (surrogate) gradient rather than exact autodiff. No ground-truth parameter leakage.
     4. Strictly Separated Sensor Simulation vs. Blind Inverse Estimator:
        - simulate_physical_sensor_impedance(true_ppt, ...) -> generates raw hardware observables
        - predict_pfas_from_impedance(measured_rct, nip_rct, sonde) -> BLIND estimator (no true_ppt input!)
@@ -47,7 +48,7 @@ ANALYTES: Dict[str, PfasAnalyte] = {
         "PFBA",
         "Short-Chain (C4 Carboxylate)",
         "US EPA UCMR5 Sentinel Tracer | EU Sum-of-20 (100 ng/L)",
-        "EU 100 ng/L Sum-of-20 (4.0 ppt SCADA Early-Warning Trigger)",
+        "EU 100 ng/L Sum-of-20 (4.0 ppt Mid-Bed MTZ Tracer Alert, no actuation)",
         4.0,
         26.5,
         0.0024,
@@ -59,7 +60,7 @@ ANALYTES: Dict[str, PfasAnalyte] = {
         "PFBS",
         "Short-Chain (C4 Sulfonate)",
         "US EPA Hazard Index (HI <= 1.0, HBWC 2000 ppt) | EU Sum-of-20",
-        "EPA Hazard Index HI <= 1.0 (4.0 ppt SCADA Early-Warning Trigger)",
+        "EPA Hazard Index HI <= 1.0 (4.0 ppt Mid-Bed MTZ Tracer Alert, no actuation)",
         4.0,
         31.0,
         0.0021,
@@ -213,10 +214,11 @@ def run_pinn_gradient_assimilation(
     epochs: int = 24,
 ) -> Dict:
     """
-    Genuine Hybrid Physics-Informed Neural Network (PINN) + Analytical Parameter Assimilation Solver.
+    Physics-Guided Hybrid Neural Network (PINN-style) + Analytical Parameter Assimilation Solver.
     - Fits physical parameters [k_scale, q_scale] and 2-layer MLP residual weights [W1, b1, W2, b2]
       against INDEPENDENT digitized pilot GAC column data points (PUBLISHED_PILOT_GAC_RATIOS).
-    - Enforces 1D Advection-Sorption PDE collocation residual: R_PDE = dC_hat/dt + u_MTZ * dC_hat/dz.
+    - Penalizes the 1D Advection-Sorption PDE collocation residual R_PDE = dC_hat/dt + u_MTZ * dC_hat/dz
+      (finite differences; approximate surrogate gradient, not exact autodiff).
     - Computes a 95% Prediction Confidence Interval (+/- days) from empirical residual variance.
     """
     q_norm = max(0.2, flow_mgd * 320.0)
@@ -397,14 +399,15 @@ def run_pinn_gradient_assimilation(
         c_pinn = c0 * sig_pinn + nn_v
         test_sq_err += (c_pinn - obs_c) ** 2
 
-    for d, obs_c in zip(sample_days, mid_observations):
+    # Static baseline is scored on the SAME unseen test days as the PINN (like-for-like comparison)
+    for d, obs_c in zip(test_days, test_obs):
         xi_stat = max(-35.0, min(35.0, (analyte.k_th_gac * analyte.q0_gac * m_mid) / q_norm - analyte.k_th_gac * c0 * d))
         c_stat = c0 / (1.0 + math.exp(xi_stat))
         static_sq_err += (c_stat - obs_c) ** 2
 
     train_rmse_ppt = math.sqrt(final_data_mse)
     test_rmse_ppt = math.sqrt(test_sq_err / len(test_days))
-    static_rmse_ppt = math.sqrt(static_sq_err / len(sample_days))
+    static_rmse_ppt = math.sqrt(static_sq_err / len(test_days))
 
     # Directly use assimilated [learned_k_th, learned_q0] to predict 4.0 ppt Effluent Breakthrough Day
     safe_c0 = max(4.5, c0)
@@ -496,7 +499,7 @@ def solve_tikhonov_4x4_deconvolution(
     raw_group_vec: List[float], lambda_reg: float = 0.015
 ) -> Tuple[List[float], float, float]:
     """
-    Genuine 4x4 Tikhonov-Regularized Matrix Inversion:
+    4x4 Tikhonov-Regularized Matrix Inversion:
     Solves c_hat = (S^T S + lambda I)^(-1) S^T r_vec using exact Gauss-Jordan elimination
     on the 4x4 MIP cross-selectivity matrix S (PFBA, PFBS, PFOA, PFOS).
     """

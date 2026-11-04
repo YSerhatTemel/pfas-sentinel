@@ -58,7 +58,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
 
   const speciesConfig = PFAS_SPECIES[focusSpecies];
 
-  // Run genuine PINN Gradient Descent PDE + Mid-Bed Telemetry Assimilation Solver
+  // Run hybrid PINN-style Gradient Descent PDE + Mid-Bed Telemetry Assimilation Solver
   const pinnDiagnostics = runPinnParameterAssimilation({
     speciesId: focusSpecies,
     mediaType: facility.mediaType,
@@ -337,7 +337,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
               >
                 {speciesConfig.id === 'PFOA' || speciesConfig.id === 'PFOS'
                   ? 'US EPA Binding Statutory MCL: 4.0 ppt'
-                  : `Internal SCADA Early-Warning Trigger: 4.0 ppt (${speciesConfig.statutoryLimitLabel})`}
+                  : `MTZ Tracer Alert (no actuation): 4.0 ppt (${speciesConfig.statutoryLimitLabel})`}
               </text>
 
               {/* Current Operating Day Vertical Cursor */}

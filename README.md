@@ -18,9 +18,35 @@
 ### How PFAS-Sentinel addresses the judging criteria
 | Criterion | Where to look |
 | :--- | :--- |
-| **Impact** — meaningfulness & reach | Modeled savings, avoided hazardous waste and emissions ([Section 8](#8-municipal-economic--environmental-model)); EPA/EU compliance relevance ([Section 5](#5-regulatory-positioning--dual-threshold-strategy)) |
+| **Impact** — meaningfulness & reach | Modeled savings, avoided hazardous waste and emissions, sensitivity and US market size ([Section 8](#8-municipal-economic--environmental-model)); EPA/EU compliance relevance ([Section 5](#5-regulatory-positioning--dual-threshold-strategy)) |
 | **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports, pressure/filtration interface ([Section 4](#4-hardware-hydraulic-interfacing--durability)); honest TRL 2–3 status & 6-month TRL 6 roadmap ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
 | **Innovation** — originality | Mid-bed PFBA/PFBS sentinel sensing + hybrid PINN breakthrough twin + 4×4 MIP/NIP deconvolution ([Sections 2–3](#2-cyber-physical-system-architecture)) |
+| **Ecosystem fit** — how it plugs into Xylem | One sensor pod + one twin, wired into six existing Xylem/Evoqua offerings ([table below](#xylem-ecosystem-integration)) |
+
+### Xylem ecosystem integration
+PFAS-Sentinel adds the one missing signal (in-bed PFAS) to equipment and services Xylem already sells. Everything else it reuses.
+
+| Xylem offering | Role in PFAS-Sentinel | Interface | Data / action |
+| :--- | :--- | :--- | :--- |
+| **YSI EXO2** sonde | Matrix context for the sensor inversion; it does not measure PFAS | Modbus RS-485 via the [EXO Modbus Signal Output Adapter](https://www.ysi.com/product/id-599825/EXO-Modbus-Signal-Output-Adapter) | pH, temperature, conductivity, turbidity, fDOM every 15 min |
+| **Sensus / MJK** flow metering | Flow $Q$, the main driver of MTZ speed in the twin | Plant SCADA historian | Flow rate → PINN input |
+| **[Xylem Vue powered by GoAigua](https://www.xylem.com/en-ie/brands/xylem-vue/smart-water-simplified/)** | Hosts the PINN twin, dashboards and the actuation rule | MQTT / OPC-UA | Breakthrough forecast ± 95% CI, alerts, audit log |
+| **Evoqua** GAC / selective IX vessels | The treatment asset being monitored (lead-lag trains) | Existing `1/4" NPT` sample ports | Mid-bed and inter-vessel slipstream |
+| **Evoqua** media service | Just-in-time media changeout instead of calendar-based | Work order from Xylem Vue | Service date set by forecast, not by calendar |
+| **Evoqua [MitiGATOR™](https://www.xylem.com/en-uk/Catalog/products--services/services/temporary-water-treatment/mitigator-mobile-system/)** mobile system | Contingency capacity if a forecast moves suddenly (e.g. AFFF plume) | Rental dispatch | Trailer with 6 carbon/resin vessels, up to 1,000 gpm |
+
+**Open standards, no lock-in.** Every link uses Modbus, MQTT or OPC-UA, and Xylem Vue itself ingests data from non-Xylem sources. The best fit is with Xylem equipment, but a utility with other sondes or meters can still adopt PFAS-Sentinel.
+
+**An operator's view (representative GAC plant, in-silico timeline)**
+
+| Day | What happens | Who / where |
+| :--- | :--- | :--- |
+| 0 | Fresh media; the twin starts from the Thomas prior for this facility | Xylem Vue |
+| ~89 | PFBA crosses 4 ppt at the mid-bed port → **tracer alert**: the twin tightens its forecast. No valve moves. | Sensor pod → Xylem Vue notification |
+| every 15 min | Pod + EXO2 telemetry assimilated; PFOA/PFOS effluent breach forecast updated | Edge node → Xylem Vue |
+| ~252 | Conservative PFOA breach forecast (day ≈ 315 − 3-day CI) enters the 60-day service window → Evoqua work order raised; operator approves (or autonomous mode) | Xylem Vue → Evoqua |
+| before ~315 | Lead-lag rotation; spent lead media replaced just in time | Plant PLC (3 interlocks) + Evoqua |
+| quarterly | Certified LC-MS/MS confirms compliance at the effluent | Accredited lab |
 
 ---
 
@@ -38,7 +64,7 @@ Municipal utilities removing PFAS ("forever chemicals") with Granular Activated 
 
 1. **In-line microfluidic sensor pod** — retrofits existing `1/4" NPT` vessel sample ports (influent, mid-bed at $z/L = 0.50$, effluent) through a pressure-reducing manifold, pairing a 32-channel Molecularly Imprinted Polymer (MIP) electrochemical cartridge with **Xylem YSI EXO2** sonde telemetry.
 2. **Physics-Informed Neural Network (PINN) digital twin** — designed for **Xylem Vue powered by GoAigua**, assimilating 15-minute mid-bed telemetry into a 1D advection-sorption PDE backbone to forecast effluent breakthrough weeks in advance.
-3. **SCADA & servitization integration** — PLC safety interlocks gate lead-lag valve switchover and just-in-time **Evoqua** media service, with **Xylem MitiGATOR™** mobile units as contingency.
+3. **SCADA & servitization integration** — lead-lag valve switchover is scheduled from the *forecast PFOA/PFOS effluent breach*, gated by PLC safety interlocks, with just-in-time **Evoqua** media service and **Xylem MitiGATOR™** mobile units as contingency.
 
 ### Modeled Impact (Representative 6-Vessel Plant — see [Section 8](#8-municipal-economic--environmental-model))
 | Metric | Value |
@@ -81,7 +107,7 @@ flowchart TD
     O --> Q["1D advection-sorption PINN twin"]
     Q --> R["Breakthrough forecast with 95% CI"]
 
-    R -->|mid-bed trigger 4.0 ppt| S["Plant PLC / SCADA with 3 safety interlocks"]
+    R -->|forecast PFOA/PFOS breach within service lead time| S["Plant PLC / SCADA with 3 safety interlocks"]
     S --> T["Lead-lag valves MV-104 / MV-105"]
     S --> U["Evoqua media service and MitiGATOR dispatch"]
 
@@ -116,9 +142,18 @@ $$\hat{C}(\tilde{z}, t) = C_{\text{Thomas}}(\tilde{z}, t; k_{\text{Th}}, q_0) + 
 
 $$\mathcal{L}_{\text{PINN}} = \frac{1}{N_{\text{obs}}}\sum_{i} \left(\hat{C}(z_{\text{mid}}, t_i) - C^{\text{obs}}_{\text{mid}}(t_i)\right)^2 + \lambda_{\text{PDE}} \frac{1}{N_{\text{col}}}\sum_{j} \left(\frac{\partial \hat{C}}{\partial t} + u_{\text{MTZ}}\frac{\partial \hat{C}}{\partial \tilde{z}} - S_{\text{kin}}(\hat{C})\right)^2$$
 
-The physical parameters $k_{\text{Th}}, q_0$ and the 2-layer residual network $\mathcal{N}_{\mathbf{W}}$ are optimized jointly (analytical backpropagation + Adam). The learned parameters directly drive the effluent trajectory and the 4.0 ppt breakthrough forecast (± 95% CI).
+The physical parameters $k_{\text{Th}}, q_0$ and the 2-layer residual network $\mathcal{N}_{\mathbf{W}}$ are optimized jointly with Adam. The data term uses exact analytical backpropagation; the PDE term is a finite-difference residual at collocation points penalized with an approximate (surrogate) gradient rather than full automatic differentiation, so the model is best described as a *physics-guided hybrid* (PINN-style) rather than a textbook PINN. The learned parameters drive the effluent trajectory and the 4.0 ppt breakthrough forecast (± 95% CI).
 
-**Validation protocol:** temporal forward-chaining split — train on mid-bed checkpoints at days 30, 60, 90, 115, 135; evaluate on unseen days 155, 180, 210; compare against a static Thomas baseline.
+**Validation protocol:** temporal forward-chaining split — train on mid-bed checkpoints at days 30, 60, 90, 115, 135; evaluate on unseen days 155, 180, 210; compare against a static Thomas baseline scored on the **same** unseen days.
+
+| Analyte | Hybrid model test RMSE (ppt) | Static Thomas test RMSE (ppt) |
+| :--- | ---: | ---: |
+| PFBA | 0.31 | 0.61 |
+| PFBS | 0.75 | 1.90 |
+| PFOA | 1.49 | 6.21 |
+| PFOS | 0.68 | 7.15 |
+
+*Output of `python simulation/pfas_sentinel_pinn_model.py` (in-silico; see Section 6).*
 
 ### 3.4 Electrochemical inversion & deconvolution
 NIP blank channels and the YSI EXO2 fDOM signal (optical NOM proxy) remove non-specific drift; cross-reactivity between C4/C8 analogs is resolved by a Tikhonov-regularized $4\times4$ inverse:
@@ -148,16 +183,22 @@ $$\hat{\mathbf{c}} = \left(\mathbf{S}^\top\mathbf{S} + \lambda\mathbf{I}\right)^
 **US EPA NPDWR (April 2024, 89 FR 32532)**
 - **PFOA and PFOS: MCL 4.0 ppt** — the binding federal baseline; compliance timeline 2029–2031.
 - PFHxS, PFNA, HFPO-DA (GenX): MCL 10 ppt; Hazard Index for mixtures incl. PFBS.
-- EPA has announced reconsideration of parts of the rule (notably the Hazard Index and some individual limits). PFAS-Sentinel's SCADA rule layer is configurable (individual MCLs, sums, or hazard indices) without hardware changes.
+- **Regulatory update:** in May 2025 EPA announced it will **keep the 4.0 ppt PFOA/PFOS MCLs**, extend their compliance deadline from 2029 to 2031, and rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits; the corresponding proposed rules followed. PFOA/PFOS are therefore the most durable compliance targets, which is why they alone drive actuation. The SCADA rule layer is software-configurable (individual MCLs, sums, hazard indices) if the rules change again.
 
 **EU Drinking Water Directive (EU) 2020/2184 — applicable from January 2026**
 - "Sum of 20 PFAS" ≤ 100 ng/L; "PFAS Total" ≤ 500 ng/L.
 
-**Why PFBA / PFBS?** Short-chain C4 PFAS have lower affinity for GAC and migrate faster, so they reach the mid-bed port first. They serve as **early sentinel tracers of MTZ progression**, while PFOA/PFOS remain the compliance targets. In the in-silico benchmark, PFBA crosses 4 ppt at the mid-bed around day 89, whereas PFOA reaches 4 ppt at the effluent around day 319.
+**Why PFBA / PFBS?** Short-chain C4 PFAS have lower affinity for GAC and migrate faster, so they reach the mid-bed port first. They serve as **early tracers of MTZ progression** that feed the twin with data months before PFOA/PFOS move, while PFOA/PFOS remain the compliance targets. In the in-silico benchmark, PFBA crosses 4 ppt at the mid-bed around day 89, whereas PFOA reaches 4 ppt at the effluent around day 319.
 
-**Two thresholds, two roles**
-1. **Internal SCADA trigger** — 4.0 ppt at the mid-bed port; triggers lead-lag rotation and service scheduling.
-2. **Statutory limit** — MCL at final effluent; certified by retained quarterly LC-MS/MS.
+> [!IMPORTANT]
+> A C4 tracer alert **never actuates media changeout on its own.** Switching the lead vessel on day 89 would discard ~230 days of PFOA/PFOS capacity — exactly the premature changeout PFAS-Sentinel is meant to prevent.
+
+**Three signals, three roles**
+1. **MTZ tracer alert** — PFBA/PFBS reach 4.0 ppt at the mid-bed port; operator notification and forecast refinement only, no actuation.
+2. **Actuation trigger** — the twin's forecast PFOA/PFOS effluent breach day (minus its 95% CI) falls inside the media service lead time; schedules lead-lag rotation and Evoqua service.
+3. **Statutory limit** — MCL at final effluent; certified by retained quarterly LC-MS/MS.
+
+Where a utility also targets short-chain species (e.g. under the EU Sum-of-20), the actuation rule can be reconfigured to include them, since the rule layer is software-defined.
 
 ---
 
@@ -168,7 +209,7 @@ $$\hat{\mathbf{c}} = \left(\mathbf{S}^\top\mathbf{S} + \lambda\mathbf{I}\right)^
 
 - **Breakthrough data:** synthetic testbench mapped to each facility (Q, M, C0, media), shaped by digitized pilot GAC curves from *McCleaf et al. (2017)* and *Park et al. (2020)*.
 - **Avoiding "inverse crime":** the forward sensor simulator (`simulatePhysicalSensorImpedance`) and the blind estimator (`predictPfasFromImpedance`) are separated. The estimator receives no ground-truth concentration or NOM value — only observable ΔR<sub>ct</sub> (MIP/NIP) and sonde telemetry. The forward model includes noise, temperature effects, and cross-binding not present in the inverse model.
-- **Known limitation:** because the forward and inverse models share a modeling framework, reported accuracy (e.g., ~4.5% MAE) is an upper bound to be re-evaluated on wet-lab data.
+- **Known limitation:** because the forward and inverse models share a modeling framework, reported accuracy (≈2% mean absolute error across the 5-matrix benchmark, computed live in the app; up to ~11% for single low-concentration readings near 0.2 ppt in the Python testbench) is an optimistic bound to be re-evaluated on wet-lab data.
 
 ```mermaid
 flowchart LR
@@ -215,6 +256,28 @@ Assumptions (identical to the interactive calculator in `BusinessAndPitchTab.tsx
 | **Net utility savings** | | **+\$112,092** |
 | Hazardous media avoided | 6 × 9.1 t × 28% | **15.3 t** |
 | Scope 3 emissions avoided | 15.3 t × 2.4 | **36.7 tCO₂e** |
+
+### 8.1 Sensitivity: how much depends on the 28% assumption?
+The 28% bed-life extension sits inside the 20–30% capacity typically discarded by calendar-based changeout (Section 1), but it is not yet measured. The table shows net annual savings for the same 6-vessel plant when that assumption, and the baseline lab frequency, are varied:
+
+| Bed-life extension | Net savings, bi-weekly lab baseline | Net savings, monthly lab baseline | Media avoided |
+| :--- | ---: | ---: | ---: |
+| 10% | +\$20,292 | −\$9,696 | 5.5 t |
+| 20% | +\$71,292 | +\$41,304 | 10.9 t |
+| **28% (base case)** | **+\$112,092** | **+\$82,104** | **15.3 t** |
+| 35% | +\$147,792 | +\$117,804 | 19.1 t |
+
+**Break-even:** 6.0% bed-life extension with a bi-weekly lab baseline, 11.9% with a monthly one. The business case therefore survives even if field results come in at well under half the modeled extension. Per vessel: net = $85{,}000\,e + 0.85 \times n_{\text{lab}} \times \$420 - \$14{,}400$, where $e$ is the extension and $n_{\text{lab}}$ is the number of baseline samples per year.
+
+### 8.2 Market opportunity
+| Layer | Estimate | Basis |
+| :--- | :--- | :--- |
+| Systems covered by the US rule | ~66,000 public water systems | US EPA, April 2024 |
+| Systems expected to need treatment | ~6–10% → **~4,000–6,600 systems** | US EPA, April 2024 |
+| National compliance spend | \$1.5 B/yr (EPA) to \$2.7–3.5 B/yr (AWWA 2024 update); \$37–48 B capital over 5 years (AWWA) | EPA final rule; AWWA / Black & Veatch / Corona Environmental |
+| PFAS-Sentinel addressable revenue (US) | **~\$115 M–\$570 M/yr** | 4,000–6,600 systems × 2–6 vessels × \$14,400 per vessel-year |
+
+The upper bound assumes every treating system adopts it; the realistic initial segment is mid-size groundwater utilities running GAC/IX lead-lag trains, where the per-vessel savings above clearly exceed the fee. Small single-well systems may need a lower-cost tier. EU Member States (Sum-of-20 from January 2026) and other markets with PFAS limits are additional upside not counted here.
 
 ---
 
@@ -272,9 +335,14 @@ pfas-sentinel/
 2. Directive (EU) 2020/2184 on the quality of water intended for human consumption.
 3. McCleaf, P., Englund, S., Östlund, A., et al. (2017). Removal efficiency of multiple PFASs in drinking water using GAC and anion exchange column tests. *Water Research* 120, 77–87. https://doi.org/10.1016/j.watres.2017.04.057
 4. Park, M., Wu, S., Lopez, I. J., et al. (2020). Adsorption of PFAS in groundwater by granular activated carbons: Roles of hydrophobicity of PFAS and carbon characteristics. *Water Research* 170, 115364. https://doi.org/10.1016/j.watres.2019.115364
-5. Oseyemi & Rezai (2025) — stand-alone microfluidic MIP membrane architecture.
-6. AWWA — national cost analysis of the PFAS NPDWR (2024).
-7. Xylem / Evoqua published municipal PFAS case studies (KKWWD, Maine; SHWSD, Colorado).
+5. Oseyemi, A. E., & Rezai, P. (2026). Detection of perfluorooctanoic acid in water using a microfluidic electrochemical sensor with a molecularly imprinted polymer membrane. *Measurement Science and Technology* 37, 415108. Preprint (2025): https://doi.org/10.26434/chemrxiv-2025-m27j4
+6. AWWA (2024). Updated national cost estimate for the PFAS NPDWR, prepared with Corona Environmental and Black & Veatch — \$2.7–3.5 B/yr annualized; \$37.1–48.3 B capital over 5 years. Summary: https://asdwa.org/2024/08/02/awwa-releases-updated-national-pfas-cost-estimate
+7. US EPA (2024). *PFAS NPDWR Fact Sheet: Costs and Benefits*. https://www.epa.gov/system/files/documents/2024-04/pfas-npdwr_fact-sheet_cost-and-benefits_4.8.24.pdf
+8. Xylem. *Kennebunkport removes PFOA and PFOS from contaminated well* (KKWWD, Maine; lead-lag GAC). https://www.xylem.com/en-ie/resources/case-studies/kennebunkport-removes-pfoa-and-pfos-from-contaminated-well/
+9. Xylem. *PFOA/PFOS removed from municipal water well* (Stratmoor Hills, Colorado; selective single-use IX). https://www.xylem.com/en-lv/resources/case-studies/pfoapfos-removed-from-municipal-water-well/
+10. Xylem / Evoqua. *MitiGATOR™ Mobile System* (rental temporary treatment). https://www.xylem.com/en-uk/Catalog/products--services/services/temporary-water-treatment/mitigator-mobile-system/
+11. YSI, a Xylem brand. *EXO Modbus Signal Output Adapter*. https://www.ysi.com/product/id-599825/EXO-Modbus-Signal-Output-Adapter
+12. US EPA (May 2025). Announcement to keep PFOA/PFOS MCLs, extend compliance to 2031 and rescind PFHxS, PFNA, HFPO-DA and Hazard Index limits. Coverage: https://waterworld.com/water-utility-management/press-release/55290302/epa-announces-it-will-keep-maximum-contaminant-levels-for-pfoa-and-pfos
 
 ---
 

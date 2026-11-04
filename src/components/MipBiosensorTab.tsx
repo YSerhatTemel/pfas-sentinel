@@ -18,6 +18,7 @@ import {
   HARDWARE_BOM,
   RESEARCH_SYNTHESIS_PILLARS,
   EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS,
+  MATRIX_BENCHMARK_MAPE_PCT,
   MIP_CROSS_SELECTIVITY_MATRIX,
   computeMipElectrochemicalSignal,
 } from '../data/pfasPhysicsEngine';
@@ -697,7 +698,7 @@ export const MipBiosensorTab: React.FC = () => {
                 In-Silico Multi-Matrix Calibration Stress Test (Target EPA 533 Reference)
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Non-circular forward/inverse simulation across 5 water matrices (MAE: ~4.5%)
+                Separated forward/blind-inverse simulation across 5 water matrices (mean abs. error: {MATRIX_BENCHMARK_MAPE_PCT}%)
               </p>
             </div>
             <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">

@@ -501,14 +501,14 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
                   <AlertTriangle className="w-3 h-3" />{' '}
                   {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
                     ? 'MCL EXCEEDED'
-                    : 'SCADA TRIGGER'}
+                    : 'TRACER ALERT'}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-3 h-3" />{' '}
                   {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
                     ? '< 4.0 ppt MCL'
-                    : '< 4.0 ppt TRIGGER'}
+                    : '< 4.0 ppt TRACER'}
                 </>
               )}
             </span>
@@ -518,8 +518,8 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               {activeTelemetry.species.id === 'PFOA' || activeTelemetry.species.id === 'PFOS'
                 ? 'Statutory MCL: 4.0 ppt'
                 : activeTelemetry.species.id === 'PFBS'
-                ? `SCADA Trigger (HI=${regMetrics.hazardIndex}≤1)`
-                : 'SCADA Trigger (UCMR5 Tracer)'}
+                ? `MTZ Tracer (HI=${regMetrics.hazardIndex}≤1)`
+                : 'MTZ Tracer (UCMR5)'}
             </span>
             <span className="text-emerald-400 font-mono">
               {activeTelemetry.isRollupActive
@@ -1204,8 +1204,10 @@ export const CyberPhysicalTwinTab: React.FC<CyberPhysicalTwinTabProps> = ({
               utilities currently sample them manually once a month (14-day lab delay). Retrofitting
               PFAS-Sentinel onto the existing mid-bed tap captures short-chain{' '}
               <strong className="text-amber-300">PFBA/PFBS</strong> breakthrough and competitive
-              roll-up (<code className="text-rose-300">Cₜ &gt; C₀</code>) in 15 minutes—triggering
-              automated Lead-Lag valve switchover weeks before effluent breach.
+              roll-up (<code className="text-rose-300">Cₜ &gt; C₀</code>) in 15 minutes as MTZ tracers
+              for the PINN twin. Lead-Lag switchover is scheduled only when the forecast{' '}
+              <strong className="text-rose-300">PFOA/PFOS</strong> effluent breach enters the media
+              service lead time.
             </p>
 
             <div className="space-y-2">

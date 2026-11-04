@@ -38,7 +38,7 @@ export const PFAS_SPECIES: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', PfasSpecies
     epaLimitPpt: 4.0,
     epaRegulationType: 'UCMR5 Sentinel Tracer & 4.0 ppt Trigger',
     statutoryLimitLabel: 'UCMR5 Sentinel Tracer | EU Sum-20 ≤ 100 ng/L',
-    scadaTriggerNote: '4.0 ppt Internal Early-Warning SCADA Trigger (Lead-Bed Sentinel)',
+    scadaTriggerNote: '4.0 ppt Mid-Bed MTZ Tracer Alert (refines forecast; does not actuate changeout)',
     epaHbvPpt: 1000.0,
     euLimitPpt: 100.0,
     defaultC0: 28.0,
@@ -64,7 +64,7 @@ export const PFAS_SPECIES: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', PfasSpecies
     epaLimitPpt: 4.0,
     epaRegulationType: 'EPA Hazard Index (HI ≤ 1.0) & 4.0 ppt Trigger',
     statutoryLimitLabel: 'US EPA Hazard Index HI ≤ 1.0 (HBWC: 2000 ppt)',
-    scadaTriggerNote: '4.0 ppt Internal Early-Warning SCADA Trigger (C4 Breakthrough)',
+    scadaTriggerNote: '4.0 ppt Mid-Bed MTZ Tracer Alert (C4 breakthrough; does not actuate changeout)',
     epaHbvPpt: 2000.0,
     euLimitPpt: 100.0,
     defaultC0: 34.0,
@@ -511,10 +511,11 @@ function evalNeuralResidual(
 }
 
 /**
- * Genuine Physics-Informed Neural Network (PINN) Spatiotemporal PDE & Parameter Assimilation Solver.
+ * Physics-Guided Hybrid Neural Network (PINN-style) Breakthrough & Parameter Assimilation Solver.
  * - ZERO ground-truth parameter leakage: never reads targetCapFactor or targetKinFactor.
  * - Optimizes physical parameters theta_phys = [kTh_eff, q0_eff] and 2-layer neural network weights
- *   theta_NN = [W1, b1, W2, b2] via genuine analytical chain-rule backpropagation and Adam optimization:
+ *   theta_NN = [W1, b1, W2, b2] with Adam. The data term uses exact analytical backpropagation; the PDE
+ *   penalty uses finite-difference residuals with an approximate (surrogate) gradient, not exact autodiff:
  *     L_total = ||C_hat(z_mid, t) - C_mid_obs||^2 + lambda_pde * ||dC_hat/dt + u_MTZ * dC_hat/dz||^2
  */
 export interface PinnSolverDiagnostics {
@@ -1156,7 +1157,7 @@ export function simulatePhysicalSensorImpedance(params: {
 }
 
 /**
- * Genuine 4x4 Tikhonov-Regularized Cross-Selectivity Matrix Inversion:
+ * 4x4 Tikhonov-Regularized Cross-Selectivity Matrix Inversion:
  * Solves c_hat = (S^T * S + lambda * I)^(-1) * S^T * r_vec using exact Gauss-Jordan elimination
  * on the 4x4 MIP_CROSS_SELECTIVITY_MATRIX (PFBA, PFBS, PFOA, PFOS).
  */
@@ -1294,7 +1295,7 @@ export function predictPfasFromImpedance(params: {
   const nipOnlyDeltaRct = Math.max(0.5, params.measuredDeltaRct - params.nipBlankDeltaRct);
   const nipOnlyPpt = Math.max(0.05, Math.expm1(nipOnlyDeltaRct / baseSensitivity));
 
-  // 3. Blind Inverse Edge Calibration & Genuine 4x4 Tikhonov Cross-Selectivity Matrix Inversion
+  // 3. Blind Inverse Edge Calibration & 4x4 Tikhonov Cross-Selectivity Matrix Inversion
   const diffRct = params.measuredDeltaRct - params.nipBlankDeltaRct;
   const amineProtonationFraction = 1 / (1 + Math.pow(10, params.pH - 8.4));
   const optimalProtonation = 1 / (1 + Math.pow(10, 7.0 - 8.4));
@@ -1574,6 +1575,14 @@ export const EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS: EmpiricalMatrixValidationRo
     };
   });
 
+// Mean absolute percentage error of the blind estimator across the matrix benchmark (computed, not hard-coded)
+export const MATRIX_BENCHMARK_MAPE_PCT = Number(
+  (
+    EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS.reduce((acc, r) => acc + Math.abs(r.recoveryPct - 100), 0) /
+    EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS.length
+  ).toFixed(1)
+);
+
 export interface PublishedLiteratureBenchmark {
   studyCitation: string;
   mediaAndScale: string;
@@ -1693,7 +1702,7 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
       'Humic/fulvic acids and sulfate/chloride ions in raw groundwater exist at mg/L (ppm) levels—10⁶ times higher than ppt PFAS.',
     pfasSentinelMitigation:
       'Dual defense: (1) Stand-Alone MIP steric size-exclusion rejects bulky humic macromolecules; (2) 4 Non-Imprinted Polymer (NIP) blank channels + YSI/WTW sonde telemetry subtract residual drift.',
-    trlTarget: 'Non-Circular Differential NIP/Sonde Calibration (~4.5% MAE in Simulation)',
+    trlTarget: `Differential NIP/Sonde Calibration (${MATRIX_BENCHMARK_MAPE_PCT}% mean abs. error in simulation)`,
   },
   {
     challenge: 'Chromatographic "Roll-Up" (Competitive Desorption of Short-Chain PFAS)',
