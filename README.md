@@ -61,7 +61,7 @@ flowchart TD
     K["Auto-purge valve and pulse desorption"] -.-> H
 
     J --> L["ARM Cortex-M33 edge node"]
-    M["Xylem YSI EXO2 sonde: pH, temp, cond, turbidity, fDOM"] -- "Modbus RS-485" --> L
+    M["Xylem YSI EXO2 sonde: pH, temp, cond, turbidity, fDOM"] -->|Modbus RS-485| L
     L --> N["4x4 Tikhonov deconvolution, lambda = 0.015"]
 
     N -->|15-min PFAS telemetry, MQTT or OPC-UA| O["Xylem Vue powered by GoAigua"]
