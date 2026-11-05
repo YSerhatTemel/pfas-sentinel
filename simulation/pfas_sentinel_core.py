@@ -347,12 +347,15 @@ def eval_twin(ctx: Dict[str, float], theta: List[float], z: float, t: float, gra
     return c
 
 
-def loss_and_grad(plant: Dict, species: List[str], theta: List[float], obs: List[Dict], cfg: Dict, grad: Optional[List[float]] = None) -> Dict[str, float]:
+def loss_and_grad(plant: Dict, species: List[str], theta: List[float], obs: List[Dict], cfg: Dict, grad: Optional[List[float]] = None,
+                  contexts: Optional[Dict[str, Dict[str, float]]] = None) -> Dict[str, float]:
+    """`contexts` (Python-only, used by external_validation.py) replaces the built-in species priors with
+    caller-supplied ones; the default path is identical to hybridTwin.ts."""
     P = N_PARAMS
     if grad is not None:
         for p in range(P):
             grad[p] = 0.0
-    ctxs = {sp: make_context(plant, sp) for sp in SPECIES_ORDER}
+    ctxs = contexts if contexts is not None else {sp: make_context(plant, sp) for sp in SPECIES_ORDER}
     gi = [0.0] * P
     data = 0.0
     for o in obs:
@@ -486,18 +489,18 @@ def crossing_day(fn: Callable[[float], float], target: float, t_max: int = 1500)
     return float(t_max)
 
 
-def train_twin(plant: Dict, species: List[str], obs: List[Dict], cfg: Dict) -> Dict:
+def train_twin(plant: Dict, species: List[str], obs: List[Dict], cfg: Dict, contexts: Optional[Dict[str, Dict[str, float]]] = None) -> Dict:
     theta = initial_params(cfg["useNetwork"], cfg["networkUsesSpaceTime"])
     P = N_PARAMS
     g = [0.0] * P
     m1 = [0.0] * P
     m2 = [0.0] * P
     history = []
-    initial = loss_and_grad(plant, species, theta, obs, cfg)
+    initial = loss_and_grad(plant, species, theta, obs, cfg, None, contexts)
     if not obs:
         return {"theta": theta, "history": history, "initial": initial, "final": initial}
     for ep in range(1, int(cfg["epochs"]) + 1):
-        lb = loss_and_grad(plant, species, theta, obs, cfg, g)
+        lb = loss_and_grad(plant, species, theta, obs, cfg, g, contexts)
         if ep == 1 or ep % 10 == 0:
             history.append({"epoch": ep, "total": lb["total"], "data": lb["data"], "adv": lb["adv"], "kin": lb["kin"]})
         for p in range(P):
@@ -512,16 +515,20 @@ def train_twin(plant: Dict, species: List[str], obs: List[Dict], cfg: Dict) -> D
             theta[p] -= ((cfg["lrPhys"] if p < 2 else cfg["lrNn"]) * mh) / (math.sqrt(vh) + cfg["eps"])
         theta[0] = clamp(theta[0], -cfg["phiBound"], cfg["phiBound"])
         theta[1] = clamp(theta[1], -cfg["phiBound"], cfg["phiBound"])
-    final = loss_and_grad(plant, species, theta, obs, cfg)
+    final = loss_and_grad(plant, species, theta, obs, cfg, None, contexts)
     return {"theta": theta, "history": history, "initial": initial, "final": final}
 
 
-def breach_uncertainty(plant: Dict, theta: List[float], obs: List[Dict], cfg: Dict, sp: str, z: float = 1.0, target: float = TARGET_PPT) -> Dict[str, float]:
+def breach_uncertainty(plant: Dict, theta: List[float], obs: List[Dict], cfg: Dict, sp: str, z: float = 1.0, target: float = TARGET_PPT,
+                       contexts: Optional[Dict[str, Dict[str, float]]] = None) -> Dict[str, float]:
+    def context(s: str) -> Dict[str, float]:
+        return contexts[s] if contexts is not None else make_context(plant, s)
+
     gi = [0.0] * N_PARAMS
     ssr = h00 = h01 = h11 = 0.0
     last_obs_day = 0.0
     for o in obs:
-        ctx_o = make_context(plant, o["sp"])
+        ctx_o = context(o["sp"])
         c = eval_twin(ctx_o, theta, o["z"], o["t"], gi)
         r = (c - o["y"]) / ctx_o["C0"]
         ssr += r * r
@@ -538,7 +545,7 @@ def breach_uncertainty(plant: Dict, theta: List[float], obs: List[Dict], cfg: Di
     d = h11 / s2 + prec
     det = a * d - b * b
     cov = [[d / det, -b / det], [-b / det, a / det]]
-    ctx = make_context(plant, sp)
+    ctx = context(sp)
     step = 1e-3
     dT = []
     for i in (0, 1):

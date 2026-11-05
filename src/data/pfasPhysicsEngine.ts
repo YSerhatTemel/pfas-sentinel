@@ -23,6 +23,7 @@ import {
 } from './sensorModel';
 import type { MixtureBenchmark, SensorMatrix } from './sensorModel';
 import { mulberry32 } from './rng';
+import externalValidation from '../../simulation/external_validation.json';
 
 export { PFAS_SPECIES, SPECIES_ORDER };
 export type { PfasSpeciesConfig, SpeciesId, MediaType };
@@ -657,7 +658,23 @@ export interface EngineeringLimitation {
   trlTarget: string;
 }
 
+/** Headline numbers of the external check on measured EPA pilot data (simulation/external_validation.py). */
+export const EXTERNAL_TWIN_CHECK = {
+  twinDay50ErrorFirstCutoff: externalValidation.summary['14'].TWIN.meanPrimaryAbsDay50Error,
+  independentDay50ErrorFirstCutoff: externalValidation.summary['14'].INDEPENDENT.meanPrimaryAbsDay50Error,
+  fourNgLForecasts: externalValidation.summary.postHoc4NgL.forecasts,
+  fourNgLInside: externalValidation.summary.postHoc4NgL.byMethod.TWIN.inside,
+  cleanWaterRatioSpread: externalValidation.cleanWaterPrior['200x325'].ratioSpread,
+};
+
 export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
+  {
+    challenge: 'Breakthrough Twin on Measured Data: Curve Shape & Starting Values',
+    physicalCause: `On a public U.S. EPA pilot (two F400 GAC columns, outlet data only), measured curves start at zero and approach the influent slowly. The symmetric curve form misplaces the early 4 ng/L crossing (inside the sampling interval in ${EXTERNAL_TWIN_CHECK.fourNgLInside} of ${EXTERNAL_TWIN_CHECK.fourNgLForecasts} forecasts), and clean-water isotherm capacities are off by factors that differ about ${Math.round(EXTERNAL_TWIN_CHECK.cleanWaterRatioSpread / 10) * 10}-fold between species.`,
+    pfasSentinelMitigation:
+      'Start the twin from site-water data (RSSCT, pilot or the previous bed) instead of vendor clean-water curves; move to an asymmetric curve form (generalized logistic or a PSDM-based twin); re-test both on a second, independent dataset with a mid-bed port.',
+    trlTarget: `Measured-data check done: shared bed condition beat per-species fitting (${round1(EXTERNAL_TWIN_CHECK.twinDay50ErrorFirstCutoff)} vs ${round1(EXTERNAL_TWIN_CHECK.independentDay50ErrorFirstCutoff)} days); no gain yet over a good site-specific curve`,
+  },
   {
     challenge: 'Ultra-Trace Limit of Detection (Target 1–4 ppt) Signal-to-Noise Ratio',
     physicalCause:

@@ -12,6 +12,7 @@ import {
   Video,
 } from 'lucide-react';
 import {
+  EXTERNAL_TWIN_CHECK,
   HONEST_LIMITATIONS,
   REGULATORY_TIMELINE,
   US_MARKET_SIZING,
@@ -359,6 +360,10 @@ export const BusinessAndPitchTab: React.FC = () => {
               This supports the timing logic, not the 28% figure: bed-life extension depends on today&apos;s practice at each utility and must
               be measured in the pilot.
             </p>
+            <p className="text-slate-500">
+              On measured EPA pilot data the timing logic is not yet proven: the twin&apos;s 4 ng/L crossing fell inside the sampling interval in{' '}
+              {EXTERNAL_TWIN_CHECK.fourNgLInside} of {EXTERNAL_TWIN_CHECK.fourNgLForecasts} forecasts (Twin Lab tab, external check).
+            </p>
           </div>
         </div>
       </div>
@@ -533,6 +538,11 @@ export const BusinessAndPitchTab: React.FC = () => {
               learns from exactly this kind of sparse data — the current model is trained on only five
               mid-bed checkpoints. Run it in a Xylem Vue sandbox on a partner utility&apos;s historical
               records and score its PFOA/PFOS breakthrough forecasts against what actually happened.
+            </p>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              A first check on public EPA pilot data (Twin Lab tab) already sets two tasks: an asymmetric
+              curve form for the early 4 ng/L crossing, and starting values from an RSSCT in site water
+              instead of clean-water vendor curves.
             </p>
           </div>
 

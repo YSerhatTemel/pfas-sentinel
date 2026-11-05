@@ -37,3 +37,6 @@ TUBITAK_*
 Xylem_Challenge_*
 PROJE_REHBERI_*
 tubitak_assets/
+
+# AI assistant / editor local config
+.claude/
