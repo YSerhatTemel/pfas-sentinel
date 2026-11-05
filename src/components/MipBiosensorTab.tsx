@@ -17,8 +17,10 @@ import {
   PFAS_SPECIES,
   HARDWARE_BOM,
   RESEARCH_SYNTHESIS_PILLARS,
-  EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS,
-  MATRIX_BENCHMARK_MAPE_PCT,
+  MATRIX_STRESS_TEST_ROWS,
+  MATRIX_STRESS_TEST_MAPE_PCT,
+  SENSOR_MIXTURE_BENCHMARK,
+  SENSOR_SIMULATED_LOD_PPT,
   MIP_CROSS_SELECTIVITY_MATRIX,
   computeMipElectrochemicalSignal,
 } from '../data/pfasPhysicsEngine';
@@ -75,7 +77,7 @@ export const MipBiosensorTab: React.FC = () => {
       title: 'Layer 1: COC Microfluidic Laminar Flow Cell & 0.22 μm Pre-Filter',
       subtitle: 'In-line NPT 1/4" tap or field "Razor-and-Blade" Sensing Lid',
       detail:
-        'Cyclic Olefin Copolymer (COC) micro-channels create high surface-to-volume laminar flow over the sensing array, accelerating mass transport so 1–4 ppt equilibrium binding occurs in 12–15 minutes (<2 min rapid screening).',
+        'Cyclic Olefin Copolymer (COC) micro-channels give high surface-to-volume laminar flow over the sensing array. Design target: 1–4 ppt binding within 12–15 minutes (screening mode under 2 minutes), to be verified at TRL 4.',
       badge: 'Hydrodynamic Pre-Concentration',
     },
     {
@@ -83,8 +85,8 @@ export const MipBiosensorTab: React.FC = () => {
       title: 'Layer 2: Stand-Alone Molecularly Imprinted Polymer (MIP) Membrane',
       subtitle: '3D Steric & Electrostatic Fluorophilic Cavities (Oseyemi & Rezai 2025)',
       detail:
-        'Self-supporting nanoporous polymer templated specifically for C8 (PFOA, PFOS) and C4 (PFBS, PFBA) headgroups and fluorocarbon tails. Physically excludes bulky humic acids (NOM) while rejecting chloride/sulfate co-ions.',
-      badge: 'Ka ≈ 10⁸ M⁻¹ Selectivity',
+        'Self-supporting nanoporous polymer templated for C8 (PFOA, PFOS) and C4 (PFBS, PFBA) headgroups and fluorocarbon tails. Intended to exclude bulky humic acids (NOM) and reject chloride/sulfate co-ions (design hypothesis).',
+      badge: 'Assumed Ka ≈ 10⁸ M⁻¹',
     },
     {
       id: 3,
@@ -96,11 +98,11 @@ export const MipBiosensorTab: React.FC = () => {
     },
     {
       id: 4,
-      title: 'Layer 4: Differential NIP Reference + AD5940 EIS Edge AI Module',
+      title: 'Layer 4: Differential NIP Reference + AD5940 EIS Edge Module',
       subtitle: '4 Non-Imprinted Polymer (NIP) blank channels + YSI/WTW Telemetry Fusion',
       detail:
-        'Performs Two-Stage Inverse De-Embedding: subtracts NIP blank impedance (Channels 29–32), applies Arrhenius temperature, Henderson-Hasselbalch amine protonation, and Gouy-Chapman Debye screening corrections on an ARM Cortex-M33 NPU.',
-      badge: 'Inverse R² = 0.996',
+        'Subtracts the NIP blank (channels 29–32), applies a matrix correction learned from calibration runs (temperature, pH, conductivity, fDOM, turbidity, cartridge age) and solves the 4×4 cross-selectivity system on the edge MCU. The correction never uses the simulator formulas.',
+      badge: `Sim. median error ${Math.round(SENSOR_MIXTURE_BENCHMARK.methods.full.medianApePct)}%`,
     },
   ];
 
@@ -119,7 +121,7 @@ export const MipBiosensorTab: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 block">
-              Hardware &amp; Non-Circular Inverse Calibration • Challenge #2 (TRL 3 In-Silico Architecture)
+              Hardware &amp; Calibration-Based Blind Estimator • Challenge #2 (TRL 2–3 In-Silico Concept)
             </span>
             <h2 className="text-lg font-bold text-white mt-0.5">
               Microfluidic Stand-Alone MIP &amp; Amine-Functionalized Nanocarbon Sensor Array
@@ -352,16 +354,16 @@ export const MipBiosensorTab: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 6 Columns: Inverse Edge AI Matrix De-Embedding + Live EIS Nyquist Plot */}
+        {/* Right 6 Columns: Blind estimator + simulated EIS Nyquist plot */}
         <div className="lg:col-span-6 bg-[#0B1D30] border border-slate-800 rounded-xl p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Activity className="w-4 h-4 text-cyan-400" />
-                EIS Nyquist &amp; Two-Stage Inverse Edge AI De-Embedding
+                Simulated EIS Nyquist &amp; Blind Edge Estimator
               </h3>
               <p className="text-xs text-slate-400">
-                Differential NIP reference (CH29–32) + Arrhenius/Debye/Henderson-Hasselbalch NPU inversion
+                Simulated signals (not device measurements): NIP reference (CH29–32) + calibration-based matrix correction
               </p>
             </div>
 
@@ -382,7 +384,7 @@ export const MipBiosensorTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Live Nyquist Plot (-Z'' vs Z') */}
+          {/* Simulated Nyquist plot (-Z'' vs Z') */}
           <div className="bg-[#061320] border border-slate-800 rounded-xl p-3">
             <svg
               viewBox="0 0 500 250"
@@ -480,7 +482,7 @@ export const MipBiosensorTab: React.FC = () => {
               </text>
               <line x1="68" y1="80" x2="88" y2="80" stroke="#10B981" strokeWidth="2.5" />
               <text x="94" y="83" fill="#6EE7B7" fontSize="9" fontFamily="JetBrains Mono">
-                Inverse Edge-AI Purified (ΔRct = {signal.purifiedDeltaRct} Ω)
+                Compensated + deconvolved (ΔRct = {signal.purifiedDeltaRct} Ω)
               </text>
             </svg>
           </div>
@@ -606,32 +608,61 @@ export const MipBiosensorTab: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-amber-950/25 border border-amber-500/40 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-amber-300 block">
-                Without Inverse Edge AI
+                Raw target channel (no compensation)
               </span>
               <div className="text-xl font-bold font-mono text-amber-200 mt-0.5">
                 {signal.uncompensatedPpt} ppt
               </div>
               <span className="text-[11px] font-mono text-amber-400">
-                Matrix Drift Error: {signal.uncompensatedErrorPct}%
+                Error: {signal.uncompensatedErrorPct}%
               </span>
             </div>
 
             <div className="bg-emerald-950/25 border border-emerald-500/40 rounded-lg p-3">
               <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                Blind Inverse Estimator (Zero truePpt Input)
+                Blind estimator (calibration only)
               </span>
               <div className="text-xl font-bold font-mono text-emerald-200 mt-0.5">
                 {signal.edgeAiCompensatedPpt} ppt
               </div>
               <span className="text-[11px] font-mono text-emerald-400 break-words [overflow-wrap:anywhere]">
-                predictPfasFromImpedance(ΔR_MIP, ΔR_NIP, Sonde) • Err: {signal.edgeAiErrorPct}%
+                estimateMixture(groups, NIP, sonde) • Err: {signal.edgeAiErrorPct}%
               </span>
             </div>
+          </div>
+
+          <div className="bg-[#061320] border border-slate-800 rounded-lg p-3">
+            <div className="text-[10px] font-mono uppercase text-cyan-300 mb-1.5">
+              Whole mixture from one reading (background: other species fixed)
+            </div>
+            <table className="w-full text-[11px] font-mono">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left font-normal">Species</th>
+                  <th className="text-right font-normal">True</th>
+                  <th className="text-right font-normal">4×4 estimate</th>
+                  <th className="text-right font-normal">No deconvolution</th>
+                </tr>
+              </thead>
+              <tbody>
+                {signal.mixture.map((m) => (
+                  <tr key={m.speciesId} className={m.speciesId === selectedSpecies ? 'text-white' : 'text-slate-400'}>
+                    <td>{m.speciesId}</td>
+                    <td className="text-right">{m.truePpt.toFixed(2)}</td>
+                    <td className="text-right text-emerald-300">{m.estimatePpt.toFixed(2)}</td>
+                    <td className="text-right text-amber-300">{m.diagonalPpt.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-slate-500 mt-1">
+              Worst replicate CV {signal.worstGroupCvPct}% (feeds the EIS interlock). All values simulated.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Pin-Level Embedded Hardware Signal Chain & Empirical EPA Method 533 Validation */}
+      {/* Hardware signal chain & simulated matrix stress test */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left 6 Cols: Embedded Potentiostat & Edge NPU Hardware Block Schematic */}
         <div className="lg:col-span-6 bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
@@ -683,26 +714,29 @@ export const MipBiosensorTab: React.FC = () => {
                 <span>STM32U5 / Cortex-M33 + RS-485 Modbus</span>
               </div>
               <p className="text-slate-300 mt-1 text-[11px] leading-relaxed">
-                Co-integrates directly with <strong className="text-cyan-300">Xylem YSI EXO2 / WTW</strong> sondes over isolated RS-485 Modbus RTU (fusing live pH, Temp, Conductivity, Turbidity, and <strong className="text-amber-300">fDOM [QSU]</strong> NOM proxy data with the 32-Ch MIP array), executes Two-Stage Inverse De-Embedding in &lt;4.2 ms, and streams signed OPC-UA / MQTT packets to <strong className="text-cyan-300">Xylem Vue powered by GoAigua</strong>.
+                Designed to read <strong className="text-cyan-300">Xylem YSI EXO2 / WTW</strong> sondes over isolated RS-485 Modbus RTU (pH, temperature, conductivity, turbidity and <strong className="text-amber-300">fDOM [QSU]</strong> as an NOM proxy), run the calibration-based estimator and 4×4 solve on the MCU, and publish signed OPC-UA / MQTT packets to <strong className="text-cyan-300">Xylem Vue powered by GoAigua</strong>. Design target; no firmware timing measured yet.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Right 6 Cols: In-Silico Multi-Matrix Calibration Stress Test vs. Target EPA Method 533 */}
+        {/* Right 6 Cols: simulated matrix stress test */}
         <div className="lg:col-span-6 bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-emerald-400" />
-                In-Silico Multi-Matrix Calibration Stress Test (Target EPA 533 Reference)
+                Simulated Matrix Stress Test &amp; Mixture Benchmark
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Separated forward/blind-inverse simulation across 5 water matrices (mean abs. error: {MATRIX_BENCHMARK_MAPE_PCT}%)
+                Five matrices (target species in a background mixture): mean |recovery − 100%| = {MATRIX_STRESS_TEST_MAPE_PCT}%.
+                200 random mixtures &amp; matrices: MAPE {Math.round(SENSOR_MIXTURE_BENCHMARK.methods.full.mapePct)}% with 4×4 deconvolution vs{' '}
+                {Math.round(SENSOR_MIXTURE_BENCHMARK.methods.diagonal.mapePct)}% without. Model-based LOD ≈ {Math.max(...Object.values(SENSOR_SIMULATED_LOD_PPT)).toFixed(2)} ppt
+                (depends on the assumed electrode noise; target 0.8–4 ppt to be measured at TRL 4).
               </p>
             </div>
             <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">
-              TRL 3 Simulation Benchmark
+              TRL 2–3 Simulation Benchmark
             </span>
           </div>
 
@@ -711,14 +745,14 @@ export const MipBiosensorTab: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase text-[10px]">
                   <th className="py-2 px-2">Simulated Water Matrix &amp; Conditions</th>
-                  <th className="py-2 px-2 text-right">True Spike</th>
+                  <th className="py-2 px-2 text-right">Reference</th>
                   <th className="py-2 px-2 text-right">Raw Sensor</th>
                   <th className="py-2 px-2 text-right">Calibrated Edge</th>
                   <th className="py-2 px-2 text-right">Sim Recovery</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70">
-                {EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS.map((row, idx) => (
+                {MATRIX_STRESS_TEST_ROWS.map((row, idx) => (
                   <tr key={idx} className="hover:bg-[#10263F]/40">
                     <td className="py-2 px-2">
                       <div className="font-semibold text-white">{row.matrixName}</div>
@@ -727,7 +761,7 @@ export const MipBiosensorTab: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-2 px-2 text-right font-mono text-cyan-300 font-bold">
-                      {row.epaMethod533Ppt.toFixed(2)} ppt
+                      {row.referencePpt.toFixed(2)} ppt {row.speciesId}
                     </td>
                     <td className="py-2 px-2 text-right font-mono text-amber-400">
                       {row.uncompensatedSensorPpt.toFixed(2)} ppt
@@ -803,9 +837,9 @@ export const MipBiosensorTab: React.FC = () => {
           {/* 4x4 Cross-Selectivity Matrix S Table */}
           <div className="mt-3 bg-[#061320] border border-slate-800 rounded-lg p-3">
             <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-cyan-300 font-bold mb-1.5">
-              <span>4×4 TIKHONOV MATRIX INVERSION: c_hat = (SᵀS + λI)⁻¹ Sᵀ r_purified</span>
+              <span>4×4 TIKHONOV SOLVE: x̂ = (ÂᵀÂ + λI)⁻¹ Âᵀ y, Â = calibrated sensitivities</span>
               <span className="text-emerald-300">
-                κ₂(S) = {signal.matrixConditionNumber} • det(S) = {signal.matrixDeterminant} • λ = 0.015
+                κ₂(S) = {signal.matrixConditionNumber} • κ₂(Â) = {signal.calibratedConditionNumber} • det(S) = {signal.matrixDeterminant}
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -834,7 +868,7 @@ export const MipBiosensorTab: React.FC = () => {
             </div>
             <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-slate-400">
               <span>
-                Solver: <strong className="text-slate-200">Exact 4×4 Gauss-Jordan Inversion (solveTikhonov4x4Deconvolution)</strong>
+                Solver: <strong className="text-slate-200">Tikhonov-regularized least squares (estimateMixture)</strong> • S values are design assumptions
               </span>
               <span className="text-cyan-300">
                 YSI EXO2 fDOM Proxy: {Math.round(nomMgL * 24.5)} QSU (Non-PFAS Matrix Context)
@@ -851,7 +885,7 @@ export const MipBiosensorTab: React.FC = () => {
               Peer-Reviewed Hardware &amp; Kinetic Synthesis Pillars
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Grounding our TRL 3 system design in published electrochemical &amp; filtration literature
+              Grounding our TRL 2–3 design concept in published electrochemical &amp; filtration work
             </p>
           </div>
 

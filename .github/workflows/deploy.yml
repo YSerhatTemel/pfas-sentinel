@@ -30,8 +30,19 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python model tests (standard library only)
+        run: python -m unittest discover -s simulation -p "test_*.py" -v
+
       - name: Install dependencies
         run: npm ci
+
+      - name: App tests (EWS interlocks, regulatory screen, twin, sensor, TS/Python parity)
+        run: npm test
 
       - name: Build production bundle
         run: npm run build

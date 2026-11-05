@@ -1,0 +1,106 @@
+{
+  "prngSeed12345": [
+    0.9797282677609473,
+    0.3067522644996643,
+    0.484205421525985,
+    0.817934412509203,
+    0.5094283693470061
+  ],
+  "kkwwdValidation": {
+    "PFBA": {
+      "learnedKth": 0.0027071531088013745,
+      "learnedQ0": 450.25793039460467,
+      "priorKth": 0.0024,
+      "priorQ0": 485.0,
+      "midBed4PptDay": 90.96604719303468,
+      "effluent4PptDay": 206.00836431429707,
+      "staticEffluent4PptDay": 220.6804882375718,
+      "testbenchEffluent4PptDay": 206.06294823108146,
+      "uncertaintyBandDays": 9.12351685130567,
+      "parametricSigmaDays": 2.5985306069486325,
+      "modelFormSigmaDays": 3.5504182157148536,
+      "trainRmsePpt": 1.380252638084417,
+      "testRmsePpt": 3.710391641878333,
+      "staticTestRmsePpt": 3.6615375812599487
+    },
+    "PFBS": {
+      "learnedKth": 0.002368758970201203,
+      "learnedQ0": 594.1547947475195,
+      "priorKth": 0.0021,
+      "priorQ0": 640.0,
+      "midBed4PptDay": 103.76731697230207,
+      "effluent4PptDay": 233.53902953476427,
+      "staticEffluent4PptDay": 250.2374423212841,
+      "testbenchEffluent4PptDay": 235.21615498008123,
+      "uncertaintyBandDays": 11.684039030088577,
+      "parametricSigmaDays": 2.878404037759234,
+      "modelFormSigmaDays": 4.926951476738214,
+      "trainRmsePpt": 1.3681605952206821,
+      "testRmsePpt": 1.3810914766284315,
+      "staticTestRmsePpt": 2.934487931545091
+    },
+    "PFOA": {
+      "learnedKth": 0.0018047687392009166,
+      "learnedQ0": 1002.6362161364392,
+      "priorKth": 0.0016,
+      "priorQ0": 1080.0,
+      "midBed4PptDay": 145.3197285858323,
+      "effluent4PptDay": 321.6491497137231,
+      "staticEffluent4PptDay": 344.8918025500425,
+      "testbenchEffluent4PptDay": 327.1948426054123,
+      "uncertaintyBandDays": 20.196076925479424,
+      "parametricSigmaDays": 3.726662973102845,
+      "modelFormSigmaDays": 9.332457485686154,
+      "trainRmsePpt": 0.2996120986561537,
+      "testRmsePpt": 3.0869787389004495,
+      "staticTestRmsePpt": 6.814502623183669
+    },
+    "PFOS": {
+      "learnedKth": 0.001579172646800802,
+      "learnedQ0": 1290.429944842269,
+      "priorKth": 0.0014,
+      "priorQ0": 1390.0,
+      "midBed4PptDay": 165.43614155391606,
+      "effluent4PptDay": 364.0108253009503,
+      "staticEffluent4PptDay": 390.4139324730404,
+      "testbenchEffluent4PptDay": 372.9511468114233,
+      "uncertaintyBandDays": 24.356141557434643,
+      "parametricSigmaDays": 4.126807038210541,
+      "modelFormSigmaDays": 11.450541265047514,
+      "trainRmsePpt": 0.22111792721590112,
+      "testRmsePpt": 1.7640442811242467,
+      "staticTestRmsePpt": 3.1573239621825873
+    }
+  },
+  "kkwwdOperationalDay240": {
+    "PFBA": {
+      "effluent4PptDay": 209.7595571995962,
+      "uncertaintyBandDays": 6.6955940749169836
+    },
+    "PFBS": {
+      "effluent4PptDay": 237.81588760661816,
+      "uncertaintyBandDays": 7.345799676952644
+    },
+    "PFOA": {
+      "effluent4PptDay": 327.6303865274176,
+      "uncertaintyBandDays": 12.789385799769333
+    },
+    "PFOS": {
+      "effluent4PptDay": 370.81673997382404,
+      "uncertaintyBandDays": 16.576454573866254
+    }
+  },
+  "sensorCalibration": {
+    "conditionNumberS": 1.6272343820840778,
+    "determinantS": 0.93953831,
+    "conditionNumberCalibrated": 1.7558139832432775,
+    "lambda": 4.760812392525762,
+    "sensitivityDiagonal": [
+      58.0004738464837,
+      63.191641606778184,
+      71.69471585237076,
+      77.38481647737557
+    ]
+  },
+  "sensorBenchmarkFullMapePct": 21.126797791345112
+}

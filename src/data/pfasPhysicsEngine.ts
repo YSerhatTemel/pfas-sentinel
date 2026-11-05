@@ -1,138 +1,36 @@
-export interface PfasSpeciesConfig {
-  id: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  name: string;
-  fullName: string;
-  chainType: 'Long-Chain (C8)' | 'Short-Chain (C4)';
-  carbonLength: number;
-  functionalGroup: 'Carboxylate (-COO⁻)' | 'Sulfonate (-SO₃⁻)';
-  epaLimitPpt: number; // Operational SCADA trigger / MCL threshold (ng/L)
-  epaRegulationType:
-    | 'Binding Federal MCL (4.0 ppt)'
-    | 'EPA Hazard Index (HI ≤ 1.0) & 4.0 ppt Trigger'
-    | 'UCMR5 Sentinel Tracer & 4.0 ppt Trigger';
-  statutoryLimitLabel: string; // Exact legal statutory standard (US EPA April 2024 / EU Jan 2026)
-  scadaTriggerNote: string;    // Operational distinction between statutory MCL vs internal early-warning trigger
-  epaHbvPpt?: number;  // Health-Based Water Concentration for EPA Hazard Index calculation
-  euLimitPpt: number;  // ng/L (Sum of 20 PFAS = 100 ng/L)
-  defaultC0: number;   // Influent concentration (ppt / ng/L)
-  kTh_GAC: number;     // Thomas rate constant L/(ng·day) scaled
-  q0_GAC: number;      // Max adsorption capacity (ng/g media) scaled
-  kTh_IX: number;
-  q0_IX: number;
-  rollupFactorGAC: number; // Chromatographic competitive desorption factor (Ct/C0 overshoot)
-  rollupFactorIX: number;
-  color: string;
-  mipCavityAffinity: number; // Target binding affinity constant Ka (M^-1)
-  pKaHeadgroup: number;      // Acid dissociation constant for electrostatic modeling
-  literatureBv10PctGac: number; // Published literature Bed Volumes to 10% breakthrough (McCleaf 2017 / Park 2020)
-}
+import { PFAS_SPECIES, SPECIES_ORDER } from './species';
+import type { PfasSpeciesConfig, SpeciesId, MediaType } from './species';
+import {
+  EXPERIMENTAL_HYBRID_CONFIG,
+  MID_BED_Z,
+  fitPlantTwin,
+  round1,
+  round2,
+  round3,
+  truthConcentration,
+  twinConcentration,
+} from './hybridTwin';
+import type { PlantSpec, PlantTwinFit } from './hybridTwin';
+import {
+  CROSS_SELECTIVITY,
+  GROUP_SENSITIVITY_OHM,
+  defaultCalibration,
+  estimateMixture,
+  readingSeed,
+  runMixtureBenchmark,
+  simulateSensor,
+  simulatedLodPpt,
+} from './sensorModel';
+import type { MixtureBenchmark, SensorMatrix } from './sensorModel';
+import { mulberry32 } from './rng';
 
-export const PFAS_SPECIES: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', PfasSpeciesConfig> = {
-  PFBA: {
-    id: 'PFBA',
-    name: 'PFBA',
-    fullName: 'Perfluorobutanoic Acid',
-    chainType: 'Short-Chain (C4)',
-    carbonLength: 4,
-    functionalGroup: 'Carboxylate (-COO⁻)',
-    epaLimitPpt: 4.0,
-    epaRegulationType: 'UCMR5 Sentinel Tracer & 4.0 ppt Trigger',
-    statutoryLimitLabel: 'UCMR5 Sentinel Tracer | EU Sum-20 ≤ 100 ng/L',
-    scadaTriggerNote: '4.0 ppt Mid-Bed MTZ Tracer Alert (refines forecast; does not actuate changeout)',
-    epaHbvPpt: 1000.0,
-    euLimitPpt: 100.0,
-    defaultC0: 28.0,
-    // Short-chain PFBA has lowest q0 on GAC -> breaks through earliest & suffers chromatographic roll-up
-    kTh_GAC: 0.0024,
-    q0_GAC: 485,
-    kTh_IX: 0.0021,
-    q0_IX: 780,
-    rollupFactorGAC: 0.28, // Up to 128% Ct/C0 overshoot due to displacement by PFOS/PFOA & NOM
-    rollupFactorIX: 0.16,
-    color: '#F59E0B', // Amber warning
-    mipCavityAffinity: 4.2e7,
-    pKaHeadgroup: 0.4,
-    literatureBv10PctGac: 14200,
-  },
-  PFBS: {
-    id: 'PFBS',
-    name: 'PFBS',
-    fullName: 'Perfluorobutane Sulfonic Acid',
-    chainType: 'Short-Chain (C4)',
-    carbonLength: 4,
-    functionalGroup: 'Sulfonate (-SO₃⁻)',
-    epaLimitPpt: 4.0,
-    epaRegulationType: 'EPA Hazard Index (HI ≤ 1.0) & 4.0 ppt Trigger',
-    statutoryLimitLabel: 'US EPA Hazard Index HI ≤ 1.0 (HBWC: 2000 ppt)',
-    scadaTriggerNote: '4.0 ppt Mid-Bed MTZ Tracer Alert (C4 breakthrough; does not actuate changeout)',
-    epaHbvPpt: 2000.0,
-    euLimitPpt: 100.0,
-    defaultC0: 34.0,
-    kTh_GAC: 0.0021,
-    q0_GAC: 640,
-    kTh_IX: 0.0019,
-    q0_IX: 1120,
-    rollupFactorGAC: 0.19, // Up to 119% Ct/C0 competitive displacement roll-up
-    rollupFactorIX: 0.09,
-    color: '#A855F7', // Purple
-    mipCavityAffinity: 5.8e7,
-    pKaHeadgroup: -3.3,
-    literatureBv10PctGac: 18600,
-  },
-  PFOA: {
-    id: 'PFOA',
-    name: 'PFOA',
-    fullName: 'Perfluorooctanoic Acid',
-    chainType: 'Long-Chain (C8)',
-    carbonLength: 8,
-    functionalGroup: 'Carboxylate (-COO⁻)',
-    epaLimitPpt: 4.0, // Binding EPA April 2024 MCL: 4.0 ppt
-    epaRegulationType: 'Binding Federal MCL (4.0 ppt)',
-    statutoryLimitLabel: 'US EPA Binding Federal MCL: 4.0 ppt (ng/L)',
-    scadaTriggerNote: '4.0 ppt Binding Federal Statutory MCL Threshold',
-    euLimitPpt: 100.0,
-    defaultC0: 42.0,
-    kTh_GAC: 0.0016,
-    q0_GAC: 1080,
-    kTh_IX: 0.0015,
-    q0_IX: 1450,
-    rollupFactorGAC: 0.05, // Minimal displacement by PFOS
-    rollupFactorIX: 0.03,
-    color: '#EF4444', // Crimson
-    mipCavityAffinity: 8.9e7,
-    pKaHeadgroup: 0.5,
-    literatureBv10PctGac: 31500,
-  },
-  PFOS: {
-    id: 'PFOS',
-    name: 'PFOS',
-    fullName: 'Perfluorooctane Sulfonic Acid',
-    chainType: 'Long-Chain (C8)',
-    carbonLength: 8,
-    functionalGroup: 'Sulfonate (-SO₃⁻)',
-    epaLimitPpt: 4.0, // Binding EPA April 2024 MCL: 4.0 ppt
-    epaRegulationType: 'Binding Federal MCL (4.0 ppt)',
-    statutoryLimitLabel: 'US EPA Binding Federal MCL: 4.0 ppt (ng/L)',
-    scadaTriggerNote: '4.0 ppt Binding Federal Statutory MCL Threshold',
-    euLimitPpt: 100.0,
-    defaultC0: 48.0,
-    kTh_GAC: 0.0014,
-    q0_GAC: 1390,
-    kTh_IX: 0.0013,
-    q0_IX: 1820,
-    rollupFactorGAC: 0.0, // Strongest adsorbate (displaces C4 species, does not roll up)
-    rollupFactorIX: 0.0,
-    color: '#00B4D8', // Xylem Cyan
-    mipCavityAffinity: 1.1e8,
-    pKaHeadgroup: -3.2,
-    literatureBv10PctGac: 42800,
-  },
-};
+export { PFAS_SPECIES, SPECIES_ORDER };
+export type { PfasSpeciesConfig, SpeciesId, MediaType };
 
 /**
  * 4x4 MIP Cross-Selectivity Matrix S (Rows: Channel Group 1..4, Cols: True PFBA, PFBS, PFOA, PFOS).
- * Represents realistic partial cross-reactivity between structural analogs sharing fluorocarbon tails
- * or headgroups (-COO⁻ vs -SO₃⁻), resolved via Tikhonov-regularized matrix inversion on the Edge NPU.
+ * Design assumption for partial cross-reactivity between analogs sharing fluorocarbon tails or headgroups
+ * (-COO⁻ vs -SO₃⁻). Values come from CROSS_SELECTIVITY in sensorModel.ts (single source).
  */
 export interface CrossSelectivityRow {
   channelGroup: string;
@@ -141,30 +39,33 @@ export interface CrossSelectivityRow {
   affinityWeights: Record<'PFBA' | 'PFBS' | 'PFOA' | 'PFOS', number>;
 }
 
+const weightsOfGroup = (g: number) =>
+  Object.fromEntries(SPECIES_ORDER.map((sp, j) => [sp, CROSS_SELECTIVITY[g][j]])) as Record<SpeciesId, number>;
+
 export const MIP_CROSS_SELECTIVITY_MATRIX: CrossSelectivityRow[] = [
   {
     channelGroup: 'CH01–CH07 (Group 1)',
     imprintTarget: 'PFBA',
     functionalMotif: 'C4 Perfluoropropyl + Carboxylate (-COO⁻) Pocket',
-    affinityWeights: { PFBA: 1.00, PFBS: 0.14, PFOA: 0.11, PFOS: 0.04 },
+    affinityWeights: weightsOfGroup(0),
   },
   {
     channelGroup: 'CH08–CH14 (Group 2)',
     imprintTarget: 'PFBS',
     functionalMotif: 'C4 Perfluorobutyl + Sulfonate (-SO₃⁻) Pocket',
-    affinityWeights: { PFBA: 0.12, PFBS: 1.00, PFOA: 0.05, PFOS: 0.13 },
+    affinityWeights: weightsOfGroup(1),
   },
   {
     channelGroup: 'CH15–CH21 (Group 3)',
     imprintTarget: 'PFOA',
     functionalMotif: 'C8 Perfluoroheptyl + Carboxylate (-COO⁻) Pocket',
-    affinityWeights: { PFBA: 0.09, PFBS: 0.04, PFOA: 1.00, PFOS: 0.15 },
+    affinityWeights: weightsOfGroup(2),
   },
   {
     channelGroup: 'CH22–CH28 (Group 4)',
     imprintTarget: 'PFOS',
     functionalMotif: 'C8 Perfluorooctyl + Sulfonate (-SO₃⁻) Pocket',
-    affinityWeights: { PFBA: 0.03, PFBS: 0.11, PFOA: 0.14, PFOS: 1.00 },
+    affinityWeights: weightsOfGroup(3),
   },
 ];
 
@@ -298,6 +199,81 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------------------------
+// Breakthrough twin (implementation in hybridTwin.ts)
+// ---------------------------------------------------------------------------------------------
+export type { PlantSpec, PlantTwinFit, SpeciesTwinResult, TwinPoint, TrainingHistoryPoint } from './hybridTwin';
+export {
+  COLLOCATION_POINTS,
+  EXPERIMENTAL_HYBRID_CONFIG,
+  LAST_OBSERVATION_DAY,
+  MID_BED_Z,
+  OBSERVATION_DAYS,
+  OPERATIONAL_DAYS,
+  TARGET_PPT,
+  TRAIN_DAYS,
+  TWIN_CONFIG,
+  pdeResidualRms,
+  staticPriorConcentration,
+  truthConcentration,
+  twinConcentration,
+} from './hybridTwin';
+
+export interface PlantOptions {
+  flowMultiplier?: number;
+  c0Multiplier?: number;
+  nomMgL?: number;
+  includeRollup?: boolean;
+  flowRateMGD?: number;
+  mediaMassKg?: number;
+  c0Override?: Partial<Record<SpeciesId, number>>;
+}
+
+/** Builds the vessel + influent description used by the twin and the testbench. */
+export function plantSpecFor(facility: FacilityProfile, o: PlantOptions = {}): PlantSpec {
+  const c0Mult = o.c0Multiplier ?? 1;
+  const C0 = {} as Record<SpeciesId, number>;
+  for (const sp of SPECIES_ORDER) C0[sp] = round1(o.c0Override?.[sp] ?? facility.influentProfile[sp] * c0Mult);
+  return {
+    mediaType: facility.mediaType,
+    flowRateMGD: round2(o.flowRateMGD ?? facility.flowRateMGD * (o.flowMultiplier ?? 1)),
+    mediaMassKg: Math.round(o.mediaMassKg ?? facility.mediaMassKg),
+    nomMgL: round2(o.nomMgL ?? facility.matrixDefaults.nomMgL),
+    includeRollup: o.includeRollup ?? true,
+    C0,
+  };
+}
+
+const fitCache = new Map<string, PlantTwinFit>();
+
+function plantKey(p: PlantSpec): string {
+  return [p.mediaType, p.flowRateMGD, p.mediaMassKg, p.nomMgL, p.includeRollup, ...SPECIES_ORDER.map((s) => p.C0[s])].join('|');
+}
+
+function cachedFit(key: string, compute: () => PlantTwinFit): PlantTwinFit {
+  const hit = fitCache.get(key);
+  if (hit) return hit;
+  const fit = compute();
+  if (fitCache.size > 120) fitCache.clear();
+  fitCache.set(key, fit);
+  return fit;
+}
+
+/** Validation protocol fit (TRAIN mid-bed days 30-135, TEST days 155-210). */
+export function getValidationFit(plant: PlantSpec, experimental = false): PlantTwinFit {
+  return cachedFit(`V|${plantKey(plant)}|${experimental}`, () =>
+    fitPlantTwin(plant, { config: experimental ? EXPERIMENTAL_HYBRID_CONFIG : {} })
+  );
+}
+
+/** Operational fit: only mid-bed data available on or before `asOfDay` (one point every 15 days). */
+export function getOperationalFit(plant: PlantSpec, asOfDay: number, experimental = false): PlantTwinFit {
+  const dataDay = Math.max(0, Math.floor(asOfDay / 15) * 15);
+  return cachedFit(`O|${plantKey(plant)}|${dataDay}|${experimental}`, () =>
+    fitPlantTwin(plant, { asOfDay: dataDay, config: experimental ? EXPERIMENTAL_HYBRID_CONFIG : {} })
+  );
+}
+
 /**
  * Converts operating run time (days) into dimensionless Bed Volumes (BV) processed:
  * BV = (t_days * 1440 min/day) / EBCT_minutes
@@ -306,1060 +282,128 @@ export function computeBedVolumes(day: number, ebctMinutes: number): number {
   return Math.round((day * 1440) / Math.max(1.0, ebctMinutes));
 }
 
-const pinnAssimilationCache = new Map<string, PinnSolverDiagnostics>();
-
-function getCachedPinnDiagnostics(params: {
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  mediaType: 'GAC' | 'IX' | 'HYBRID';
-  C0: number;
-  flowRateMGD: number;
-  mediaMassKg: number;
-  nomMgL: number;
-  ebctMinutes?: number;
-  includeCompetitiveRollup?: boolean;
-}): PinnSolverDiagnostics {
-  const key = `${params.speciesId}|${params.mediaType}|${params.C0.toFixed(2)}|${params.flowRateMGD.toFixed(2)}|${Math.round(params.mediaMassKg)}|${params.nomMgL.toFixed(2)}|${Boolean(params.includeCompetitiveRollup)}`;
-  const cached = pinnAssimilationCache.get(key);
-  if (cached) return cached;
-  const computed = runPinnParameterAssimilation(params);
-  if (pinnAssimilationCache.size > 250) {
-    pinnAssimilationCache.clear();
-  }
-  pinnAssimilationCache.set(key, computed);
-  return computed;
+export interface SpeciesTrainState {
+  speciesId: SpeciesId;
+  c0: number;
+  /** Run time of the current lead vessel in equivalent days (differs from the plant day after a rotation). */
+  effectiveRunDays: number;
+  midBedPpt: number;
+  leadOutletPpt: number;
+  finalEffluentPpt: number;
+  isRollupActive: boolean;
+  forecastLeadOutlet4PptDay: number;
+  forecastMidBed4PptDay: number;
+  uncertaintyBandDays: number;
+  conservativeBreachDay: number;
+  remainingDays: number;
+  conservativeRemainingDays: number;
+  staticLeadOutlet4PptDay: number;
 }
 
 /**
- * Computes Bohart-Adams / Thomas Advection-Sorption Model + Freundlich NOM Fouling
- * + Competitive Chromatographic Roll-Up (Displacement of Short-Chain C4 by Long-Chain C8 & NOM)
- *
- * Governing Differential & Algebraic System:
- *   1D Advection-Sorption Wave: dC/dt + u_MTZ * dC/dz = S_rollup(z, t)
- *   Thomas Logistic Solution:   ln(C0 / Ct_base - 1) = (kTh_eff * q0_eff * M * zFraction) / Q_norm - kTh_eff * C0 * t
- *   Competitive Roll-Up Wave:   Ct(z, t) = Ct_base + C0 * alpha_rollup * S(t) * exp(-((t - t_peak) / tau_rollup)^2)
+ * Equivalent loading time of the former lag vessel at the moment of rotation: the mass it has
+ * retained (inflow at z = 1 minus outflow at z = 2), expressed as days of full-strength influent.
  */
-export function computeBreakthroughConcentration(params: {
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  mediaType: 'GAC' | 'IX' | 'HYBRID';
-  C0: number;               // Influent ppt (ng/L)
-  flowRateMGD: number;      // Q (MGD)
-  mediaMassKg: number;      // M (kg)
-  day: number;              // t (days)
-  bedDepthFraction: number; // z/L: 0.5 = Mid-Bed sensor (C_mid), 1.0 = Effluent sensor (C_t)
-  nomMgL?: number;          // Natural Organic Matter fouling factor for PINN vs Static Thomas
-  usePinnCorrection?: boolean;
-  includeCompetitiveRollup?: boolean;
-}): number {
-  const species = PFAS_SPECIES[params.speciesId];
-  const isIX = params.mediaType === 'IX';
-  const isHybrid = params.mediaType === 'HYBRID';
-
-  const kThBase = isIX
-    ? species.kTh_IX
-    : isHybrid
-    ? Number(((species.kTh_GAC + species.kTh_IX) * 0.52).toFixed(5))
-    : species.kTh_GAC;
-
-  const q0Base = isIX
-    ? species.q0_IX
-    : isHybrid
-    ? Math.round((species.q0_GAC + species.q0_IX) * 0.62)
-    : species.q0_GAC;
-
-  // Normalize Q and M into consistent dimensionless bed-volume kinetic units
-  const Q_norm = Math.max(0.2, params.flowRateMGD * 320);
-  const M_effective = params.mediaMassKg * Math.max(0.05, params.bedDepthFraction);
-  const nom = params.nomMgL ?? 2.0;
-
-  // Directly use PINN-assimilated [learnedKth, learnedQ0] when usePinnCorrection is active
-  let q0 = q0Base;
-  let kTh = kThBase;
-  if (params.usePinnCorrection) {
-    const diag = getCachedPinnDiagnostics({
-      speciesId: params.speciesId,
-      mediaType: params.mediaType,
-      C0: params.C0,
-      flowRateMGD: params.flowRateMGD,
-      mediaMassKg: params.mediaMassKg,
-      nomMgL: nom,
-      includeCompetitiveRollup: params.includeCompetitiveRollup,
-    });
-    q0 = diag.learnedQ0;
-    kTh = diag.learnedKth;
-  }
-
-  const tau50 = (q0 * M_effective) / (Q_norm * Math.max(1.0, params.C0));
-  const exponent = Math.max(
-    -40,
-    Math.min(40, (kTh * q0 * M_effective) / Q_norm - kTh * params.C0 * params.day)
-  );
-  const sig = 1 / (1 + Math.exp(exponent));
-  const ctLogistic = params.C0 * sig;
-
-  // Competitive Desorption ("Chromatographic Roll-Up") for Short-Chain C4 species:
-  // Activates strictly near bed saturation (sig > 0.65) and vanishes at t = 0
-  let rollupSurge = 0;
-  if (params.usePinnCorrection && params.includeCompetitiveRollup && params.day > 1.0) {
-    const baseRollup = isIX
-      ? species.rollupFactorIX
-      : isHybrid
-      ? species.rollupFactorGAC * 0.45
-      : species.rollupFactorGAC;
-    const depthRollupScale = params.bedDepthFraction >= 0.85 ? 1.0 : 0.25 * params.bedDepthFraction;
-    const nomMultiplier = 0.85 + 0.12 * nom;
-    const tPeak = tau50 * 1.16;
-    const width = Math.max(2.5, tau50 * 0.18);
-    const gaussianWave = Math.exp(-Math.pow((params.day - tPeak) / width, 2));
-    const saturationGate =
-      sig > 0.35
-        ? 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, (params.day - tau50 * 1.02) / Math.max(1.2, tau50 * 0.04)))))
-        : 0;
-    rollupSurge = params.C0 * baseRollup * depthRollupScale * nomMultiplier * gaussianWave * saturationGate;
-  }
-
-  const maxAllowed = params.includeCompetitiveRollup ? params.C0 * 1.42 : params.C0;
-  const totalCt = ctLogistic + rollupSurge;
-  return Number(Math.max(0.02, Math.min(maxAllowed, totalCt)).toFixed(2));
+function equivalentLoadingDays(fn: (z: number, t: number) => number, c0: number, switchDay: number): number {
+  let retained = 0;
+  for (let t = 0; t < switchDay; t++) retained += fn(1, t + 0.5) - fn(2, t + 0.5);
+  return retained / Math.max(1e-9, c0);
 }
 
 /**
- * Calculates the exact day when concentration at a given bed depth reaches targetPpt (e.g., 4.0 ppt EPA limit)
- * Unified with `runPinnParameterAssimilation` so all tabs, curves, and tables report identical breakthrough days.
+ * Lead-lag train state. The lead vessel spans z in [0, 1] and the lag vessel z in [1, 2]; after a
+ * rotation the former lag becomes the lead with an equivalent loading time, and fresh media is the lag.
+ * Live values come from the testbench plant; forecasts come from the twin fit.
  */
-export function predictBreakthroughTimeDays(params: {
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  mediaType: 'GAC' | 'IX' | 'HYBRID';
-  C0: number;
-  flowRateMGD: number;
-  mediaMassKg: number;
-  bedDepthFraction: number;
-  targetPpt: number;
-  nomMgL?: number;
-  usePinnCorrection?: boolean;
-}): number {
-  const species = PFAS_SPECIES[params.speciesId];
-  const isIX = params.mediaType === 'IX';
-  const isHybrid = params.mediaType === 'HYBRID';
-
-  const kThBase = isIX
-    ? species.kTh_IX
-    : isHybrid
-    ? Number(((species.kTh_GAC + species.kTh_IX) * 0.52).toFixed(5))
-    : species.kTh_GAC;
-
-  const q0Base = isIX
-    ? species.q0_IX
-    : isHybrid
-    ? Math.round((species.q0_GAC + species.q0_IX) * 0.62)
-    : species.q0_GAC;
-
-  const Q_norm = Math.max(0.2, params.flowRateMGD * 320);
-  const M_effective = params.mediaMassKg * Math.max(0.05, params.bedDepthFraction);
-  const nom = params.nomMgL ?? 2.0;
-
-  let q0 = q0Base;
-  let kTh = kThBase;
-  if (params.usePinnCorrection) {
-    const diag = getCachedPinnDiagnostics({
-      speciesId: params.speciesId,
-      mediaType: params.mediaType,
-      C0: params.C0,
-      flowRateMGD: params.flowRateMGD,
-      mediaMassKg: params.mediaMassKg,
-      nomMgL: nom,
-      includeCompetitiveRollup: true,
-    });
-    if (Math.abs(params.targetPpt - 4.0) < 0.01) {
-      if (Math.abs(params.bedDepthFraction - 1.0) < 0.01) return diag.assimilatedEffluent4PptDay;
-      if (Math.abs(params.bedDepthFraction - 0.5) < 0.01) return diag.assimilatedMidBed4PptDay;
-    }
-    q0 = diag.learnedQ0;
-    kTh = diag.learnedKth;
-  }
-
-  const safeC0 = Math.max(params.targetPpt + 0.5, params.C0);
-  const logTerm = Math.log(safeC0 / params.targetPpt - 1);
-  const tDays = ((kTh * q0 * M_effective) / Q_norm - logTerm) / (kTh * safeC0);
-
-  return Math.max(1, Number(tDays.toFixed(1)));
-}
-
-/**
- * Evaluates a 2-layer tanh MLP residual network N_W(z_tilde, t_tilde, sig_th)
- * used inside the Hybrid Physics-Informed Neural Network (PINN).
- */
-function evalNeuralResidual(
-  zFrac: number,
-  tNorm: number,
-  sigTh: number,
-  w1: number[][],
-  b1: number[],
-  w2: number[],
-  b2: number
-): { out: number; hidden: number[] } {
-  const inp = [zFrac, tNorm, sigTh];
-  const hidden: number[] = [];
-  for (let j = 0; j < b1.length; j++) {
-    const zH = b1[j] + w1[j][0] * inp[0] + w1[j][1] * inp[1] + w1[j][2] * inp[2];
-    hidden.push(Math.tanh(Math.max(-15, Math.min(15, zH))));
-  }
-  let out = b2;
-  for (let j = 0; j < b1.length; j++) {
-    out += w2[j] * hidden[j];
-  }
-  return { out, hidden };
-}
-
-/**
- * Physics-Guided Hybrid Neural Network (PINN-style) Breakthrough & Parameter Assimilation Solver.
- * - No ground-truth parameter leakage: never reads targetCapFactor or targetKinFactor.
- * - Optimizes physical parameters theta_phys = [kTh_eff, q0_eff] and 2-layer neural network weights
- *   theta_NN = [W1, b1, W2, b2] with Adam. The data term uses exact analytical backpropagation; the PDE
- *   penalty uses finite-difference residuals with an approximate (surrogate) gradient, not exact autodiff:
- *     L_total = ||C_hat(z_mid, t) - C_mid_obs||^2 + lambda_pde * ||dC_hat/dt + u_MTZ * dC_hat/dz||^2
- */
-export interface PinnSolverDiagnostics {
-  epochsRun: number;
-  initialTotalLoss: number;
-  finalTotalLoss: number;
-  dataLossMse: number;
-  pdeResidualL2: number;
-  learnedKth: number;
-  learnedQ0: number;
-  priorStaticKth: number;
-  priorStaticQ0: number;
-  assimilatedMidBed4PptDay: number;
-  assimilatedEffluent4PptDay: number;
-  staticBaselineEffluent4PptDay: number;
-  trainRmsePpt: number;
-  testHoldoutRmsePpt: number;
-  staticBaselineRmsePpt: number;
-  empiricalR2: number;
-  empiricalRmsePpt: number;
-  breakthrough95CiDays: number;
-  empiricalPoints: {
-    day: number;
-    bedVolumes: number;
-    split: 'TRAIN' | 'TEST';
-    measuredMidBedPpt: number;
-    measuredEffluentPpt: number;
-    pinnMidBedPpt: number;
-    pinnEffluentPpt: number;
-    staticMidBedPpt: number;
-    staticEffluentPpt: number;
-  }[];
-  lossHistory: { epoch: number; totalLoss: number; pdeLoss: number; dataLoss: number }[];
-}
-
-export const PILOT_DATASET_PROVENANCE = {
-  sourceStudies:
-    'McCleaf et al. (Water Research, 2017, Vol. 120, pp. 77–87, Fig. 2–3) & Park et al. (Water Research, 2020, Vol. 170, 115364)',
-  sorbentAndHydraulicSpec:
-    'Pilot GAC Column (Filtrasorb 400 / Coconut-Shell GAC) | EBCT = 10.5–11.5 min | Influent DOC = 2.0–2.1 mg/L | Ports: z/L = 0.50 & z/L = 1.00',
-  digitizationUncertainty:
-    '±3.5% C/C0 graphical extraction & LC-MS/MS analytical variance across 8 normalized bed-volume checkpoints',
-  syntheticTestbenchDisclosure:
-    'TRL 3 in-silico testbench: observation points are generated by a NOM-fouled Thomas forward model mapped to each facility (Q, M, C0, media), with the digitized pilot-curve shape applied as a bounded log-odds perturbation. These are NOT field measurements; real-site validation is planned for TRL 4–6.',
-  trainTestProtocol:
-    'Temporal Forward-Chaining Split: Days 30–135 (n=5 Mid-Bed Assimilation TRAIN set) → Days 155–210 (n=3 Unseen Future Breakthrough TEST holdout set)',
-};
-
-/**
- * Independent Digitized Pilot-Scale GAC Breakthrough Ratios (C/C0 vs Operating Day / Bed Volumes)
- * Derived from published multi-solute pilot GAC column datasets (McCleaf et al., Water Research 2017;
- * Park et al., Water Research 2020; AWWA/EPA 815-R-24-001).
- * Notice: These checkpoints are stored as an independent empirical lookup table rather than
- * being self-generated by the forward Thomas solver.
- */
-export const PUBLISHED_PILOT_GAC_RATIOS: Record<
-  'PFBA' | 'PFBS' | 'PFOA' | 'PFOS',
-  { day: number; midRatio: number; effRatio: number }[]
-> = {
-  PFBA: [
-    { day: 30, midRatio: 0.008, effRatio: 0.002 },
-    { day: 60, midRatio: 0.036, effRatio: 0.003 },
-    { day: 90, midRatio: 0.182, effRatio: 0.005 },
-    { day: 115, midRatio: 0.488, effRatio: 0.008 },
-    { day: 135, midRatio: 0.824, effRatio: 0.014 },
-    { day: 155, midRatio: 0.918, effRatio: 0.022 },
-    { day: 180, midRatio: 0.976, effRatio: 0.052 },
-    { day: 210, midRatio: 0.992, effRatio: 0.242 },
-  ],
-  PFBS: [
-    { day: 30, midRatio: 0.004, effRatio: 0.002 },
-    { day: 60, midRatio: 0.016, effRatio: 0.002 },
-    { day: 90, midRatio: 0.079, effRatio: 0.004 },
-    { day: 115, midRatio: 0.258, effRatio: 0.006 },
-    { day: 135, midRatio: 0.625, effRatio: 0.009 },
-    { day: 155, midRatio: 0.832, effRatio: 0.014 },
-    { day: 180, midRatio: 0.958, effRatio: 0.021 },
-    { day: 210, midRatio: 0.989, effRatio: 0.054 },
-  ],
-  PFOA: [
-    { day: 30, midRatio: 0.002, effRatio: 0.001 },
-    { day: 60, midRatio: 0.005, effRatio: 0.001 },
-    { day: 90, midRatio: 0.011, effRatio: 0.002 },
-    { day: 115, midRatio: 0.029, effRatio: 0.003 },
-    { day: 135, midRatio: 0.084, effRatio: 0.005 },
-    { day: 155, midRatio: 0.238, effRatio: 0.008 },
-    { day: 180, midRatio: 0.548, effRatio: 0.012 },
-    { day: 210, midRatio: 0.922, effRatio: 0.019 },
-  ],
-  PFOS: [
-    { day: 30, midRatio: 0.001, effRatio: 0.001 },
-    { day: 60, midRatio: 0.002, effRatio: 0.001 },
-    { day: 90, midRatio: 0.005, effRatio: 0.001 },
-    { day: 115, midRatio: 0.012, effRatio: 0.002 },
-    { day: 135, midRatio: 0.028, effRatio: 0.003 },
-    { day: 155, midRatio: 0.076, effRatio: 0.005 },
-    { day: 180, midRatio: 0.268, effRatio: 0.008 },
-    { day: 210, midRatio: 0.668, effRatio: 0.014 },
-  ],
-};
-
-export function runPinnParameterAssimilation(params: {
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  mediaType: 'GAC' | 'IX' | 'HYBRID';
-  C0: number;
-  flowRateMGD: number;
-  mediaMassKg: number;
-  nomMgL: number;
-  ebctMinutes?: number;
-  includeCompetitiveRollup?: boolean;
-}): PinnSolverDiagnostics {
-  const species = PFAS_SPECIES[params.speciesId];
-  const isIX = params.mediaType === 'IX';
-  const isHybrid = params.mediaType === 'HYBRID';
-  const ebct = params.ebctMinutes ?? 11.5;
-
-  const priorKth = isIX
-    ? species.kTh_IX
-    : isHybrid
-    ? Number(((species.kTh_GAC + species.kTh_IX) * 0.52).toFixed(5))
-    : species.kTh_GAC;
-
-  const priorQ0 = isIX
-    ? species.q0_IX
-    : isHybrid
-    ? Math.round((species.q0_GAC + species.q0_IX) * 0.62)
-    : species.q0_GAC;
-
-  const Q_norm = Math.max(0.2, params.flowRateMGD * 320);
-  const M_mid = params.mediaMassKg * 0.5;
-  const M_full = params.mediaMassKg;
-
-  // Extract empirical dimensionless log-odds residuals from PUBLISHED_PILOT_GAC_RATIOS
-  // and map to the active vessel's hydraulic/media regime (Q, M, C0, nomMgL, mediaType):
-  //   - TRAIN set (Days 30, 60, 90, 115, 135): Early/mid-run telemetry assimilated by PINN
-  //   - TEST holdout set (Days 155, 180, 210): Unseen future breakthrough points for out-of-sample evaluation
-  const refC0Map: Record<'PFBA' | 'PFBS' | 'PFOA' | 'PFOS', number> = {
-    PFBA: 26.5,
-    PFBS: 31.0,
-    PFOA: 38.5,
-    PFOS: 44.0,
-  };
-  const refC0 = refC0Map[params.speciesId];
-  const refQNorm = 2.1 * 320;
-  const refMMid = 9100 * 0.5;
-  const refK = species.kTh_GAC * 1.0462;
-  const refQ = species.q0_GAC * 0.9165;
-
-  // Physical NOM pore-blocking & competitive site occupation governing the observed column testbench
-  const nom = params.nomMgL;
-  const fouledCapFactor = Math.max(
-    0.62,
-    1.0 - (nom - 1.0) * 0.065 - Math.pow(Math.max(0, nom - 2.0), 1.35) * 0.012
-  );
-  const fouledKinFactor = 1.0 + (nom - 1.0) * 0.042;
-  const kBench = priorKth * fouledKinFactor;
-  const qBench = priorQ0 * fouledCapFactor;
-
-  const rawPoints = PUBLISHED_PILOT_GAC_RATIOS[params.speciesId].map((pt, idx) => {
-    const xiRefMid = (refK * refQ * refMMid) / refQNorm - refK * refC0 * pt.day;
-    const xiPilotMid = Math.log(1.0 / Math.max(0.0005, Math.min(0.9995, pt.midRatio)) - 1.0);
-    // Zero-mean empirical perturbation extracted from digitized pilot data
-    const centeredDelta = (xiPilotMid - xiRefMid) * 0.18 + (idx % 2 === 0 ? -0.025 : 0.025);
-    const empiricalMidDeltaXi = Math.max(-0.08, Math.min(0.08, centeredDelta));
-
-    const xiObsMid = Math.max(
-      -35,
-      Math.min(35, (kBench * qBench * M_mid) / Q_norm - kBench * params.C0 * pt.day + empiricalMidDeltaXi)
-    );
-    const sigObsMid = 1.0 / (1.0 + Math.exp(xiObsMid));
-
-    const xiObsEff = Math.max(
-      -35,
-      Math.min(35, (kBench * qBench * M_full) / Q_norm - kBench * params.C0 * pt.day - empiricalMidDeltaXi * 0.5)
-    );
-    const sigObsEff = 1.0 / (1.0 + Math.exp(xiObsEff));
-
-    let rollupMidObs = 0;
-    let rollupEffObs = 0;
-    if (params.includeCompetitiveRollup && pt.day > 1.0) {
-      const baseRollup = isIX
-        ? species.rollupFactorIX
-        : isHybrid
-        ? species.rollupFactorGAC * 0.45
-        : species.rollupFactorGAC;
-      const nomMult = 0.85 + 0.12 * nom;
-      const tau50Mid = (qBench * M_mid) / (Q_norm * Math.max(1.0, params.C0));
-      const tau50Eff = (qBench * M_full) / (Q_norm * Math.max(1.0, params.C0));
-
-      if (sigObsMid > 0.35) {
-        const wMid = Math.max(2.5, tau50Mid * 0.18);
-        const gMid = Math.exp(-Math.pow((pt.day - tau50Mid * 1.16) / wMid, 2));
-        const sMid = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, (pt.day - tau50Mid * 1.02) / Math.max(1.2, tau50Mid * 0.04)))));
-        rollupMidObs = params.C0 * baseRollup * 0.125 * nomMult * gMid * sMid;
-      }
-      if (sigObsEff > 0.35) {
-        const wEff = Math.max(2.5, tau50Eff * 0.18);
-        const gEff = Math.exp(-Math.pow((pt.day - tau50Eff * 1.16) / wEff, 2));
-        const sEff = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, (pt.day - tau50Eff * 1.02) / Math.max(1.2, tau50Eff * 0.04)))));
-        rollupEffObs = params.C0 * baseRollup * nomMult * gEff * sEff;
-      }
-    }
-
-    const midObs = Math.max(0.02, Math.min(params.C0 * 1.18, params.C0 * sigObsMid + rollupMidObs));
-    const effObs = Math.max(0.02, Math.min(params.C0 * 1.42, params.C0 * sigObsEff + rollupEffObs));
-    const split: 'TRAIN' | 'TEST' = pt.day <= 135 ? 'TRAIN' : 'TEST';
-    return {
-      day: pt.day,
-      bedVolumes: computeBedVolumes(pt.day, ebct),
-      split,
-      xiObsMid,
-      measuredMidBedPpt: Number(midObs.toFixed(2)),
-      measuredEffluentPpt: Number(effObs.toFixed(2)),
+export function computeTrainState(
+  plant: PlantSpec,
+  fit: PlantTwinFit,
+  day: number,
+  switchDay: number | null
+): Record<SpeciesId, SpeciesTrainState> {
+  const out = {} as Record<SpeciesId, SpeciesTrainState>;
+  for (const sp of SPECIES_ORDER) {
+    const c0 = plant.C0[sp];
+    const truthFn = (z: number, t: number) => truthConcentration(plant, sp, z, t);
+    const twinFn = (z: number, t: number) => twinConcentration(fit, sp, z, t);
+    const rotated = switchDay !== null && day >= switchDay;
+    const tauTruth = rotated ? equivalentLoadingDays(truthFn, c0, switchDay as number) : 0;
+    const tEff = rotated ? day - (switchDay as number) + tauTruth : day;
+    const r = fit.species[sp];
+    const tauTwin = rotated ? equivalentLoadingDays(twinFn, c0, switchDay as number) : 0;
+    const shift = rotated ? (switchDay as number) - tauTwin : 0;
+    const forecastLead = r.effluent4PptDay + shift;
+    const lead = truthFn(1, tEff);
+    out[sp] = {
+      speciesId: sp,
+      c0,
+      effectiveRunDays: tEff,
+      midBedPpt: truthFn(MID_BED_Z, tEff),
+      leadOutletPpt: lead,
+      finalEffluentPpt: truthFn(2, tEff),
+      isRollupActive: lead > c0 * 1.01,
+      forecastLeadOutlet4PptDay: forecastLead,
+      forecastMidBed4PptDay: r.midBed4PptDay + shift,
+      uncertaintyBandDays: r.uncertaintyBandDays,
+      conservativeBreachDay: forecastLead - r.uncertaintyBandDays,
+      remainingDays: forecastLead - day,
+      conservativeRemainingDays: forecastLead - r.uncertaintyBandDays - day,
+      staticLeadOutlet4PptDay: r.staticEffluent4PptDay + shift,
     };
-  });
-  const trainPoints = rawPoints.filter((p) => p.split === 'TRAIN');
-
-  // Interior spatiotemporal PDE collocation grid (z_tilde, day)
-  const collocationGrid: [number, number][] = [
-    [0.35, 70],
-    [0.50, 95],
-    [0.50, 125],
-    [0.65, 140],
-    [0.75, 165],
-    [0.85, 185],
-    [1.00, 200],
-  ];
-
-  // Initialize physical parameters at uncompensated clean-water prior (theta_0 = [1.0, 1.0])
-  let kScale = 1.0;
-  let qScale = 1.0;
-
-  // Initialize 2-layer MLP residual network (3 inputs -> 4 tanh units -> 1 output)
-  const w1: number[][] = [
-    [0.06, -0.04, 0.08],
-    [-0.05, 0.07, -0.06],
-    [0.04, 0.06, 0.05],
-    [-0.04, -0.06, 0.07],
-  ];
-  const b1: number[] = [0.0, 0.0, 0.0, 0.0];
-  const w2: number[] = [0.04, -0.03, 0.03, -0.04];
-  let b2 = 0.0;
-
-  // Adam optimizer moments
-  let mK = 0;
-  let vK = 0;
-  let mQ = 0;
-  let vQ = 0;
-  const beta1 = 0.82;
-  const beta2 = 0.98;
-  const eps = 1e-8;
-  const lrPhys = 0.042;
-  const lrNn = 0.006;
-
-  const epochs = 24;
-  const lossHistory: { epoch: number; totalLoss: number; pdeLoss: number; dataLoss: number }[] = [];
-
-  for (let ep = 0; ep <= epochs; ep++) {
-    const kCur = priorKth * kScale;
-    const qCur = priorQ0 * qScale;
-
-    let dataLossSum = 0;
-    let gradKScale = 0;
-    let gradQScale = 0;
-    const gradW2 = [0, 0, 0, 0];
-    let gradB2 = 0;
-    const gradW1 = [
-      [0, 0, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-    ];
-    const gradB1 = [0, 0, 0, 0];
-
-    // 1. Mid-Bed Observation Loss & Fisher-Preconditioned Chain-Rule Backpropagation (z/L = 0.50)
-    // Strictly trained ONLY on the early/mid-run TRAIN split (Days 30..135); Days 155..210 are unseen TEST holdout!
-    for (const pt of trainPoints) {
-      const tNorm = pt.day / 240.0;
-      const xi = Math.max(-35, Math.min(35, (kCur * qCur * M_mid) / Q_norm - kCur * params.C0 * pt.day));
-      const sig = 1.0 / (1.0 + Math.exp(xi));
-      const cTh = params.C0 * sig;
-
-      const { out: nnVal, hidden } = evalNeuralResidual(0.5, tNorm, sig, w1, b1, w2, b2);
-      const cHat = cTh + nnVal * sig * (1.0 - sig);
-      const diff = cHat - pt.measuredMidBedPpt;
-      const xiDiff = xi - pt.xiObsMid;
-      dataLossSum += (diff / Math.max(1.0, params.C0)) ** 2 + 0.15 * xiDiff * xiDiff;
-
-      const errNorm = diff / Math.max(1.0, params.C0);
-      const dLossDcHat = (2.0 * errNorm) / trainPoints.length;
-
-      // Fisher-preconditioned logistic derivative: ensures high sensitivity even on early pre-breakthrough tails
-      const dLossDxi = (0.35 * xiDiff - dLossDcHat * sig * (1.0 - sig)) / trainPoints.length;
-      const tauCharMid = Math.max(1.0, (priorKth * priorQ0 * M_mid) / Q_norm);
-      const dxiDkScale = (priorKth * ((qCur * M_mid) / Q_norm - params.C0 * pt.day)) / tauCharMid;
-      const dxiDqScale = (priorQ0 * ((kCur * M_mid) / Q_norm)) / tauCharMid;
-
-      gradKScale += dLossDxi * dxiDkScale - 0.04 * (kScale - (1.0 + (nom - 1.0) * 0.04));
-      gradQScale += dLossDxi * dxiDqScale;
-
-      const nnGate = sig * (1.0 - sig);
-      gradB2 += dLossDcHat * nnGate + 0.02 * b2;
-      for (let j = 0; j < 4; j++) {
-        gradW2[j] += dLossDcHat * nnGate * hidden[j] + 0.02 * w2[j];
-        const dh = dLossDcHat * nnGate * w2[j] * (1.0 - hidden[j] * hidden[j]);
-        gradB1[j] += dh;
-        gradW1[j][0] += dh * 0.5;
-        gradW1[j][1] += dh * tNorm;
-        gradW1[j][2] += dh * sig;
-      }
-    }
-
-    // 2. Spatiotemporal 1D Advection-Sorption PDE Collocation Loss:
-    //    R_PDE = (T_char / C0) * [ dC_hat/dt + u_MTZ * dC_hat/dz ] + 0.5 * (T_char / C0) * [ dC_hat/dt - k*C0^2*(C/C0)*(1-C/C0) ]
-    let pdeResidualSum = 0;
-    const uMtz = (Q_norm * params.C0) / Math.max(1.0, qCur * params.mediaMassKg);
-    const tChar = 120.0;
-    const dt = 0.5;
-    const dz = 0.01;
-
-    const evalField = (zVal: number, dVal: number): number => {
-      const mZ = params.mediaMassKg * zVal;
-      const xiV = Math.max(-35, Math.min(35, (kCur * qCur * mZ) / Q_norm - kCur * params.C0 * dVal));
-      const sigV = 1.0 / (1.0 + Math.exp(xiV));
-      const { out: nnV } = evalNeuralResidual(zVal, dVal / 240.0, sigV, w1, b1, w2, b2);
-      return params.C0 * sigV + nnV * sigV * (1.0 - sigV);
-    };
-
-    for (const [zC, dC] of collocationGrid) {
-      const cCenter = evalField(zC, dC);
-      const cTp = evalField(zC, dC + dt);
-      const cTm = evalField(zC, dC - dt);
-      const cZp = evalField(Math.min(1.0, zC + dz), dC);
-      const cZm = evalField(Math.max(0.05, zC - dz), dC);
-
-      const dCdt = (cTp - cTm) / (2.0 * dt);
-      const dCdz = (cZp - cZm) / (2.0 * dz);
-
-      const cRatio = Math.max(0.0005, Math.min(0.9995, cCenter / params.C0));
-      // Dimensional consistency: dC/dt = k_cur * C0^2 * (C/C0) * (1 - C/C0) [units: ppt/day]
-      const dCdtThomas = kCur * params.C0 * params.C0 * cRatio * (1.0 - cRatio);
-
-      const advRes = (tChar / params.C0) * (dCdt + uMtz * dCdz);
-      const kinRes = (tChar / params.C0) * (dCdt - dCdtThomas);
-      const pdeRes = advRes + 0.5 * kinRes;
-      pdeResidualSum += pdeRes * pdeRes;
-
-      const mZc = params.mediaMassKg * zC;
-      const xiC = Math.max(-35, Math.min(35, (kCur * qCur * mZc) / Q_norm - kCur * params.C0 * dC));
-      const sigC = 1.0 / (1.0 + Math.exp(xiC));
-      const { hidden: hidC } = evalNeuralResidual(zC, dC / 240.0, sigC, w1, b1, w2, b2);
-
-      // Backpropagate PDE collocation residual to both physical parameters and neural weights
-      gradKScale += (0.015 * pdeRes * sigC * (1.0 - sigC)) / collocationGrid.length;
-      gradQScale += (0.015 * pdeRes * sigC * (1.0 - sigC)) / collocationGrid.length;
-      for (let j = 0; j < 4; j++) {
-        const dPdeW2 = (0.08 * pdeRes * hidC[j]) / collocationGrid.length + 0.02 * w2[j];
-        gradW2[j] += dPdeW2;
-        const dhC = (0.04 * pdeRes * w2[j] * (1.0 - hidC[j] * hidC[j])) / collocationGrid.length;
-        gradB1[j] += dhC;
-        gradW1[j][0] += dhC * zC;
-        gradW1[j][1] += dhC * (dC / 240.0);
-        gradW1[j][2] += dhC * sigC;
-      }
-    }
-
-    const dataMse = (dataLossSum * Math.pow(params.C0, 2)) / (trainPoints.length * 18.0);
-    const pdeMse = pdeResidualSum / collocationGrid.length;
-    const totalLoss = dataMse + 0.35 * pdeMse;
-
-    if (ep % 4 === 0 || ep === epochs) {
-      lossHistory.push({
-        epoch: ep,
-        totalLoss: Number(totalLoss.toFixed(4)),
-        pdeLoss: Number(pdeMse.toFixed(4)),
-        dataLoss: Number(dataMse.toFixed(4)),
-      });
-    }
-
-    if (ep < epochs) {
-      const stepNum = ep + 1;
-      mK = beta1 * mK + (1 - beta1) * gradKScale;
-      vK = beta2 * vK + (1 - beta2) * (gradKScale * gradKScale);
-      const mKHat = mK / (1 - Math.pow(beta1, stepNum));
-      const vKHat = vK / (1 - Math.pow(beta2, stepNum));
-      kScale -= (lrPhys * mKHat) / (Math.sqrt(vKHat) + eps);
-      kScale = Math.max(0.75, Math.min(1.42, kScale));
-
-      mQ = beta1 * mQ + (1 - beta1) * gradQScale;
-      vQ = beta2 * vQ + (1 - beta2) * (gradQScale * gradQScale);
-      const mQHat = mQ / (1 - Math.pow(beta1, stepNum));
-      const vQHat = vQ / (1 - Math.pow(beta2, stepNum));
-      qScale -= (lrPhys * mQHat) / (Math.sqrt(vQHat) + eps);
-      const maxAllowedQScale = nom > 1.05 ? Math.max(0.65, 1.0 - (nom - 1.0) * 0.045) : 1.05;
-      qScale = Math.max(0.58, Math.min(maxAllowedQScale, qScale));
-
-      b2 -= lrNn * gradB2;
-      for (let j = 0; j < 4; j++) {
-        w2[j] -= lrNn * gradW2[j];
-        b1[j] -= lrNn * gradB1[j];
-        for (let k = 0; k < 3; k++) {
-          w1[j][k] -= lrNn * gradW1[j][k];
-        }
-      }
-    }
   }
-
-  const learnedKth = Number((priorKth * kScale).toFixed(5));
-  const learnedQ0 = Math.round(priorQ0 * qScale);
-
-  // Directly use assimilated [learnedKth, learnedQ0] to compute 4.0 ppt breakthrough days
-  const safeC0 = Math.max(4.5, params.C0);
-  const logTerm4Ppt = Math.log(safeC0 / 4.0 - 1.0);
-  const assimilatedMidBed4PptDay = Math.max(
-    1,
-    Number((((learnedKth * learnedQ0 * M_mid) / Q_norm - logTerm4Ppt) / (learnedKth * safeC0)).toFixed(1))
-  );
-  const assimilatedEffluent4PptDay = Math.max(
-    assimilatedMidBed4PptDay + 1.0,
-    Number((((learnedKth * learnedQ0 * M_full) / Q_norm - logTerm4Ppt) / (learnedKth * safeC0)).toFixed(1))
-  );
-  const staticBaselineEffluent4PptDay = Math.max(
-    1,
-    Number((((priorKth * priorQ0 * M_full) / Q_norm - logTerm4Ppt) / (priorKth * safeC0)).toFixed(1))
-  );
-
-  // Evaluate assimilated PINN predictions AND uncompensated Static Thomas baseline across all checkpoints
-  const empiricalPoints = rawPoints.map((pt) => {
-    const xiMid = Math.max(
-      -35,
-      Math.min(35, (learnedKth * learnedQ0 * M_mid) / Q_norm - learnedKth * params.C0 * pt.day)
-    );
-    const sigMid = 1.0 / (1.0 + Math.exp(xiMid));
-    const { out: nnMid } = evalNeuralResidual(0.5, pt.day / 240.0, sigMid, w1, b1, w2, b2);
-
-    const xiEff = Math.max(
-      -35,
-      Math.min(35, (learnedKth * learnedQ0 * M_full) / Q_norm - learnedKth * params.C0 * pt.day)
-    );
-    const sigEff = 1.0 / (1.0 + Math.exp(xiEff));
-    const { out: nnEff } = evalNeuralResidual(1.0, pt.day / 240.0, sigEff, w1, b1, w2, b2);
-
-    let rollupSurgeMid = 0;
-    let rollupSurgeEff = 0;
-    if (params.includeCompetitiveRollup && pt.day > 1.0) {
-      const baseRollup = isIX
-        ? species.rollupFactorIX
-        : isHybrid
-        ? species.rollupFactorGAC * 0.45
-        : species.rollupFactorGAC;
-      const nomMult = 0.85 + 0.12 * params.nomMgL;
-      const tau50Mid = (learnedQ0 * M_mid) / (Q_norm * Math.max(1.0, params.C0));
-      const tau50Eff = (learnedQ0 * M_full) / (Q_norm * Math.max(1.0, params.C0));
-
-      if (sigMid > 0.35) {
-        const wMid = Math.max(2.5, tau50Mid * 0.18);
-        const gMid = Math.exp(-Math.pow((pt.day - tau50Mid * 1.16) / wMid, 2));
-        const sMid = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, (pt.day - tau50Mid * 1.02) / Math.max(1.2, tau50Mid * 0.04)))));
-        rollupSurgeMid = params.C0 * baseRollup * 0.125 * nomMult * gMid * sMid;
-      }
-      if (sigEff > 0.35) {
-        const wEff = Math.max(2.5, tau50Eff * 0.18);
-        const gEff = Math.exp(-Math.pow((pt.day - tau50Eff * 1.16) / wEff, 2));
-        const sEff = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, (pt.day - tau50Eff * 1.02) / Math.max(1.2, tau50Eff * 0.04)))));
-        rollupSurgeEff = params.C0 * baseRollup * nomMult * gEff * sEff;
-      }
-    }
-
-    const pinnMidBedPpt = Number(
-      Math.max(0.02, Math.min(params.C0 * 1.18, params.C0 * sigMid + nnMid * sigMid * (1.0 - sigMid) + rollupSurgeMid)).toFixed(2)
-    );
-    const pinnEffluentPpt = Number(
-      Math.max(0.02, Math.min(params.C0 * 1.42, params.C0 * sigEff + nnEff * sigEff * (1.0 - sigEff) + rollupSurgeEff)).toFixed(2)
-    );
-
-    // Uncompensated Static Thomas Baseline (using clean-water priorKth and priorQ0 without PINN assimilation)
-    const xiStaticMid = Math.max(
-      -35,
-      Math.min(35, (priorKth * priorQ0 * M_mid) / Q_norm - priorKth * params.C0 * pt.day)
-    );
-    const staticMidBedPpt = Number(
-      Math.max(0.02, params.C0 / (1.0 + Math.exp(xiStaticMid))).toFixed(2)
-    );
-    const xiStaticEff = Math.max(
-      -35,
-      Math.min(35, (priorKth * priorQ0 * M_full) / Q_norm - priorKth * params.C0 * pt.day)
-    );
-    const staticEffluentPpt = Number(
-      Math.max(0.02, params.C0 / (1.0 + Math.exp(xiStaticEff))).toFixed(2)
-    );
-
-    return {
-      day: pt.day,
-      bedVolumes: pt.bedVolumes,
-      split: pt.split,
-      measuredMidBedPpt: pt.measuredMidBedPpt,
-      measuredEffluentPpt: pt.measuredEffluentPpt,
-      pinnMidBedPpt,
-      pinnEffluentPpt,
-      staticMidBedPpt,
-      staticEffluentPpt,
-    };
-  });
-
-  // Compute separate TRAIN RMSE (Days 30..135), Holdout TEST RMSE (Days 155..210), and Static Thomas Baseline RMSE
-  const trainEval = empiricalPoints.filter((p) => p.split === 'TRAIN');
-  const testEval = empiricalPoints.filter((p) => p.split === 'TEST');
-
-  const calcRmse = (pts: typeof empiricalPoints, useStatic: boolean) => {
-    const errs = pts.flatMap((p) => [
-      Math.pow(p.measuredMidBedPpt - (useStatic ? p.staticMidBedPpt : p.pinnMidBedPpt), 2),
-      Math.pow(p.measuredEffluentPpt - (useStatic ? p.staticEffluentPpt : p.pinnEffluentPpt), 2),
-    ]);
-    return Math.sqrt(errs.reduce((a, b) => a + b, 0) / Math.max(1, errs.length));
-  };
-
-  const trainRmsePpt = Number(calcRmse(trainEval, false).toFixed(2));
-  const testHoldoutRmsePpt = Number(calcRmse(testEval, false).toFixed(2));
-  const staticBaselineRmsePpt = Number(calcRmse(testEval, true).toFixed(2));
-
-  // Overall R^2 and RMSE across all assimilated Mid-Bed & Effluent checkpoints
-  const allObs = empiricalPoints.flatMap((p) => [p.measuredMidBedPpt, p.measuredEffluentPpt]);
-  const allPred = empiricalPoints.flatMap((p) => [p.pinnMidBedPpt, p.pinnEffluentPpt]);
-  const meanObs = allObs.reduce((acc, v) => acc + v, 0) / allObs.length;
-  let ssRes = 0;
-  let ssTot = 0;
-  for (let i = 0; i < allObs.length; i++) {
-    ssRes += Math.pow(allObs[i] - allPred[i], 2);
-    ssTot += Math.pow(allObs[i] - meanObs, 2);
-  }
-  const rmse = Math.sqrt(ssRes / allObs.length);
-  const r2 = ssTot > 1e-6 ? Math.min(0.999, 1 - ssRes / ssTot) : 0.0;
-
-  const firstHistory = lossHistory[0];
-  const lastHistory = lossHistory[lossHistory.length - 1];
-
-  // 95% Prediction Confidence Interval (+/- days) calibrated on Holdout Test RMSE and PDE residual
-  const breakthrough95CiDays = Number(
-    Math.min(12.5, 1.96 * (1.35 + 0.38 * testHoldoutRmsePpt + 0.18 * lastHistory.pdeLoss)).toFixed(1)
-  );
-
-  return {
-    epochsRun: epochs,
-    initialTotalLoss: firstHistory.totalLoss,
-    finalTotalLoss: lastHistory.totalLoss,
-    dataLossMse: lastHistory.dataLoss,
-    pdeResidualL2: lastHistory.pdeLoss,
-    learnedKth,
-    learnedQ0,
-    priorStaticKth: priorKth,
-    priorStaticQ0: priorQ0,
-    assimilatedMidBed4PptDay,
-    assimilatedEffluent4PptDay,
-    staticBaselineEffluent4PptDay,
-    trainRmsePpt,
-    testHoldoutRmsePpt,
-    staticBaselineRmsePpt,
-    empiricalR2: Number(r2.toFixed(3)),
-    empiricalRmsePpt: Number(rmse.toFixed(2)),
-    breakthrough95CiDays,
-    empiricalPoints,
-    lossHistory,
-  };
+  return out;
 }
 
-/**
- * STAGE 1 (Forward Physical Testbench Simulator ONLY):
- * Generates synthetic raw electrochemical impedance telemetry (DeltaRct_MIP and DeltaRct_NIP)
- * corrupted by nonlinear Arrhenius thermal drift, surface amine deprotonation, Debye screening,
- * coupled humic-pH macromolecular fouling, 4x4 congener cross-selectivity bleed, and ADC readout noise.
- */
-export function simulatePhysicalSensorImpedance(params: {
-  truePpt: number;
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  tempC: number;
-  pH: number;
-  turbidityNTU: number;
-  conductivityUsCm: number;
-  nomMgL: number;
-  assayMode?: 'quantitative' | 'screening';
-  formFactor?: 'flow-cell' | 'sample-cup';
-}) {
-  const preconcGain = params.assayMode === 'screening' ? 0.78 : 1.0;
-  const flowCellGain = params.formFactor === 'sample-cup' ? 0.94 : 1.0;
-  const baseSensitivity =
-    (params.speciesId === 'PFOS'
-      ? 78
-      : params.speciesId === 'PFOA'
-      ? 72
-      : params.speciesId === 'PFBS'
-      ? 64
-      : 59) *
-    preconcGain *
-    flowCellGain;
-
-  // Amine-functionalized nanocarbon surface protonation (-NH3+ fraction, pKa_surface = 8.4)
-  const amineProtonationFraction = 1 / (1 + Math.pow(10, params.pH - 8.4));
-  const optimalProtonation = 1 / (1 + Math.pow(10, 7.0 - 8.4));
-  // Gouy-Chapman electrical double-layer Debye length (nm) from ionic conductivity
-  const ionicStrengthMolL = Math.max(0.0005, params.conductivityUsCm * 1.6e-5);
-  const debyeLengthNm = Number((0.304 / Math.sqrt(ionicStrengthMolL)).toFixed(2));
-
-  // True Langmuir-logarithmic gate-effect impedance shift on target MIP working channels
-  const idealDeltaRct = baseSensitivity * Math.log1p(params.truePpt);
-
-  // Forward Nonlinear Physical Matrix Interference (True Physics — Unknown to Inverse Estimator)
-  // Note: No asymmetric clamping between measuredDeltaRct and nipBlankDeltaRct so differential subtraction stays exact across all sliders
-  const tempDrift =
-    (params.tempC - 20.0) * -1.48 + 0.018 * Math.pow(params.tempC - 20.0, 2);
-  const phDrift =
-    (params.pH - 7.0) * -9.4 + (amineProtonationFraction - optimalProtonation) * 15.2;
-  const condDrift = (params.conductivityUsCm - 300) * -0.037;
-  const nonlinearHumicFouling =
-    Math.pow(params.nomMgL, 1.12) * 6.4 * (1.0 + 0.08 * (7.2 - params.pH)) +
-    params.turbidityNTU * 4.7;
-  const crossSelectivityBleedOhms = 0.085 * baseSensitivity * Math.log1p(params.truePpt * 0.35 + 1.2);
-  const adcNoiseOhms = 0.35 * Math.sin(params.truePpt * 1.7 + params.tempC * 0.3);
-
-  const totalMatrixDriftOhms =
-    tempDrift + phDrift + condDrift + nonlinearHumicFouling + crossSelectivityBleedOhms + adcNoiseOhms;
-  const measuredDeltaRct = idealDeltaRct + totalMatrixDriftOhms;
-
-  // Channels 29–32: Non-Imprinted Polymer (NIP) Blank Reference Signal
-  const nipBlankDeltaRct =
-    0.89 * (tempDrift + phDrift + condDrift) +
-    0.84 * nonlinearHumicFouling +
-    0.028 * idealDeltaRct -
-    0.25 * Math.cos(params.pH * 1.3);
-
-  return {
-    idealDeltaRct,
-    measuredDeltaRct,
-    nipBlankDeltaRct,
-    totalMatrixDriftOhms,
-    crossSelectivityBleedOhms,
-    debyeLengthNm,
-    amineProtonationPct: Number((amineProtonationFraction * 100).toFixed(1)),
-  };
+/** The compliance-limiting species (binding MCL) with the earliest conservative breach. */
+export function complianceLimitingSpecies(state: Record<SpeciesId, SpeciesTrainState>): SpeciesTrainState {
+  const candidates = SPECIES_ORDER.filter((sp) => PFAS_SPECIES[sp].epaRegulationType === 'Binding Federal MCL (4.0 ppt)');
+  return candidates.map((sp) => state[sp]).sort((a, b) => a.conservativeRemainingDays - b.conservativeRemainingDays)[0];
 }
 
-/**
- * 4x4 Tikhonov-Regularized Cross-Selectivity Matrix Inversion:
- * Solves c_hat = (S^T * S + lambda * I)^(-1) * S^T * r_vec using exact Gauss-Jordan elimination
- * on the 4x4 MIP_CROSS_SELECTIVITY_MATRIX (PFBA, PFBS, PFOA, PFOS).
- */
-export function solveTikhonov4x4Deconvolution(
-  rawGroupVector: [number, number, number, number],
-  lambdaReg: number = 0.015
-): {
-  deconvolvedVector: [number, number, number, number];
-  conditionNumber: number;
-  determinantS: number;
-} {
-  const order: ('PFBA' | 'PFBS' | 'PFOA' | 'PFOS')[] = ['PFBA', 'PFBS', 'PFOA', 'PFOS'];
-  const S: number[][] = MIP_CROSS_SELECTIVITY_MATRIX.map((row) =>
-    order.map((col) => row.affinityWeights[col])
-  );
+// ---------------------------------------------------------------------------------------------
+// MIP sensor (implementation in sensorModel.ts)
+// ---------------------------------------------------------------------------------------------
+export {
+  CROSS_SELECTIVITY,
+  defaultCalibration,
+  estimateMixture,
+  simulateSensor,
+} from './sensorModel';
+export type { EdgeCalibration, MixtureBenchmark, SensorMatrix } from './sensorModel';
 
-  // Compute exact determinant det(S) via LU row-reduction
-  const sCopy = S.map((r) => [...r]);
-  let detS = 1.0;
-  for (let col = 0; col < 4; col++) {
-    let pivot = col;
-    for (let row = col + 1; row < 4; row++) {
-      if (Math.abs(sCopy[row][col]) > Math.abs(sCopy[pivot][col])) pivot = row;
-    }
-    if (pivot !== col) {
-      const tmp = sCopy[col];
-      sCopy[col] = sCopy[pivot];
-      sCopy[pivot] = tmp;
-      detS = -detS;
-    }
-    const diag = sCopy[col][col] || 1e-9;
-    detS *= diag;
-    for (let row = col + 1; row < 4; row++) {
-      const f = sCopy[row][col] / diag;
-      for (let j = col; j < 4; j++) sCopy[row][j] -= f * sCopy[col][j];
-    }
-  }
+/** Background mixture used in the interactive sensor tab (a mid-bed sample during C4 breakthrough). */
+export const BACKGROUND_MIX_PPT: Record<SpeciesId, number> = { PFBA: 6, PFBS: 4, PFOA: 2, PFOS: 1.5 };
 
-  // Build A = S^T * S + lambda * I (4x4) and b = S^T * r_vec (4x1)
-  const A: number[][] = Array.from({ length: 4 }, (_, i) =>
-    Array.from({ length: 4 }, (__, j) => {
-      let sum = i === j ? lambdaReg : 0;
-      for (let k = 0; k < 4; k++) {
-        sum += S[k][i] * S[k][j];
-      }
-      return sum;
-    })
-  );
-  const b: number[] = Array.from({ length: 4 }, (_, i) => {
-    let sum = 0;
-    for (let k = 0; k < 4; k++) {
-      sum += S[k][i] * rawGroupVector[k];
-    }
-    return sum;
-  });
-
-  // Gauss-Jordan elimination on augmented 4x5 matrix [A | b]
-  const aug = A.map((row, i) => [...row, b[i]]);
-  for (let col = 0; col < 4; col++) {
-    let pivot = col;
-    for (let row = col + 1; row < 4; row++) {
-      if (Math.abs(aug[row][col]) > Math.abs(aug[pivot][col])) pivot = row;
-    }
-    const tmp = aug[col];
-    aug[col] = aug[pivot];
-    aug[pivot] = tmp;
-
-    const div = aug[col][col] || 1e-9;
-    for (let j = col; j <= 4; j++) aug[col][j] /= div;
-
-    for (let row = 0; row < 4; row++) {
-      if (row !== col) {
-        const factor = aug[row][col];
-        for (let j = col; j <= 4; j++) {
-          aug[row][j] -= factor * aug[col][j];
-        }
-      }
-    }
-  }
-
-  const deconvolvedVector: [number, number, number, number] = [
-    Math.max(0, aug[0][4]),
-    Math.max(0, aug[1][4]),
-    Math.max(0, aug[2][4]),
-    Math.max(0, aug[3][4]),
-  ];
-
-  // Compute row-sum infinity-norm condition proxy of S
-  const rowSums = S.map((r) => r.reduce((a, v) => a + Math.abs(v), 0));
-  const condS = Number((Math.max(...rowSums) / Math.max(0.1, Math.min(...rowSums)) * 1.30).toFixed(2));
-
-  return {
-    deconvolvedVector,
-    conditionNumber: condS,
-    determinantS: Number(detS.toFixed(3)),
-  };
-}
-
-/**
- * STAGE 2 (Blind Inverse Edge AI Estimator — Deployed on ARM Cortex-M33):
- * Notice: `truePpt` and `nomMgL` are NOT in the parameter signature of this function!
- * It estimates PFAS concentration strictly from observable sensor impedances (`measuredDeltaRct`,
- * `nipBlankDeltaRct`) and standard Xylem YSI EXO2 water quality sonde telemetry (`tempC`, `pH`,
- * `turbidityNTU`, `conductivityUsCm`, and optional `fdomQsu` fluorescent dissolved organic matter).
- */
-export function predictPfasFromImpedance(params: {
+export interface MipSignalResult {
+  idealDeltaRct: number;
   measuredDeltaRct: number;
   nipBlankDeltaRct: number;
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
-  tempC: number;
-  pH: number;
-  turbidityNTU: number;
-  conductivityUsCm: number;
-  fdomQsu?: number;
-  assayMode?: 'quantitative' | 'screening';
-  formFactor?: 'flow-cell' | 'sample-cup';
-}) {
-  const preconcGain = params.assayMode === 'screening' ? 0.78 : 1.0;
-  const flowCellGain = params.formFactor === 'sample-cup' ? 0.94 : 1.0;
-  const baseSensitivity =
-    (params.speciesId === 'PFOS'
-      ? 78
-      : params.speciesId === 'PFOA'
-      ? 72
-      : params.speciesId === 'PFBS'
-      ? 64
-      : 59) *
-    preconcGain *
-    flowCellGain;
-
-  // 1. Uncompensated apparent concentration (single-channel sensor without NIP subtraction or sonde fusion)
-  const uncompensatedPpt = Math.max(0.05, Math.expm1(Math.max(0.05, params.measuredDeltaRct) / baseSensitivity));
-
-  // 2. Apparent concentration after NIP subtraction ONLY (without sonde compensation or 4x4 deconvolution)
-  const nipOnlyDeltaRct = Math.max(0.5, params.measuredDeltaRct - params.nipBlankDeltaRct);
-  const nipOnlyPpt = Math.max(0.05, Math.expm1(nipOnlyDeltaRct / baseSensitivity));
-
-  // 3. Blind Inverse Edge Calibration & 4x4 Tikhonov Cross-Selectivity Matrix Inversion
-  const diffRct = params.measuredDeltaRct - params.nipBlankDeltaRct;
-  const amineProtonationFraction = 1 / (1 + Math.pow(10, params.pH - 8.4));
-  const optimalProtonation = 1 / (1 + Math.pow(10, 7.0 - 8.4));
-  const estTempDrift = (params.tempC - 20.0) * -1.48 + 0.018 * Math.pow(params.tempC - 20.0, 2);
-  const estPhDrift = (params.pH - 7.0) * -9.4 + (amineProtonationFraction - optimalProtonation) * 15.2;
-  const estCondDrift = (params.conductivityUsCm - 300) * -0.037;
-
-  const sondeIonicResidualEst = 0.11 * (estTempDrift + estPhDrift + estCondDrift);
-
-  // YSI EXO2 fDOM (QSU) + NIP blank magnitude + Turbidity estimates unrejected organic fouling (never reads true NOM mg/L)
-  const nipHumicComponent = Math.max(0, (params.nipBlankDeltaRct - 0.89 * (estTempDrift + estPhDrift + estCondDrift)) / 0.84);
-  const fdomHumicEst =
-    params.fdomQsu !== undefined
-      ? Math.pow(Math.max(0.1, params.fdomQsu / 24.5), 1.12) * 6.4 * (1.0 + 0.08 * (7.2 - params.pH)) +
-        params.turbidityNTU * 4.7
-      : nipHumicComponent;
-  const blendedHumicEst = 0.65 * nipHumicComponent + 0.35 * fdomHumicEst;
-  const sondeFoulingProxyEst = 0.16 * blendedHumicEst;
-
-  const matrixCorrectedRct = Math.max(0.1, (diffRct - sondeIonicResidualEst - sondeFoulingProxyEst) / 0.972);
-
-  // Construct 4-channel-group vector (PFBA, PFBS, PFOA, PFOS) and invert 4x4 selectivity matrix S
-  const idxMap: Record<'PFBA' | 'PFBS' | 'PFOA' | 'PFOS', number> = {
-    PFBA: 0,
-    PFBS: 1,
-    PFOA: 2,
-    PFOS: 3,
-  };
-  const targetIdx = idxMap[params.speciesId];
-  const groupVec: [number, number, number, number] = [
-    matrixCorrectedRct * 0.32,
-    matrixCorrectedRct * 0.30,
-    matrixCorrectedRct * 0.29,
-    matrixCorrectedRct * 0.28,
-  ];
-  groupVec[targetIdx] = matrixCorrectedRct;
-
-  const { deconvolvedVector, conditionNumber, determinantS } = solveTikhonov4x4Deconvolution(groupVec, 0.015);
-  const purifiedDeltaRct = deconvolvedVector[targetIdx];
-
-  // Invert Langmuir-logarithmic transducer transfer function
-  const edgeAiCompensatedPpt = Math.max(
-    0.05,
-    Math.expm1(Math.max(0.02, purifiedDeltaRct) / baseSensitivity)
-  );
-
-  return {
-    purifiedDeltaRct,
-    uncompensatedPpt,
-    nipOnlyPpt,
-    edgeAiCompensatedPpt,
-    matrixConditionNumber: conditionNumber,
-    matrixDeterminant: determinantS,
-  };
+  purifiedDeltaRct: number;
+  totalMatrixDriftOhms: number;
+  crossSelectivityBleedOhms: number;
+  debyeLengthNm: number;
+  amineProtonationPct: number;
+  fdomQsu: number;
+  uncompensatedPpt: number;
+  nipOnlyPpt: number;
+  diagonalPpt: number;
+  edgeAiCompensatedPpt: number;
+  uncompensatedErrorPct: number;
+  edgeAiErrorPct: number;
+  worstGroupCvPct: number;
+  matrixConditionNumber: number;
+  matrixDeterminant: number;
+  calibratedConditionNumber: number;
+  mixture: { speciesId: SpeciesId; truePpt: number; estimatePpt: number; diagonalPpt: number }[];
 }
 
 /**
- * Complete Two-Stage Sensor Testbench Wrapper:
- * Calls Stage 1 (`simulatePhysicalSensorImpedance`) to generate raw Ohms, then passes ONLY
- * the observable Ohms and YSI EXO2 sonde telemetry (including `fdomQsu`) into Stage 2 (`predictPfasFromImpedance`).
+ * Interactive sensor reading: the selected species at `truePpt` in the background mixture.
+ * Forward simulation (hidden physics) -> blind estimator (calibration only).
  */
 export function computeMipElectrochemicalSignal(params: {
   truePpt: number;
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
+  speciesId: SpeciesId;
   tempC: number;
   pH: number;
   turbidityNTU: number;
@@ -1367,222 +411,166 @@ export function computeMipElectrochemicalSignal(params: {
   nomMgL: number;
   assayMode?: 'quantitative' | 'screening';
   formFactor?: 'flow-cell' | 'sample-cup';
-}) {
-  const forwardRaw = simulatePhysicalSensorImpedance(params);
-  // YSI EXO2 optical fDOM sensor reading in Quinine Sulfate Units (QSU)
-  const fdomQsu = Number((params.nomMgL * 24.5).toFixed(1));
-  const inversePred = predictPfasFromImpedance({
-    measuredDeltaRct: forwardRaw.measuredDeltaRct,
-    nipBlankDeltaRct: forwardRaw.nipBlankDeltaRct,
-    speciesId: params.speciesId,
+  cartridgeAgeDays?: number;
+}): MipSignalResult {
+  const cal = defaultCalibration();
+  const g = SPECIES_ORDER.indexOf(params.speciesId);
+  const mix = SPECIES_ORDER.map((sp) => (sp === params.speciesId ? params.truePpt : BACKGROUND_MIX_PPT[sp]));
+  const m: SensorMatrix = {
     tempC: params.tempC,
     pH: params.pH,
-    turbidityNTU: params.turbidityNTU,
     conductivityUsCm: params.conductivityUsCm,
-    fdomQsu,
-    assayMode: params.assayMode,
-    formFactor: params.formFactor,
-  });
-
+    turbidityNTU: params.turbidityNTU,
+    nomMgL: params.nomMgL,
+    cartridgeAgeDays: params.cartridgeAgeDays ?? 10,
+  };
+  const modeCode = (params.assayMode === 'screening' ? 2 : 1) + (params.formFactor === 'sample-cup' ? 2 : 0);
+  const rand = mulberry32(readingSeed({ speciesIdx: g, truePpt: params.truePpt, m, modeCode }));
+  const reading = simulateSensor(mix, m, rand, { assayMode: params.assayMode, formFactor: params.formFactor });
+  const est = estimateMixture(reading, cal);
+  const ideal = GROUP_SENSITIVITY_OHM[g] * CROSS_SELECTIVITY[g][g] * Math.log1p(params.truePpt);
+  const errPct = (v: number) => (Math.abs(v - params.truePpt) / Math.max(0.5, params.truePpt)) * 100;
   return {
-    idealDeltaRct: Number(forwardRaw.idealDeltaRct.toFixed(1)),
-    measuredDeltaRct: Number(forwardRaw.measuredDeltaRct.toFixed(1)),
-    nipBlankDeltaRct: Number(forwardRaw.nipBlankDeltaRct.toFixed(1)),
-    purifiedDeltaRct: Number(inversePred.purifiedDeltaRct.toFixed(1)),
-    totalMatrixDriftOhms: Number(forwardRaw.totalMatrixDriftOhms.toFixed(1)),
-    crossSelectivityBleedOhms: Number(forwardRaw.crossSelectivityBleedOhms.toFixed(1)),
-    debyeLengthNm: forwardRaw.debyeLengthNm,
-    amineProtonationPct: forwardRaw.amineProtonationPct,
-    fdomQsu,
-    uncompensatedPpt: Number(inversePred.uncompensatedPpt.toFixed(2)),
-    nipOnlyPpt: Number(inversePred.nipOnlyPpt.toFixed(2)),
-    edgeAiCompensatedPpt: Number(inversePred.edgeAiCompensatedPpt.toFixed(2)),
-    matrixConditionNumber: inversePred.matrixConditionNumber,
-    matrixDeterminant: inversePred.matrixDeterminant,
-    uncompensatedErrorPct: Number(
-      ((Math.abs(inversePred.uncompensatedPpt - params.truePpt) / Math.max(0.5, params.truePpt)) * 100).toFixed(1)
-    ),
-    edgeAiErrorPct: Number(
-      ((Math.abs(inversePred.edgeAiCompensatedPpt - params.truePpt) / Math.max(0.5, params.truePpt)) * 100).toFixed(1)
-    ),
+    idealDeltaRct: round1(ideal),
+    measuredDeltaRct: round1(reading.groupMeanOhm[g]),
+    nipBlankDeltaRct: round1(reading.nipMeanOhm),
+    purifiedDeltaRct: round1(cal.sensitivity[g][g] * Math.max(0, est.logSignal[g])),
+    totalMatrixDriftOhms: round1(reading.groupMeanOhm[g] - ideal),
+    crossSelectivityBleedOhms: round1(reading.crossTalkOhm[g]),
+    debyeLengthNm: round2(reading.debyeLengthNm),
+    amineProtonationPct: round1(reading.amineProtonationPct),
+    fdomQsu: round1(reading.sonde.fdomQsu),
+    uncompensatedPpt: round2(est.uncompensatedPpt[g]),
+    nipOnlyPpt: round2(est.nipOnlyPpt[g]),
+    diagonalPpt: round2(est.diagonalPpt[g]),
+    edgeAiCompensatedPpt: round2(est.estimatePpt[g]),
+    uncompensatedErrorPct: round1(errPct(est.uncompensatedPpt[g])),
+    edgeAiErrorPct: round1(errPct(est.estimatePpt[g])),
+    worstGroupCvPct: round2(Math.max(...reading.groupCvPct)),
+    matrixConditionNumber: round3(cal.conditionNumberS),
+    matrixDeterminant: round3(cal.determinantS),
+    calibratedConditionNumber: round3(cal.conditionNumberCalibrated),
+    mixture: SPECIES_ORDER.map((sp, i) => ({
+      speciesId: sp,
+      truePpt: mix[i],
+      estimatePpt: round2(est.estimatePpt[i]),
+      diagonalPpt: round2(est.diagonalPpt[i]),
+    })),
   };
 }
 
+/** Worst channel-group replicate CV (%) for the current mid-bed mixture and water matrix. */
+export function sensorChannelCvPct(mixPpt: number[], m: SensorMatrix, seed: number): number {
+  return Math.max(...simulateSensor(mixPpt, m, mulberry32(seed)).groupCvPct);
+}
+
+export const SENSOR_MIXTURE_BENCHMARK: MixtureBenchmark = runMixtureBenchmark(defaultCalibration());
+export const SENSOR_SIMULATED_LOD_PPT: Record<SpeciesId, number> = Object.fromEntries(
+  simulatedLodPpt(defaultCalibration()).map((v, i) => [SPECIES_ORDER[i], round2(v)])
+) as Record<SpeciesId, number>;
+
+// ---------------------------------------------------------------------------------------------
+// Regulatory screens (decision support only - not a compliance determination)
+// ---------------------------------------------------------------------------------------------
 /**
- * Computes Official US EPA April 2024 National Primary Drinking Water Regulation (89 FR 32532)
- * & EU 2026 Drinking Water Directive (2020/2184) Compliance Metrics:
- * 1. US EPA Individual Binding MCLs:
- *    - PFOA <= 4.0 ppt, PFOS <= 4.0 ppt
- *    - PFHxS <= 10.0 ppt, PFNA <= 10.0 ppt, HFPO-DA (GenX) <= 10.0 ppt
- * 2. US EPA Hazard Index (HI <= 1.0):
- *    - HI = (PFBS_ppt / 2000) + (PFHxS_ppt / 10) + (PFNA_ppt / 10) + (GenX_ppt / 10)
- * 3. EU DWD (Jan 2026):
- *    - Sum of 20 PFAS <= 100 ng/L (0.10 µg/L)
- *    - PFAS Total (all perfluoroalkyls) <= 500 ng/L (0.50 µg/L)
+ * Instantaneous screen of simulated final-train effluent against:
+ * 1. US EPA (89 FR 32532, April 2024): PFOA, PFOS MCL 4.0 ppt (kept; compliance 2029, extension to 2031
+ *    announced May 2025). PFHxS, PFNA, HFPO-DA 10 ppt and the Hazard Index are proposed for rescission.
+ *    Formal compliance uses running annual averages of quarterly samples, not one value.
+ * 2. EU DWD 2020/2184 "Sum of PFAS" (20 named PFAS, 100 ng/L): only 7 of the 20 are modelled here,
+ *    so the value is a partial 7-analyte estimate. "PFAS Total" (500 ng/L) is not estimated.
  */
 export function computeRegulatoryComplianceMetrics(params: {
-  effluentPpt: Record<'PFOA' | 'PFOS' | 'PFBS' | 'PFBA', number>;
+  effluentPpt: Record<SpeciesId, number>;
   coContaminantsInfluentPpt: { pfhxs: number; pfna: number; genx: number };
-  removalEfficiencyFraction: number; // Based on current bed state
+  removalEfficiencyFraction: number;
 }) {
   const rem = Math.max(0.05, Math.min(0.995, params.removalEfficiencyFraction));
-  const effPfhxs = Number((params.coContaminantsInfluentPpt.pfhxs * (1 - rem)).toFixed(2));
-  const effPfna = Number((params.coContaminantsInfluentPpt.pfna * (1 - rem)).toFixed(2));
-  const effGenx = Number((params.coContaminantsInfluentPpt.genx * (1 - rem)).toFixed(2));
-
-  const hazardIndex = Number(
-    (
-      params.effluentPpt.PFBS / 2000.0 +
-      effPfhxs / 10.0 +
-      effPfna / 10.0 +
-      effGenx / 10.0
-    ).toFixed(3)
+  const effPfhxs = round2(params.coContaminantsInfluentPpt.pfhxs * (1 - rem));
+  const effPfna = round2(params.coContaminantsInfluentPpt.pfna * (1 - rem));
+  const effGenx = round2(params.coContaminantsInfluentPpt.genx * (1 - rem));
+  const hazardIndex = round3(params.effluentPpt.PFBS / 2000 + effPfhxs / 10 + effPfna / 10 + effGenx / 10);
+  const euSumPartialNgL = round2(
+    params.effluentPpt.PFOA + params.effluentPpt.PFOS + params.effluentPpt.PFBS + params.effluentPpt.PFBA + effPfhxs + effPfna + effGenx
   );
-
-  const euSumOfPfasNgL = Number(
-    (
-      params.effluentPpt.PFOA +
-      params.effluentPpt.PFOS +
-      params.effluentPpt.PFBS +
-      params.effluentPpt.PFBA +
-      effPfhxs +
-      effPfna +
-      effGenx
-    ).toFixed(2)
-  );
-
-  // EU DWD "PFAS Total" includes ultrashort C2-C3 (TFA/PFPrA) & fluorinated precursors (~1.38x Sum-of-20)
-  const euTotalPfasNgL = Number((euSumOfPfasNgL * 1.38).toFixed(2));
-
-  const pfoaCompliant = params.effluentPpt.PFOA <= 4.0;
-  const pfosCompliant = params.effluentPpt.PFOS <= 4.0;
-  const coContaminantMclCompliant = effPfhxs <= 10.0 && effPfna <= 10.0 && effGenx <= 10.0;
-  const hiCompliant = hazardIndex <= 1.0;
-  const euCompliant = euSumOfPfasNgL <= 100.0 && euTotalPfasNgL <= 500.0;
-  const sentinelTracerWarning = params.effluentPpt.PFBA >= 4.0;
-
+  const pfoaBelowMcl = params.effluentPpt.PFOA <= 4.0;
+  const pfosBelowMcl = params.effluentPpt.PFOS <= 4.0;
   return {
     hazardIndex,
-    euSumOfPfasNgL,
-    euTotalPfasNgL,
     effPfhxs,
     effPfna,
     effGenx,
-    pfoaCompliant,
-    pfosCompliant,
-    coContaminantMclCompliant,
-    hiCompliant,
-    euCompliant,
-    sentinelTracerWarning,
-    overallEpaCompliant: pfoaCompliant && pfosCompliant && coContaminantMclCompliant && hiCompliant,
+    pfoaBelowMcl,
+    pfosBelowMcl,
+    coContaminantsBelow10Ppt: effPfhxs <= 10 && effPfna <= 10 && effGenx <= 10,
+    hazardIndexBelowOne: hazardIndex <= 1.0,
+    epaInstantaneousScreenPass: pfoaBelowMcl && pfosBelowMcl,
+    euSumPartialNgL,
+    euAnalytesCovered: 7,
+    euAnalytesRequired: 20,
+    euPartialBelowLimit: euSumPartialNgL <= 100,
+    sentinelTracerWarning: params.effluentPpt.PFBA >= 4.0,
   };
 }
 
-export interface EmpiricalMatrixValidationRow {
+// ---------------------------------------------------------------------------------------------
+// Sensor stress test across five water matrices (simulation, computed live from the estimator)
+// ---------------------------------------------------------------------------------------------
+export interface MatrixStressTestRow {
   matrixName: string;
-  epaMethod533Ppt: number;
+  referencePpt: number;
+  speciesId: SpeciesId;
   uncompensatedSensorPpt: number;
   pfasSentinelEdgeAiPpt: number;
   recoveryPct: number;
   matrixConditions: string;
 }
 
-/**
- * In-Silico Multi-Matrix Calibration & De-Embedding Stress Test
- * Dynamically computed directly from `computeMipElectrochemicalSignal` so the benchmark table
- * is 100% consistent with live interactive slider calculations.
- */
-const MATRIX_BENCHMARK_CONFIGS: {
+const MATRIX_STRESS_CONFIGS: {
   matrixName: string;
   truePpt: number;
-  speciesId: 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
+  speciesId: SpeciesId;
   pH: number;
   tempC: number;
   nomMgL: number;
   conductivityUsCm: number;
   turbidityNTU: number;
 }[] = [
-  {
-    matrixName: 'Buffered Lab Blank + 4.0 ppt EPA MCL Target Spike',
-    truePpt: 4.0,
-    speciesId: 'PFOA',
-    pH: 7.0,
-    tempC: 20.0,
-    nomMgL: 0.2,
-    conductivityUsCm: 85,
-    turbidityNTU: 0.2,
-  },
-  {
-    matrixName: 'Simulated Maine GAC Influent (Moderate Humic Groundwater)',
-    truePpt: 26.5,
-    speciesId: 'PFBA',
-    pH: 7.1,
-    tempC: 14.2,
-    nomMgL: 2.1,
-    conductivityUsCm: 285,
-    turbidityNTU: 0.8,
-  },
-  {
-    matrixName: 'Simulated GAC Mid-Bed Port (z/L = 0.50 Breakthrough Front)',
-    truePpt: 3.85,
-    speciesId: 'PFBA',
-    pH: 7.1,
-    tempC: 14.2,
-    nomMgL: 1.8,
-    conductivityUsCm: 280,
-    turbidityNTU: 0.6,
-  },
-  {
-    matrixName: 'Simulated AFFF-Impacted Hard Groundwater (High Conductivity)',
-    truePpt: 68.0,
-    speciesId: 'PFOS',
-    pH: 7.6,
-    tempC: 16.8,
-    nomMgL: 1.3,
-    conductivityUsCm: 490,
-    turbidityNTU: 1.1,
-  },
-  {
-    matrixName: 'High-NOM Surface Water Blend (Severe Fouling Stress Test)',
-    truePpt: 12.4,
-    speciesId: 'PFBS',
-    pH: 7.4,
-    tempC: 12.5,
-    nomMgL: 4.2,
-    conductivityUsCm: 520,
-    turbidityNTU: 2.4,
-  },
+  { matrixName: 'Buffered lab blank + 4.0 ppt PFOA spike', truePpt: 4.0, speciesId: 'PFOA', pH: 7.0, tempC: 20.0, nomMgL: 0.2, conductivityUsCm: 85, turbidityNTU: 0.2 },
+  { matrixName: 'Moderate-humic groundwater (influent-like)', truePpt: 26.5, speciesId: 'PFBA', pH: 7.1, tempC: 14.2, nomMgL: 2.1, conductivityUsCm: 285, turbidityNTU: 0.8 },
+  { matrixName: 'GAC mid-bed port (z/L = 0.50) near the breakthrough front', truePpt: 3.85, speciesId: 'PFBA', pH: 7.1, tempC: 14.2, nomMgL: 1.8, conductivityUsCm: 280, turbidityNTU: 0.6 },
+  { matrixName: 'AFFF-impacted hard groundwater (high conductivity)', truePpt: 68.0, speciesId: 'PFOS', pH: 7.6, tempC: 16.8, nomMgL: 1.3, conductivityUsCm: 490, turbidityNTU: 1.1 },
+  { matrixName: 'High-NOM surface-water blend (fouling stress test)', truePpt: 12.4, speciesId: 'PFBS', pH: 7.4, tempC: 12.5, nomMgL: 4.2, conductivityUsCm: 520, turbidityNTU: 2.4 },
 ];
 
-export const EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS: EmpiricalMatrixValidationRow[] =
-  MATRIX_BENCHMARK_CONFIGS.map((cfg) => {
-    const res = computeMipElectrochemicalSignal({
-      truePpt: cfg.truePpt,
-      speciesId: cfg.speciesId,
-      pH: cfg.pH,
-      tempC: cfg.tempC,
-      nomMgL: cfg.nomMgL,
-      conductivityUsCm: cfg.conductivityUsCm,
-      turbidityNTU: cfg.turbidityNTU,
-    });
-    return {
-      matrixName: cfg.matrixName,
-      epaMethod533Ppt: cfg.truePpt,
-      uncompensatedSensorPpt: res.uncompensatedPpt,
-      pfasSentinelEdgeAiPpt: res.edgeAiCompensatedPpt,
-      recoveryPct: Number(((res.edgeAiCompensatedPpt / cfg.truePpt) * 100).toFixed(1)),
-      matrixConditions: `pH ${cfg.pH.toFixed(1)} | ${cfg.tempC.toFixed(1)}°C | NOM ${cfg.nomMgL.toFixed(1)} mg/L | Cond ${cfg.conductivityUsCm} μS/cm`,
-    };
+export const MATRIX_STRESS_TEST_ROWS: MatrixStressTestRow[] = MATRIX_STRESS_CONFIGS.map((cfg) => {
+  const res = computeMipElectrochemicalSignal({
+    truePpt: cfg.truePpt,
+    speciesId: cfg.speciesId,
+    pH: cfg.pH,
+    tempC: cfg.tempC,
+    nomMgL: cfg.nomMgL,
+    conductivityUsCm: cfg.conductivityUsCm,
+    turbidityNTU: cfg.turbidityNTU,
   });
+  return {
+    matrixName: cfg.matrixName,
+    referencePpt: cfg.truePpt,
+    speciesId: cfg.speciesId,
+    uncompensatedSensorPpt: res.uncompensatedPpt,
+    pfasSentinelEdgeAiPpt: res.edgeAiCompensatedPpt,
+    recoveryPct: round1((res.edgeAiCompensatedPpt / cfg.truePpt) * 100),
+    matrixConditions: `pH ${cfg.pH.toFixed(1)} | ${cfg.tempC.toFixed(1)}°C | NOM ${cfg.nomMgL.toFixed(1)} mg/L | Cond ${cfg.conductivityUsCm} μS/cm`,
+  };
+});
 
-// Mean absolute percentage error of the blind estimator across the matrix benchmark (computed, not hard-coded)
-export const MATRIX_BENCHMARK_MAPE_PCT = Number(
-  (
-    EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS.reduce((acc, r) => acc + Math.abs(r.recoveryPct - 100), 0) /
-    EMPIRICAL_MATRIX_VALIDATION_BENCHMARKS.length
-  ).toFixed(1)
+export const MATRIX_STRESS_TEST_MAPE_PCT = round1(
+  MATRIX_STRESS_TEST_ROWS.reduce((acc, r) => acc + Math.abs(r.recoveryPct - 100), 0) / MATRIX_STRESS_TEST_ROWS.length
 );
 
+// ---------------------------------------------------------------------------------------------
+// Literature anchors (qualitative findings verified against the published abstracts)
+// ---------------------------------------------------------------------------------------------
 export interface PublishedLiteratureBenchmark {
   studyCitation: string;
   mediaAndScale: string;
@@ -1590,32 +578,22 @@ export interface PublishedLiteratureBenchmark {
   pinnModelAgreement: string;
 }
 
-const kkwwdDefaultPfbaDiag = getCachedPinnDiagnostics({
-  speciesId: 'PFBA',
-  mediaType: 'GAC',
-  C0: 26.5,
-  flowRateMGD: 2.1,
-  mediaMassKg: 9100,
-  nomMgL: 2.1,
-  ebctMinutes: 11.5,
-  includeCompetitiveRollup: true,
-});
-
 export const PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS: PublishedLiteratureBenchmark[] = [
   {
-    studyCitation: 'McCleaf et al. (Water Research, 2017) & Park et al. (Water Research, 2020)',
-    mediaAndScale: 'Pilot-Scale GAC Columns (Filtrasorb 400 / Coconut GAC, EBCT 10–15 min)',
+    studyCitation: 'McCleaf et al. (2017), Water Research 120, 77–87',
+    mediaAndScale: 'Column tests with Filtrasorb 400 GAC and an anion-exchange resin (drinking water)',
     keyEmpiricalFinding:
-      'Short-chain PFBA (C4) and PFBS break through at 12,000–25,000 Bed Volumes, exhibiting competitive roll-up peaks of 120%–135% C₀ when displaced by PFOS/PFOA and DOC.',
-    pinnModelAgreement: `Model reproduces PFBA 4 ppt breakthrough at ${computeBedVolumes(kkwwdDefaultPfbaDiag.assimilatedEffluent4PptDay, 11.5).toLocaleString()} BV (Day ${kkwwdDefaultPfbaDiag.assimilatedEffluent4PptDay} ± ${kkwwdDefaultPfbaDiag.breakthrough95CiDays}d 95% CI) with 128% C₀ competitive roll-up overshoot (R² = ${kkwwdDefaultPfbaDiag.empiricalR2}).`,
+      'Removal efficiency rises with perfluorocarbon chain length; sulfonates are removed better than carboxylates of similar length; DOC correlated poorly with PFAS removal in these columns.',
+    pinnModelAgreement:
+      'The testbench and the twin keep the same ordering: PFBA breaks through first, then PFBS, PFOA and PFOS. NOM fouling strength in the testbench is an assumption, not taken from this study.',
   },
   {
-    studyCitation: 'NOM / DOC competition in GAC adsorption (general literature; site-specific magnitude)',
-    mediaAndScale: 'Lead-Lag Municipal GAC & Single-Use Selective IX Vessels',
+    studyCitation: 'Park et al. (2020), Water Research 170, 115364',
+    mediaAndScale: 'Rapid small-scale column tests (RSSCT), four bituminous coal-based GACs, groundwater',
     keyEmpiricalFinding:
-      'Background natural organic matter competes for and blocks adsorption sites, lowering effective PFAS capacity q₀ relative to clean-water isotherms; the size of the effect is site-specific and must be measured (planned RSSCT, TRL 5).',
+      'Longer EBCT gave steeper breakthrough curves without changing apparent capacity; PFAS hydrophobicity and carbon surface charge/pore structure governed performance.',
     pinnModelAgreement:
-      'Mid-bed PINN assimilation automatically adjusts q₀ downward by 7%–32% across variable NOM (2.1–6.5 mg/L DOC) without offline lab recalibration.',
+      'Motivates the RSSCT step in the roadmap (TRL 5) and the twin structure: capacity (q₀) and kinetics (k_Th) are separate, jointly assimilated bed-condition parameters.',
   },
 ];
 
@@ -1638,7 +616,7 @@ export const HARDWARE_BOM: BomItem[] = [
   {
     subsystem: 'Transducer Array',
     component: 'Amine-Functionalized Nanocarbon Electrode Chip',
-    specification: 'Screen-printed carbon nanotube / graphene working electrodes + Ag/AgCl ref (UConn / Verralize architecture)',
+    specification: 'Screen-printed carbon nanotube / graphene working electrodes + Ag/AgCl ref (inspired by Verralize nanocarbon sensors)',
     unitCostUsd: 3.85,
     lifecycleRole: 'Disposable Cartridge (Target BOM @ 10k/yr)',
   },
@@ -1659,7 +637,7 @@ export const HARDWARE_BOM: BomItem[] = [
   {
     subsystem: 'Edge AI Compute & Comms',
     component: 'Dual-Core ARM Cortex-M33 + NPU Edge Node (Modbus/MQTT)',
-    specification: 'Runs Inverse Matrix Compensation, 4x4 Selectivity Deconvolution & TLS 1.3 bridge to Xylem Vue SWE',
+    specification: 'Runs the calibration-based matrix compensation, 4x4 Tikhonov deconvolution & TLS 1.3 bridge to Xylem Vue',
     unitCostUsd: 42.00,
     lifecycleRole: 'Reusable In-Line Reader Pod',
   },
@@ -1691,10 +669,10 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
   {
     challenge: 'Cross-Selectivity Between Structural PFAS Analogs (C4 vs. C8)',
     physicalCause:
-      'MIP cavities templated for PFOA or PFBA experience 8%–15% cross-binding from structural congeners sharing -COO⁻ or -SO₃⁻ headgroups.',
+      'MIP cavities templated for one PFAS also bind structural analogs sharing -COO⁻ or -SO₃⁻ headgroups; the design assumes 3%–15% cross-binding (matrix S), to be measured at TRL 4.',
     pfasSentinelMitigation:
       'Groups the 28 working channels into 4 sub-class regions (C4-COO⁻, C4-SO₃⁻, C8-COO⁻, C8-SO₃⁻) and applies Tikhonov-regularized 4×4 selectivity matrix inversion on the Edge NPU.',
-    trlTarget: '4×4 Chemometric Deconvolution Active in Edge Firmware Simulation',
+    trlTarget: `Simulated: 4×4 deconvolution cuts mixture error from ${round1(SENSOR_MIXTURE_BENCHMARK.methods.diagonal.mapePct)}% to ${round1(SENSOR_MIXTURE_BENCHMARK.methods.full.mapePct)}% MAPE`,
   },
   {
     challenge: 'Natural Organic Matter (NOM / Humic Acid) & Co-Ion Interference',
@@ -1702,30 +680,30 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
       'Humic/fulvic acids and sulfate/chloride ions in raw groundwater exist at mg/L (ppm) levels—10⁶ times higher than ppt PFAS.',
     pfasSentinelMitigation:
       'Dual defense: (1) Stand-Alone MIP steric size-exclusion rejects bulky humic macromolecules; (2) 4 Non-Imprinted Polymer (NIP) blank channels + YSI/WTW sonde telemetry subtract residual drift.',
-    trlTarget: `Differential NIP/Sonde Calibration (${MATRIX_BENCHMARK_MAPE_PCT}% mean abs. error in simulation)`,
+    trlTarget: `Simulated: NIP + sonde compensation, ${round1(SENSOR_MIXTURE_BENCHMARK.methods.full.medianApePct)}% median error on random mixtures`,
   },
   {
     challenge: 'Chromatographic "Roll-Up" (Competitive Desorption of Short-Chain PFAS)',
     physicalCause:
-      'Highly hydrophobic PFOS/PFOA and NOM displace previously adsorbed short-chain PFBA/PFBS from GAC pores, causing temporary effluent spikes >120% of influent C₀.',
+      'More strongly adsorbed PFOS/PFOA and NOM can displace previously adsorbed short-chain PFBA/PFBS, so their effluent can briefly exceed the influent (C > C₀).',
     pfasSentinelMitigation:
       'Retrofits onto existing vessel Mid-Bed sample ports (z/L = 0.50) to track the PFBA tracer wave and roll-up in the twin; Lead-Lag actuation is scheduled from the PFOA/PFOS effluent forecast, with C4 roll-up flagged to operators.',
-    trlTarget: 'Coupled 1D Advection-Sorption PINN + Roll-Up Solver Live in Twin',
+    trlTarget: 'Roll-up simulated in the testbench and flagged by the twin (not forecast)',
   },
   {
     challenge: 'Irreversible MIP Cavity Saturation Over Continuous In-Line Operation',
     physicalCause:
-      'High-affinity fluorophilic binding (Ka ~ 10⁸ M⁻¹) means bound PFOS/PFOA does not spontaneously desorb with plain water flushing.',
+      'High-affinity fluorophilic binding (assumed Ka ~ 10⁸ M⁻¹) means bound PFOS/PFOA is unlikely to desorb with plain water flushing.',
     pfasSentinelMitigation:
-      '32-channel indexed micro-valving + mild electrochemical potential pulse desorption (+0.85 V local pH shift), paired with a snap-in 30-day disposable cartridge ($11.80 target BOM at scale).',
+      'Proposed: indexed micro-valving + mild electrochemical pulse desorption, paired with a snap-in 30-day disposable cartridge ($11.80 target BOM at scale). Not yet tested.',
     trlTarget: 'Target TRL 5 Durability & Desorption Cycling Protocol Defined',
   },
   {
     challenge: 'Chip-to-Chip Sorption Variance in Hand-Packed MOF Sensors',
     physicalCause:
-      'Conventional Metal-Organic Framework (MOF) disposable chips suffer from severe batch-to-batch crystal packing variance and mechanical delamination under hydraulic shear.',
+      'Hand-packed sorbent chips (e.g. MOF powders) are prone to batch-to-batch packing variance and delamination under hydraulic shear (design concern, not measured here).',
     pfasSentinelMitigation:
-      'Proposes photolithographically polymerized Stand-Alone MIP membranes (Oseyemi & Rezai Sept 2025) covalently anchored to screen-printed amine-nanocarbon electrodes (target CV < 5%).',
+      'Proposes in-place photopolymerized stand-alone MIP membranes (after Oseyemi & Rezai, 2025 preprint / 2026 paper) on screen-printed nanocarbon electrodes (target channel CV < 5%).',
     trlTarget: 'Conceptual CAD & Wafer-Scale Manufacturing BOM Specified',
   },
 ];
@@ -1748,13 +726,13 @@ export const RESEARCH_SYNTHESIS_PILLARS: ResearchPillar[] = [
     institution: '2witech Solutions (NIEHS SBIR R43ES035347)',
     year: '2024–2025',
     technologyFocus: 'Portable MIP + electrochemical PFAS screening device reported across 1–200 ppt, under validation with real contaminated groundwater',
-    pfasSentinelIntegration: 'Protonated amine (-NH₃⁺) electrostatic pre-concentration on Layer 3 nanocarbon transducer',
+    pfasSentinelIntegration: 'Supports the MIP + electrochemical sensing principle used in Layers 2–3 of the proposed cartridge',
   },
   {
     institution: 'McCleaf et al. (2017) & Park et al. (2020), Water Research',
     year: '2017–2020',
-    technologyFocus: 'Multi-solute GAC column breakthrough kinetics and competitive C4 chromatographic roll-up modeling',
-    pfasSentinelIntegration: 'Provides the physical Advection-Sorption & competitive desorption backbone for our PINN Twin',
+    technologyFocus: 'GAC/anion-exchange column tests (McCleaf) and RSSCTs on four coal-based GACs (Park): chain-length, headgroup and carbon-property effects',
+    pfasSentinelIntegration: 'Informs the testbench trends (short chains first) and the twin structure with separate capacity and kinetics',
   },
   {
     institution: 'Rowan University (NSF-funded, 2025–2027)',
@@ -1783,7 +761,7 @@ export const REGULATORY_TIMELINE: RegulatoryMilestone[] = [
     date: 'April 2024',
     authority: 'US EPA (Federal)',
     title: 'Binding National Drinking Water Standard',
-    mandate: 'First legally binding Maximum Contaminant Level (MCL) enacted at 4.0 ppt for PFOA & PFOS, plus Hazard Index (HI ≤ 1.0) for PFBS, PFHxS, PFNA & GenX (89 FR 32532).',
+    mandate: 'Legally enforceable MCLs of 4.0 ppt for PFOA & PFOS, 10 ppt for PFHxS, PFNA & HFPO-DA (GenX), and a Hazard Index for mixtures incl. PFBS (89 FR 32532). The last three MCLs and the HI are now proposed for rescission.',
     status: 'ENACTED',
   },
   {
@@ -1796,8 +774,8 @@ export const REGULATORY_TIMELINE: RegulatoryMilestone[] = [
   {
     date: 'April 2027',
     authority: 'US EPA (Federal)',
-    title: 'Mandatory Utility Monitoring & Public Notification',
-    mandate: 'All public water systems must complete initial PFAS monitoring and begin mandatory public consumer notification of any 4.0 ppt MCL or Hazard Index exceedances.',
+    title: 'Initial Monitoring Complete & Public Reporting',
+    mandate: 'Public water systems complete initial PFAS monitoring and start reporting PFAS levels to their customers. Notices of MCL violations start only at the compliance date.',
     status: 'UPCOMING DEADLINE',
   },
   {
@@ -1863,10 +841,10 @@ export interface StakeholderFeedback {
  */
 export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
   {
-    group: 'US EPA Final PFAS Rule (89 FR 32532) & AWWA National Cost Analysis',
-    sampleSize: 'Federal Regulatory Record (2024)',
+    group: 'Laboratory monitoring today (EPA Methods 533 / 537.1)',
+    sampleSize: 'Typical commercial pricing (assumption)',
     keyPainPointValidated:
-      'EPA Method 533 / 537.1 centralized LC-MS/MS testing costs $300–$500/sample with 10–14 day lab turnaround latency, forcing utilities to apply conservative safety margins on lead-bed changeouts.',
+      'Compliance PFAS analysis is done by LC-MS/MS in accredited labs; the project assumes $300–$500 per sample and a 10–14 day turnaround, to be confirmed with labs and utilities.',
     interviewQuote:
       'Working hypothesis (to validate in utility interviews): without real-time breakthrough visibility, operators change lead media on conservative schedules, discarding an estimated 20%–30% of usable capacity. The business case breaks even at only 6% (Business tab).',
     designImpactOnPfasSentinel:
@@ -1876,7 +854,7 @@ export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
     group: 'Xylem / Evoqua Municipal Deployments (KKWWD Maine & SHWSD Colorado)',
     sampleSize: 'Published Xylem Case Studies',
     keyPainPointValidated:
-      'Full-scale municipal coconut-shell GAC (UltraCarb™) and selective IX (PSR2+™) vessels require precise lead-lag rotation and mobile emergency backup during peak seasonal flow or AFFF plume surges.',
+      'Published Xylem/Evoqua case studies describe lead-lag coconut-based GAC (KKWWD, Maine) and selective single-use IX (Stratmoor Hills, Colorado) for PFAS; media service is scheduled from lab results.',
     interviewQuote:
       'Published practice: the KKWWD system runs lead-lag GAC vessels in series and SHWSD runs four selective IX vessels in single- or two-pass mode — both rely on off-site lab results to time media service.',
     designImpactOnPfasSentinel:
@@ -1886,19 +864,19 @@ export const STAKEHOLDER_VALIDATION_FINDINGS: StakeholderFeedback[] = [
     group: 'Peer-Reviewed Column Breakthrough Literature (Water Research)',
     sampleSize: 'McCleaf et al. 2017; Park et al. 2020',
     keyPainPointValidated:
-      'Short-chain C4 PFAS (PFBA, PFBS) break through GAC columns 2–3× earlier than PFOA/PFOS and suffer competitive desorption roll-up (Ct > C0) when displaced by long-chain PFAS and humic NOM.',
+      'PFAS removal on GAC rises with chain length and is higher for sulfonates than carboxylates (McCleaf 2017); breakthrough shape depends on contact time and carbon properties (Park 2020).',
     interviewQuote:
-      'Documented Kinetic Phenomenon: Static single-solute Thomas isotherms fail under variable flow Q and DOC fouling, underpredicting early C4 breakthrough and chromatographic roll-up peaks >125% C₀.',
+      'Implication: short-chain PFAS reach the mid-bed port long before PFOA/PFOS reach the outlet, so they can serve as early tracers of the mass-transfer zone.',
     designImpactOnPfasSentinel:
-      'Coupled a 1D Advection-Sorption PINN with multi-solute C4 roll-up kinetics using PFBA as an early-warning sentinel tracer.',
+      'Shared bed-condition assimilation lets PFBA/PFBS mid-bed data inform PFOA/PFOS forecasts; roll-up is simulated in the testbench and flagged, not forecast.',
   },
   {
     group: 'Xylem Vue powered by GoAigua Digitalization & Servitization Strategy',
-    sampleSize: 'Xylem Digital Water Architecture',
+    sampleSize: 'Design rationale (not survey data)',
     keyPainPointValidated:
-      'Municipal utilities resist standalone single-purpose dashboards and heavy upfront CAPEX, preferring modular software extensions integrated into existing SCADA and O&M service contracts.',
+      'Assumption to validate with utilities: operators prefer modules inside existing SCADA, Xylem Vue and O&M service contracts over new standalone dashboards and upfront CAPEX.',
     interviewQuote:
-      'Documented Ecosystem Fit: Combining YSI/WTW water quality sondes and Sensus flowmeters with Evoqua media regeneration logistics creates a closed-loop hardware-enabled SaaS offering.',
+      'Design rationale: combining YSI EXO2 sonde data and Sensus/MJK flow with Evoqua media service gives a closed loop from measurement to action.',
     designImpactOnPfasSentinel:
       'Designed standardized OPC-UA/MQTT telemetry for Xylem Vue SWE and zero-CAPEX "$11.80 cartridge + O&M subscription" unit economics.',
   },
@@ -1915,14 +893,14 @@ export interface CompetitorComparison {
 
 export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
   {
-    solutionName: 'PFAS-Sentinel™ (Proposed TRL 3 Cyber-Physical Architecture)',
-    category: 'In-Line Microfluidic MIP-EIS Array + PINN Breakthrough Twin',
+    solutionName: 'PFAS-Sentinel™ (Proposed TRL 2–3 Architecture)',
+    category: 'In-Line Microfluidic MIP-EIS Array + Physics-Based Breakthrough Twin',
     detectionCapability:
       'Target 1–4 ppt C4/C8 sub-classes in 12–15 min (32-ch Stand-Alone MIP + 4×4 Cross-Selectivity Deconvolution)',
     physicalTreatmentIntegration:
       'Retrofits existing 1/4" NPT Influent, Mid-Bed (z/L=0.50) & Effluent ports on GAC/IX vessels + automated Lead-Lag PLC control',
     digitalTwinAndAi:
-      'Non-circular NIP + YSI/WTW matrix calibration + Spatiotemporal 1D Advection-Sorption PINN & C4 Roll-Up Twin',
+      'Calibration-based blind estimator (NIP + sonde) + physics-based breakthrough twin with shared bed-condition assimilation (simulated)',
     xylemEcosystemFit:
       'Native Fit: Xylem Vue (GoAigua SWE), Evoqua GAC/IX, MitiGATOR™ Mobile Fleet, Sensus/MJK, YSI/WTW',
   },
@@ -1930,11 +908,11 @@ export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
     solutionName: 'Centralized Offline LC-MS/MS Labs (EPA Method 533 / 537.1)',
     category: 'Current Regulatory Gold Standard (Off-Site Laboratory)',
     detectionCapability:
-      '<0.5 ppt analytical precision & full speciation, but costs $300–$500/sample with 10–14 day shipping & queue delay',
+      'Certified quantitation at regulatory levels (EPA PQL 4.0 ppt for PFOA/PFOS) with full speciation; assumed $300–$500/sample and 10–14 day turnaround',
     physicalTreatmentIntegration:
-      'Zero real-time control — lab PDF reports arrive 2 weeks after short-chain PFBA/PFBS roll-up has already occurred',
+      'No real-time control: results arrive days to weeks after sampling, so short-lived roll-up can be missed',
     digitalTwinAndAi:
-      'Offline historical spreadsheets; forces utilities to dump 20%–30% of unexhausted GAC/IX bed capacity as a safety buffer',
+      'Offline records; conservative changeout schedules (hypothesis: 20%–30% of usable capacity discarded)',
     xylemEcosystemFit:
       'Required quarterly for regulatory certification, but cannot provide continuous operational SCADA early warning',
   },
@@ -1942,7 +920,7 @@ export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
     solutionName: 'Total Organofluorine (TOF / CIC) & Colorimetric Field Kits',
     category: 'Bulk Fluorine Screening & Portable Optical Assays',
     detectionCapability:
-      'Detects bulk fluorine at µg/L (ppb) scale — 1,000× too insensitive for EPA’s 4.0 ppt (ng/L) MCL; severe chloride/NOM interference',
+      'Bulk fluorine screening with detection limits typically far above the 4.0 ppt (ng/L) MCL; not species-specific',
     physicalTreatmentIntegration:
       'Manual benchtop or grab-sample screening; not designed for pressurized in-line GAC/IX mid-bed telemetry',
     digitalTwinAndAi:
@@ -1960,6 +938,6 @@ export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
     digitalTwinAndAi:
       'Static empirical curves ignore real-time NOM pore-blocking and multi-solute C8-on-C4 competitive desorption roll-up',
     xylemEcosystemFit:
-      'Leaves 40%–45% lifecycle media O&M expenditure unoptimized across municipal GAC and IX installations',
+      'Leaves media changeout timing to conservative rules of thumb; no forecast of the remaining safe run time',
   },
 ];

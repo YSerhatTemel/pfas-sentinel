@@ -1,0 +1,712 @@
+{
+  "generatedBy": "simulation/validation_report.py",
+  "quick": false,
+  "twinConfig": {
+    "epochs": 250,
+    "lrPhys": 0.02,
+    "lrNn": 0.02,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-08,
+    "lambdaAdv": 0.0,
+    "lambdaKin": 0.0,
+    "lambdaPrior": 0.008,
+    "lambdaWeight": 0.001,
+    "phiBound": 0.47000362924573563,
+    "tChar": 120.0,
+    "dt": 0.1,
+    "dz": 0.002,
+    "priorSigma": 0.25,
+    "noiseFloor": 0.01,
+    "uncertaintyZ": 1.96,
+    "discrepancyPerDay": 0.05,
+    "useNetwork": false,
+    "networkUsesSpaceTime": true,
+    "fitPhysics": true
+  },
+  "facilities": {
+    "kkwwd-maine": {
+      "plant": {
+        "mediaType": "GAC",
+        "flowRateMGD": 2.1,
+        "mediaMassKg": 9100,
+        "nomMgL": 2.1,
+        "includeRollup": true,
+        "C0": {
+          "PFBA": 26.5,
+          "PFBS": 31.0,
+          "PFOA": 38.5,
+          "PFOS": 44.0
+        }
+      },
+      "species": {
+        "PFBA": {
+          "learnedKth": 0.0027071531088013745,
+          "learnedQ0": 450.25793039460467,
+          "priorKth": 0.0024,
+          "priorQ0": 485.0,
+          "midBed4PptDay": 90.96604719303468,
+          "effluent4PptDay": 206.00836431429707,
+          "staticEffluent4PptDay": 220.6804882375718,
+          "testbenchEffluent4PptDay": 206.06294823108146,
+          "uncertaintyBandDays": 9.12351685130567,
+          "parametricSigmaDays": 2.5985306069486325,
+          "modelFormSigmaDays": 3.5504182157148536,
+          "trainRmsePpt": 1.380252638084417,
+          "testRmsePpt": 3.710391641878333,
+          "staticTestRmsePpt": 3.6615375812599487
+        },
+        "PFBS": {
+          "learnedKth": 0.002368758970201203,
+          "learnedQ0": 594.1547947475195,
+          "priorKth": 0.0021,
+          "priorQ0": 640.0,
+          "midBed4PptDay": 103.76731697230207,
+          "effluent4PptDay": 233.53902953476427,
+          "staticEffluent4PptDay": 250.2374423212841,
+          "testbenchEffluent4PptDay": 235.21615498008123,
+          "uncertaintyBandDays": 11.684039030088577,
+          "parametricSigmaDays": 2.878404037759234,
+          "modelFormSigmaDays": 4.926951476738214,
+          "trainRmsePpt": 1.3681605952206821,
+          "testRmsePpt": 1.3810914766284315,
+          "staticTestRmsePpt": 2.934487931545091
+        },
+        "PFOA": {
+          "learnedKth": 0.0018047687392009166,
+          "learnedQ0": 1002.6362161364392,
+          "priorKth": 0.0016,
+          "priorQ0": 1080.0,
+          "midBed4PptDay": 145.3197285858323,
+          "effluent4PptDay": 321.6491497137231,
+          "staticEffluent4PptDay": 344.8918025500425,
+          "testbenchEffluent4PptDay": 327.1948426054123,
+          "uncertaintyBandDays": 20.196076925479424,
+          "parametricSigmaDays": 3.726662973102845,
+          "modelFormSigmaDays": 9.332457485686154,
+          "trainRmsePpt": 0.2996120986561537,
+          "testRmsePpt": 3.0869787389004495,
+          "staticTestRmsePpt": 6.814502623183669
+        },
+        "PFOS": {
+          "learnedKth": 0.001579172646800802,
+          "learnedQ0": 1290.429944842269,
+          "priorKth": 0.0014,
+          "priorQ0": 1390.0,
+          "midBed4PptDay": 165.43614155391606,
+          "effluent4PptDay": 364.0108253009503,
+          "staticEffluent4PptDay": 390.4139324730404,
+          "testbenchEffluent4PptDay": 372.9511468114233,
+          "uncertaintyBandDays": 24.356141557434643,
+          "parametricSigmaDays": 4.126807038210541,
+          "modelFormSigmaDays": 11.450541265047514,
+          "trainRmsePpt": 0.22111792721590112,
+          "testRmsePpt": 1.7640442811242467,
+          "staticTestRmsePpt": 3.1573239621825873
+        }
+      },
+      "pdeResidualRms": {
+        "adv": 8.785934504997146e-05,
+        "kin": 2.327793092258556e-06
+      },
+      "r2All": 0.9718490085162518
+    },
+    "shwsd-colorado": {
+      "plant": {
+        "mediaType": "IX",
+        "flowRateMGD": 1.1,
+        "mediaMassKg": 3800,
+        "nomMgL": 1.3,
+        "includeRollup": true,
+        "C0": {
+          "PFBA": 29.0,
+          "PFBS": 46.0,
+          "PFOA": 52.0,
+          "PFOS": 68.0
+        }
+      },
+      "species": {
+        "PFBA": {
+          "learnedKth": 0.002122050161603668,
+          "learnedQ0": 792.512024230801,
+          "priorKth": 0.0021,
+          "priorQ0": 780.0,
+          "midBed4PptDay": 117.73012722574003,
+          "effluent4PptDay": 265.23922264487464,
+          "staticEffluent4PptDay": 260.2688519163594,
+          "testbenchEffluent4PptDay": 260.00113910556865,
+          "uncertaintyBandDays": 13.684563177398863,
+          "parametricSigmaDays": 1.6865473349439268,
+          "modelFormSigmaDays": 6.511961132243733,
+          "trainRmsePpt": 0.7273319493730167,
+          "testRmsePpt": 2.4226271173267078,
+          "staticTestRmsePpt": 2.190902113751419
+        },
+        "PFBS": {
+          "learnedKth": 0.0019199501462128425,
+          "learnedQ0": 1137.9659835108937,
+          "priorKth": 0.0019,
+          "priorQ0": 1120.0,
+          "midBed4PptDay": 106.90703503032637,
+          "effluent4PptDay": 240.43812252234056,
+          "staticEffluent4PptDay": 235.94224274100452,
+          "testbenchEffluent4PptDay": 236.12061821777115,
+          "uncertaintyBandDays": 11.252815034778202,
+          "parametricSigmaDays": 1.518100618740303,
+          "modelFormSigmaDays": 5.271906126117028,
+          "trainRmsePpt": 0.6733540829447389,
+          "testRmsePpt": 6.536951984977046,
+          "staticTestRmsePpt": 6.2516732856031725
+        },
+        "PFOA": {
+          "learnedKth": 0.0015157501154311915,
+          "learnedQ0": 1473.259532223925,
+          "priorKth": 0.0015,
+          "priorQ0": 1450.0,
+          "midBed4PptDay": 121.40120100490549,
+          "effluent4PptDay": 274.3291463297228,
+          "staticEffluent4PptDay": 269.16932034071397,
+          "testbenchEffluent4PptDay": 270.48301354748946,
+          "uncertaintyBandDays": 14.586316254288075,
+          "parametricSigmaDays": 1.7663372452226356,
+          "modelFormSigmaDays": 6.96645731648614,
+          "trainRmsePpt": 1.4518372276164602,
+          "testRmsePpt": 4.091197718334422,
+          "staticTestRmsePpt": 3.8357553836078355
+        },
+        "PFOS": {
+          "learnedKth": 0.001313650100040366,
+          "learnedQ0": 1849.1947232052023,
+          "priorKth": 0.0013,
+          "priorQ0": 1820.0,
+          "midBed4PptDay": 115.74778952140241,
+          "effluent4PptDay": 262.5338011394624,
+          "staticEffluent4PptDay": 257.57303995820985,
+          "testbenchEffluent4PptDay": 259.6239878781471,
+          "uncertaintyBandDays": 13.444006190863455,
+          "parametricSigmaDays": 1.7180686387366337,
+          "modelFormSigmaDays": 6.376690056973121,
+          "trainRmsePpt": 2.274731597412056,
+          "testRmsePpt": 7.026850104160818,
+          "staticTestRmsePpt": 6.76097597173919
+        }
+      },
+      "pdeResidualRms": {
+        "adv": 0.0001022802396374805,
+        "kin": 3.0412268691781587e-06
+      },
+      "r2All": 0.9684891618790423
+    },
+    "brabant-eu": {
+      "plant": {
+        "mediaType": "HYBRID",
+        "flowRateMGD": 3.4,
+        "mediaMassKg": 14200,
+        "nomMgL": 2.8,
+        "includeRollup": true,
+        "C0": {
+          "PFBA": 41.0,
+          "PFBS": 49.0,
+          "PFOA": 34.0,
+          "PFOS": 39.0
+        }
+      },
+      "species": {
+        "PFBA": {
+          "learnedKth": 0.002829573985909856,
+          "learnedQ0": 670.5955009910764,
+          "priorKth": 0.00234,
+          "priorQ0": 784.3,
+          "midBed4PptDay": 87.55912968274151,
+          "effluent4PptDay": 194.29397672893538,
+          "staticEffluent4PptDay": 226.47742821744396,
+          "testbenchEffluent4PptDay": 195.44015271810895,
+          "uncertaintyBandDays": 7.4548131584169335,
+          "parametricSigmaDays": 1.9497485175811784,
+          "modelFormSigmaDays": 2.964698836446769,
+          "trainRmsePpt": 2.0892681779957996,
+          "testRmsePpt": 7.0101654068226456,
+          "staticTestRmsePpt": 9.55336377343823
+        },
+        "PFBS": {
+          "learnedKth": 0.0025151768763643167,
+          "learnedQ0": 933.0024361614977,
+          "priorKth": 0.0020800000000000003,
+          "priorQ0": 1091.2,
+          "midBed4PptDay": 104.61676717018872,
+          "effluent4PptDay": 228.87241874481788,
+          "staticEffluent4PptDay": 266.90053433658704,
+          "testbenchEffluent4PptDay": 233.1481560230577,
+          "uncertaintyBandDays": 10.61436410666506,
+          "parametricSigmaDays": 2.144655194892395,
+          "modelFormSigmaDays": 4.693620937240894,
+          "trainRmsePpt": 1.2810348056585041,
+          "testRmsePpt": 5.3151610351359615,
+          "staticTestRmsePpt": 9.219866693738396
+        },
+        "PFOA": {
+          "learnedKth": 0.0019492620791823454,
+          "learnedQ0": 1341.1910019821528,
+          "priorKth": 0.0016120000000000002,
+          "priorQ0": 1568.6,
+          "midBed4PptDay": 227.0171380394704,
+          "effluent4PptDay": 484.43647503323336,
+          "staticEffluent4PptDay": 565.3704978135247,
+          "testbenchEffluent4PptDay": 502.62153512028,
+          "uncertaintyBandDays": 35.63526971068607,
+          "parametricSigmaDays": 4.010301234713502,
+          "modelFormSigmaDays": 17.47182375166167,
+          "trainRmsePpt": 0.0444288465868458,
+          "testRmsePpt": 0.4413400702360023,
+          "staticTestRmsePpt": 0.1333193496187566
+        },
+        "PFOS": {
+          "learnedKth": 0.0016977443915459137,
+          "learnedQ0": 1701.6692159536406,
+          "priorKth": 0.001404,
+          "priorQ0": 1990.2,
+          "midBed4PptDay": 251.9752244073552,
+          "effluent4PptDay": 536.7096567525396,
+          "staticEffluent4PptDay": 626.4135056848118,
+          "testbenchEffluent4PptDay": 564.5742453989924,
+          "uncertaintyBandDays": 40.802135072211684,
+          "parametricSigmaDays": 4.4025138838021745,
+          "modelFormSigmaDays": 20.08548283762698,
+          "trainRmsePpt": 0.054099226523047834,
+          "testRmsePpt": 0.1544103846880673,
+          "staticTestRmsePpt": 0.11795402808515894
+        }
+      },
+      "pdeResidualRms": {
+        "adv": 0.00014426521863451254,
+        "kin": 5.641984982439825e-06
+      },
+      "r2All": 0.9677034165519468
+    }
+  },
+  "ablation": {
+    "staticPrior": {
+      "allSpecies": {
+        "n": 64,
+        "maeDays": 44.54657373650461,
+        "biasDays": 41.36065469768927,
+        "p90AbsDays": 110.30019954587442,
+        "maxAbsDays": 249.57913988802466
+      },
+      "pfoaPfos": {
+        "n": 32,
+        "maeDays": 53.60062547137974,
+        "biasDays": 50.07857260208024,
+        "p90AbsDays": 110.60501474604462,
+        "maxAbsDays": 249.57913988802466
+      },
+      "meanTestRmsePpt": null
+    },
+    "independentPerSpecies": {
+      "allSpecies": {
+        "n": 64,
+        "maeDays": 35.191203373438555,
+        "biasDays": 32.52543029868514,
+        "p90AbsDays": 110.30022751866636,
+        "maxAbsDays": 249.55907822398785
+      },
+      "pfoaPfos": {
+        "n": 32,
+        "maeDays": 49.1614606490713,
+        "biasDays": 45.78822480155881,
+        "p90AbsDays": 110.60000376873722,
+        "maxAbsDays": 249.55907822398785
+      },
+      "meanTestRmsePpt": 3.7048277194115626
+    },
+    "jointPhysics (default)": {
+      "allSpecies": {
+        "n": 64,
+        "maeDays": 12.612806985877725,
+        "biasDays": 3.451216777877491,
+        "p90AbsDays": 26.94349482457619,
+        "maxAbsDays": 94.22465299900887
+      },
+      "pfoaPfos": {
+        "n": 32,
+        "maeDays": 17.003099914535966,
+        "biasDays": 0.41617400066795085,
+        "p90AbsDays": 30.417478180312173,
+        "maxAbsDays": 94.22465299900887
+      },
+      "meanTestRmsePpt": 3.23302115227801
+    },
+    "jointHybridNN (experimental)": {
+      "allSpecies": {
+        "n": 64,
+        "maeDays": 12.01521910719535,
+        "biasDays": 4.940159744610952,
+        "p90AbsDays": 24.694431182565495,
+        "maxAbsDays": 80.35520163915407
+      },
+      "pfoaPfos": {
+        "n": 32,
+        "maeDays": 14.61257836552062,
+        "biasDays": 2.6316896696279173,
+        "p90AbsDays": 24.694431182565495,
+        "maxAbsDays": 80.35520163915407
+      },
+      "meanTestRmsePpt": 3.27897705694547
+    },
+    "jointHybridNN_noPDE": {
+      "allSpecies": {
+        "n": 64,
+        "maeDays": 16.73586009312163,
+        "biasDays": 8.019099445484244,
+        "p90AbsDays": 30.90430316701986,
+        "maxAbsDays": 157.93932534961732
+      },
+      "pfoaPfos": {
+        "n": 32,
+        "maeDays": 20.306191376569217,
+        "biasDays": 8.332939876779363,
+        "p90AbsDays": 27.092050993274825,
+        "maxAbsDays": 157.93932534961732
+      },
+      "meanTestRmsePpt": 3.8447125016377566
+    }
+  },
+  "uncertainty": {
+    "nominal": 0.95,
+    "calibratedDiscrepancyPerDay": 0.05101434276095087,
+    "configuredDiscrepancyPerDay": 0.05,
+    "coverageCalibrationSet": 0.9375,
+    "coverageHoldoutSet": 0.90625,
+    "coverageHoldoutParametricOnly": 0.671875,
+    "cases": 64
+  },
+  "operational": {
+    "plants": 15,
+    "serviceLeadTimeDays": 60,
+    "decisions": [
+      {
+        "truthBreachDay": 199.0608499947648,
+        "twinDecisionDay": 129,
+        "twinMarginDays": 70.0608499947648,
+        "staticDecisionDay": 137,
+        "staticMarginDays": 62.060849994764794
+      },
+      {
+        "truthBreachDay": 639.7524037036546,
+        "twinDecisionDay": 548,
+        "twinMarginDays": 91.75240370365464,
+        "staticDecisionDay": 676,
+        "staticMarginDays": -36.247596296345364
+      },
+      {
+        "truthBreachDay": 272.90727234768747,
+        "twinDecisionDay": 198,
+        "twinMarginDays": 74.90727234768747,
+        "staticDecisionDay": 281,
+        "staticMarginDays": -8.092727652312533
+      },
+      {
+        "truthBreachDay": 246.31836834499063,
+        "twinDecisionDay": 169,
+        "twinMarginDays": 77.31836834499063,
+        "staticDecisionDay": 244,
+        "staticMarginDays": 2.318368344990631
+      },
+      {
+        "truthBreachDay": 714.5797773341619,
+        "twinDecisionDay": 638,
+        "twinMarginDays": 76.57977733416192,
+        "staticDecisionDay": 662,
+        "staticMarginDays": 52.57977733416192
+      },
+      {
+        "truthBreachDay": 354.68031864151635,
+        "twinDecisionDay": 264,
+        "twinMarginDays": 90.68031864151635,
+        "staticDecisionDay": 363,
+        "staticMarginDays": -8.319681358483649
+      },
+      {
+        "truthBreachDay": 929.6381838555171,
+        "twinDecisionDay": 848,
+        "twinMarginDays": 81.63818385551713,
+        "staticDecisionDay": 1040,
+        "staticMarginDays": -110.36181614448287
+      },
+      {
+        "truthBreachDay": 715.9733793021614,
+        "twinDecisionDay": 647,
+        "twinMarginDays": 68.97337930216145,
+        "staticDecisionDay": 650,
+        "staticMarginDays": 65.97337930216145
+      },
+      {
+        "truthBreachDay": 684.5259197799351,
+        "twinDecisionDay": 598,
+        "twinMarginDays": 86.52591977993507,
+        "staticDecisionDay": 704,
+        "staticMarginDays": -19.474080220064934
+      },
+      {
+        "truthBreachDay": 713.5171893442784,
+        "twinDecisionDay": 619,
+        "twinMarginDays": 94.51718934427845,
+        "staticDecisionDay": 764,
+        "staticMarginDays": -50.48281065572155
+      },
+      {
+        "truthBreachDay": 388.0216975177018,
+        "twinDecisionDay": 313,
+        "twinMarginDays": 75.0216975177018,
+        "staticDecisionDay": 321,
+        "staticMarginDays": 67.0216975177018
+      },
+      {
+        "truthBreachDay": 194.20458566760226,
+        "twinDecisionDay": 122,
+        "twinMarginDays": 72.20458566760226,
+        "staticDecisionDay": 140,
+        "staticMarginDays": 54.20458566760226
+      },
+      {
+        "truthBreachDay": 327.1948426054123,
+        "twinDecisionDay": 256,
+        "twinMarginDays": 71.1948426054123,
+        "staticDecisionDay": 285,
+        "staticMarginDays": 42.194842605412305
+      },
+      {
+        "truthBreachDay": 259.6239878781471,
+        "twinDecisionDay": 188,
+        "twinMarginDays": 71.62398787814709,
+        "staticDecisionDay": 198,
+        "staticMarginDays": 61.62398787814709
+      },
+      {
+        "truthBreachDay": 502.62153512028,
+        "twinDecisionDay": 428,
+        "twinMarginDays": 74.62153512027999,
+        "staticDecisionDay": 506,
+        "staticMarginDays": -3.3784648797200134
+      }
+    ],
+    "twin": {
+      "n": 15,
+      "medianDays": 75.0216975177018,
+      "minDays": 68.97337930216145,
+      "maxDays": 94.51718934427845,
+      "afterBreach": 0,
+      "insideEmergency": 0,
+      "moreThan90DaysEarly": 3
+    },
+    "staticVendorCurve": {
+      "n": 15,
+      "medianDays": 2.318368344990631,
+      "minDays": -110.36181614448287,
+      "maxDays": 67.0216975177018,
+      "afterBreach": 7,
+      "insideEmergency": 8,
+      "moreThan90DaysEarly": 0
+    }
+  },
+  "sensor": {
+    "conditionNumberS": 1.6272343820840778,
+    "determinantS": 0.93953831,
+    "conditionNumberCalibrated": 1.7558139832432775,
+    "lambda": 4.760812392525762,
+    "benchmark": {
+      "noise_x1": {
+        "samples": 200,
+        "noiseScale": 1,
+        "methods": {
+          "uncompensated": {
+            "mapePct": 105.03833899907043,
+            "medianApePct": 59.450882519141324,
+            "p90ApePct": 232.61609353935037,
+            "maeLowPpt": 2.409771976144633
+          },
+          "nipOnly": {
+            "mapePct": 61.733000894909395,
+            "medianApePct": 47.68846747251704,
+            "p90ApePct": 128.05787051907177,
+            "maeLowPpt": 0.8333114295991076
+          },
+          "diagonal": {
+            "mapePct": 75.91875889963208,
+            "medianApePct": 61.582634300363495,
+            "p90ApePct": 157.83942542935523,
+            "maeLowPpt": 1.3602730780519257
+          },
+          "full": {
+            "mapePct": 21.126797791345112,
+            "medianApePct": 16.864684938769532,
+            "p90ApePct": 44.752099264104274,
+            "maeLowPpt": 0.17881905105377202
+          }
+        },
+        "fullBySpecies": {
+          "PFBA": {
+            "mapePct": 20.78305731228875,
+            "medianApePct": 16.97911141285089,
+            "p90ApePct": 43.609102221180905,
+            "maeLowPpt": 0.17562561796793097
+          },
+          "PFBS": {
+            "mapePct": 21.11797380354736,
+            "medianApePct": 17.992428231185084,
+            "p90ApePct": 45.20456502382263,
+            "maeLowPpt": 0.17566655013521473
+          },
+          "PFOA": {
+            "mapePct": 20.86219817423452,
+            "medianApePct": 15.87752262233732,
+            "p90ApePct": 43.1182186982809,
+            "maeLowPpt": 0.21577026042105707
+          },
+          "PFOS": {
+            "mapePct": 21.734525671131863,
+            "medianApePct": 16.61332109905464,
+            "p90ApePct": 45.751364133773414,
+            "maeLowPpt": 0.14801363076817875
+          }
+        }
+      },
+      "noise_x2": {
+        "samples": 200,
+        "noiseScale": 2,
+        "methods": {
+          "uncompensated": {
+            "mapePct": 105.44985454453176,
+            "medianApePct": 58.02953340482073,
+            "p90ApePct": 231.0740945245269,
+            "maeLowPpt": 2.423608011087272
+          },
+          "nipOnly": {
+            "mapePct": 63.37498661206542,
+            "medianApePct": 47.88281694135591,
+            "p90ApePct": 121.47203534328894,
+            "maeLowPpt": 0.8566959103915758
+          },
+          "diagonal": {
+            "mapePct": 77.3908253883005,
+            "medianApePct": 56.7873068498282,
+            "p90ApePct": 171.66190276167143,
+            "maeLowPpt": 1.3838568699583005
+          },
+          "full": {
+            "mapePct": 24.59420388295138,
+            "medianApePct": 20.05354019875692,
+            "p90ApePct": 49.010643150993374,
+            "maeLowPpt": 0.2642388104599341
+          }
+        },
+        "fullBySpecies": {
+          "PFBA": {
+            "mapePct": 25.829352170508354,
+            "medianApePct": 22.43708058669386,
+            "p90ApePct": 49.74591260631478,
+            "maeLowPpt": 0.26674997793372557
+          },
+          "PFBS": {
+            "mapePct": 24.862602029931786,
+            "medianApePct": 20.177599755308908,
+            "p90ApePct": 49.626449940858215,
+            "maeLowPpt": 0.2723578018469323
+          },
+          "PFOA": {
+            "mapePct": 23.638329156357205,
+            "medianApePct": 18.967389309562925,
+            "p90ApePct": 45.363153611460795,
+            "maeLowPpt": 0.2979796332869555
+          },
+          "PFOS": {
+            "mapePct": 24.075345983958723,
+            "medianApePct": 18.766058855996206,
+            "p90ApePct": 51.0542090358237,
+            "maeLowPpt": 0.21845628942413348
+          }
+        }
+      },
+      "noise_x4": {
+        "samples": 200,
+        "noiseScale": 4,
+        "methods": {
+          "uncompensated": {
+            "mapePct": 107.10723452065538,
+            "medianApePct": 58.85668776632046,
+            "p90ApePct": 239.70437348784063,
+            "maeLowPpt": 2.4710609795183536
+          },
+          "nipOnly": {
+            "mapePct": 68.4064147071894,
+            "medianApePct": 50.57238948712218,
+            "p90ApePct": 129.41192457854663,
+            "maeLowPpt": 0.9457012207610042
+          },
+          "diagonal": {
+            "mapePct": 87.97376764314275,
+            "medianApePct": 52.20685662783377,
+            "p90ApePct": 205.39218587145953,
+            "maeLowPpt": 1.54711015375643
+          },
+          "full": {
+            "mapePct": 34.85390721988003,
+            "medianApePct": 27.592037227400763,
+            "p90ApePct": 65.64763101531219,
+            "maeLowPpt": 0.4741193159460359
+          }
+        },
+        "fullBySpecies": {
+          "PFBA": {
+            "mapePct": 40.255173864824926,
+            "medianApePct": 31.80056749897532,
+            "p90ApePct": 73.54029391264658,
+            "maeLowPpt": 0.459205302711736
+          },
+          "PFBS": {
+            "mapePct": 35.53098999579812,
+            "medianApePct": 31.843425652547282,
+            "p90ApePct": 62.05781061738186,
+            "maeLowPpt": 0.5291293398262467
+          },
+          "PFOA": {
+            "mapePct": 31.99705923814386,
+            "medianApePct": 25.102922120498977,
+            "p90ApePct": 60.250044725854515,
+            "maeLowPpt": 0.5098184814758278
+          },
+          "PFOS": {
+            "mapePct": 31.75023934295525,
+            "medianApePct": 23.93512085007353,
+            "p90ApePct": 62.1689862939717,
+            "maeLowPpt": 0.39373780795605823
+          }
+        }
+      }
+    },
+    "simulatedLodPpt": {
+      "PFBA": 0.2772015663952341,
+      "PFBS": 0.29837731917962945,
+      "PFOA": 0.21140057485948968,
+      "PFOS": 0.23930820296150357
+    }
+  },
+  "experimentalHybrid": {
+    "config": {
+      "useNetwork": true,
+      "lambdaAdv": 0.2,
+      "lambdaKin": 0.2
+    },
+    "coverageHoldoutSet": 0.921875,
+    "operational": {
+      "n": 15,
+      "medianDays": 69.20458566760226,
+      "minDays": 66.90727234768747,
+      "maxDays": 88.51718934427845,
+      "afterBreach": 0,
+      "insideEmergency": 0,
+      "moreThan90DaysEarly": 0
+    }
+  },
+  "runtimeSeconds": 317.9
+}

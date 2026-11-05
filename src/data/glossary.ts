@@ -78,7 +78,7 @@ export const GLOSSARY: GlossaryGroup[] = [
         meaning:
           'Liquid chromatography with tandem mass spectrometry: the certified laboratory method for measuring PFAS at parts-per-trillion levels.',
         whyItMatters:
-          'It is accurate but slow (10–14 days) and costly ($300–$500 per sample). PFAS-Sentinel keeps it for quarterly compliance but adds continuous data in between.',
+          'It is accurate but slow and costly (the project assumes 10–14 days and $300–$500 per sample, to be confirmed with labs). PFAS-Sentinel keeps it for compliance and adds continuous data in between.',
       },
       {
         term: 'RSSCT',
@@ -125,7 +125,7 @@ export const GLOSSARY: GlossaryGroup[] = [
         meaning:
           'The thin layer near a charged surface where ions in the water screen the charge (Gouy-Chapman theory). It shrinks as the water gets saltier.',
         whyItMatters:
-          'It changes how strongly charged PFAS are attracted to the electrode, so the edge inversion corrects for conductivity.',
+          'It changes how strongly charged PFAS are attracted to the electrode, so the edge estimator corrects for conductivity (learned from calibration runs).',
       },
     ],
   },
@@ -133,23 +133,23 @@ export const GLOSSARY: GlossaryGroup[] = [
     group: 'Digital twin & business',
     terms: [
       {
-        term: 'PINN / physics-guided hybrid twin',
+        term: 'Breakthrough twin (and the PINN-style option)',
         meaning:
-          'A physics-informed neural network combines a physical equation (here, the 1D advection-sorption model of the moving MTZ) with a small neural network that learns the corrections physics misses.',
+          'The twin uses the travelling-wave (Thomas) solution of the 1D advection-sorption equation and learns two bed-condition factors (capacity and kinetics) shared by all four PFAS. A physics-informed neural network (PINN-style) correction was also built and tested.',
         whyItMatters:
-          'Physics keeps forecasts sensible with very little data; the network adapts to each plant. Our version uses an approximate gradient for the physics term, so we call it PINN-style.',
+          'Sharing the bed condition lets early PFBA/PFBS data sharpen the PFOA/PFOS forecast (the biggest gain in the ablation). The PINN-style correction helps only with the PDE penalty and gives a small further gain on the testbench, so it is offered as an option; the 2-parameter model stays the default for decisions.',
       },
       {
-        term: '95% confidence interval (CI)',
+        term: 'Uncertainty band (±days)',
         meaning:
-          'The range of days within which the predicted breakthrough is expected to fall 95% of the time.',
+          'Parameter uncertainty plus a model-form term that grows with the distance from the last data point. Nominal 95%; on held-out synthetic plants it covered the true breach about 91% of the time.',
         whyItMatters:
-          'Actuation uses the early end of the range (breach day minus CI), so uncertainty makes the system more cautious, not less.',
+          'Actuation uses the early end of the band (breach day minus band), so uncertainty makes the system act earlier, not later. It is a decision aid, not a certified interval.',
       },
       {
-        term: 'Agentic early warning system (EWS)',
+        term: 'Early-warning system (EWS) and interlocks',
         meaning:
-          'A chain of software steps that reads data, forecasts, decides and prepares actions (valve swap, service order) — with human sign-off or interlocks before anything moves.',
+          'Software steps that read data, forecast, decide and prepare actions (valve rotation, service order). Three computed interlocks (sonde heartbeat, electrode agreement, pressure drop) and operator sign-off must pass before anything moves; every action is logged.',
         whyItMatters:
           'It turns a forecast into a scheduled action instead of a chart someone must remember to check.',
       },

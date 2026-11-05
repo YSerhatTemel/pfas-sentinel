@@ -18,26 +18,29 @@ import {
   STAKEHOLDER_VALIDATION_FINDINGS,
   COMPETITIVE_LANDSCAPE_2026,
 } from '../data/pfasPhysicsEngine';
+import { BASE_ECONOMICS, ECONOMIC_SCENARIOS, computeEconomics } from '../data/economics';
+import validationReport from '../../simulation/validation_report.json';
 
 export const BusinessAndPitchTab: React.FC = () => {
   const [utilityVessels, setUtilityVessels] = useState<number>(6);
   const [annualMediaCostPerVessel, setAnnualMediaCostPerVessel] = useState<number>(85000);
   const [savingsRatePct, setSavingsRatePct] = useState<number>(28);
 
-  // Financial & environmental calculations
-  const baselineAnnualMediaOpex = utilityVessels * annualMediaCostPerVessel;
-  const baselineLabTestingAnnual = utilityVessels * 26 * 420; // Bi-weekly LC-MS/MS ($420/sample)
-
-  const pfasSentinelSubscriptionAnnual = utilityVessels * 14400; // $1,200/month per vessel Hardware-enabled SaaS + cartridges
-  const mediaSavingsUsd = Math.round(baselineAnnualMediaOpex * (savingsRatePct / 100));
-  const labSavingsUsd = Math.round(baselineLabTestingAnnual * 0.85); // Retain quarterly regulatory certification LC-MS/MS
-  const netAnnualUtilitySavings =
-    mediaSavingsUsd + labSavingsUsd - pfasSentinelSubscriptionAnnual;
-
-  const hazardousWasteAvoidedTons = Number(
-    (utilityVessels * 9.1 * (savingsRatePct / 100)).toFixed(1)
-  );
-  const ghgAvoidedTonsCo2 = Number((hazardousWasteAvoidedTons * 2.4).toFixed(1));
+  // Financial & environmental calculations (single source: src/data/economics.ts)
+  const econ = computeEconomics({
+    ...BASE_ECONOMICS,
+    vessels: utilityVessels,
+    mediaCostPerVesselYear: annualMediaCostPerVessel,
+    bedLifeExtension: savingsRatePct / 100,
+  });
+  const pfasSentinelSubscriptionAnnual = econ.fee;
+  const netAnnualUtilitySavings = Math.round(econ.net);
+  const hazardousWasteAvoidedTons = Number(econ.mediaAvoidedTonnes.toFixed(1));
+  const ghgAvoidedTonsCo2 = Number(econ.co2AvoidedTonnes.toFixed(1));
+  const ops = validationReport.operational;
+  const abl = validationReport.ablation as Record<string, { pfoaPfos: { maeDays: number } }>;
+  const twinMae = Math.round(abl['jointPhysics (default)'].pfoaPfos.maeDays);
+  const staticMae = Math.round(abl.staticPrior.pfoaPfos.maeDays);
 
   const pitchSections = [
     {
@@ -45,28 +48,28 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'The Core Problem: 14-Day Lab Blindness & Premature Media Waste',
       criterion: 'Challenge Fit & Feasibility',
       script:
-        '“Under the EU 2026 Directive and the US EPA’s binding 4 parts-per-trillion rule, water utilities must eliminate PFAS forever chemicals. Yet today’s Granular Activated Carbon and Ion Exchange vessels operate blind: off-site LC-MS/MS lab tests take 10 to 14 days and cost $400 per sample. Because short-chain PFBA and PFBS break through early and suffer chromatographic roll-up above influent levels, utilities change media on conservative calendar schedules, discarding an estimated 20 to 30% of usable capacity to stay safe.”',
+        '“Under the EU 2026 Directive and the US EPA’s binding 4 parts-per-trillion rule, water utilities must eliminate PFAS forever chemicals. Yet today’s Granular Activated Carbon and Ion Exchange vessels operate blind: off-site LC-MS/MS results typically take days to weeks and a few hundred dollars per sample. Without a forecast, media is changed on conservative schedules; our working hypothesis, to be confirmed with utilities, is that 20 to 30% of usable capacity is discarded to stay safe.”',
     },
     {
       part: 'Part 2 • 0:30 – 1:40',
-      title: 'Core Innovation: Mid-Bed Retrofit Sensor + 1D Advection-Sorption PINN',
+      title: 'Core Innovation: Mid-Bed Sensor + Bed-Condition Twin',
       criterion: 'Innovation',
       script:
-        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI/WTW sonde telemetry and 4×4 cross-selectivity deconvolution to target 1 to 4 ppt detection in 15 minutes. This mid-bed telemetry feeds a physics-guided neural twin built on the 1D Advection-Sorption PDE. Short-chain PFBA is the early tracer of the mass-transfer wave; the lead-lag switch is scheduled from the PFOA/PFOS effluent forecast, so media is used to the last safe day—not thrown out early.”',
+        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI/WTW sonde telemetry and 4×4 cross-selectivity deconvolution to target 1 to 4 ppt detection in 15 minutes. This mid-bed data feeds a physics-based twin built on the travelling-wave solution of the advection-sorption equation. Because PFBA and PFBS reach the mid-bed first, the twin learns the bed’s condition from them and forecasts when PFOA and PFOS will break through; the lead-lag switch is scheduled from that forecast, so media is used to the last safe day.”',
     },
     {
       part: 'Part 3 • 1:40 – 2:25',
-      title: 'Engineering Integrity, Literature Validation & Servitization ROI',
+      title: 'Engineering Integrity, In-Silico Evidence & Servitization ROI',
       criterion: 'Challenge Fit & Feasibility',
       script:
-        '“Built as a rigorous TRL 3 in-silico digital twin, our kinetic model is benchmarked against published pilot-column breakthrough and C4 roll-up data (McCleaf 2017; Park 2020, Water Research). Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”',
+        `“We tested the twin honestly: a hidden virtual plant generates the data and the model never sees its parameters. Across 16 simulated plants it forecast the PFOA/PFOS breach with a ${twinMae}-day mean error versus ${staticMae} days for a vendor curve, and in a daily decision test it rotated a median ${Math.round(ops.twin.medianDays)} days before the breach, never after it. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”`,
     },
     {
       part: 'Part 4 • 2:25 – 3:00',
       title: 'Measurable Impact & TRL 3 → TRL 6 Validation Roadmap',
       criterion: 'Impact',
       script:
-        '“Across a typical 6-vessel municipal plant (9.1-ton GAC vessels), extending bed utilization by 28% prevents 15.3 tons of spent PFAS-laden hazardous waste and 36.7 tons of Scope 3 CO₂ emissions every year. Our 12-month roadmap runs two tracks: a software-first Phase 0 that tests the forecast twin on a utility’s existing grab-sample records with no new hardware, and a sensor track from wet-lab calibration (TRL 4) through column testing (TRL 5) to a utility slipstream pilot (TRL 6) with Xylem mentors.”',
+        '“If field tests confirm a 28% longer bed life, a typical 6-vessel plant (9.1-ton GAC vessels) avoids 15.3 tons of spent PFAS-laden media and about 37 tons of CO₂e a year. Our 12-month roadmap runs two tracks: a software-first Phase 0 that tests the forecast twin on a utility’s existing grab-sample records with no new hardware, and a sensor track from wet-lab calibration (TRL 4) through column testing (TRL 5) to a utility slipstream pilot (TRL 6) with Xylem mentors.”',
     },
   ];
 
@@ -235,7 +238,7 @@ export const BusinessAndPitchTab: React.FC = () => {
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-300">Baseline Annual Media Replacement / Vessel:</span>
                 <span className="font-mono font-bold text-cyan-300">
-                  ${annualMediaCostPerVessel.toLocaleString()} / yr
+                  ${annualMediaCostPerVessel.toLocaleString('en-US')} / yr
                 </span>
               </div>
               <input
@@ -274,10 +277,10 @@ export const BusinessAndPitchTab: React.FC = () => {
                 Net Annual Utility OPEX Savings
               </span>
               <div className="text-2xl font-bold font-mono text-emerald-300 mt-1">
-                ${netAnnualUtilitySavings.toLocaleString()}/yr
+                ${netAnnualUtilitySavings.toLocaleString('en-US')}/yr
               </div>
               <span className="text-[11px] text-slate-400 block mt-1">
-                After ${pfasSentinelSubscriptionAnnual.toLocaleString()}/yr SaaS + Cartridge fee
+                After ${pfasSentinelSubscriptionAnnual.toLocaleString('en-US')}/yr SaaS + Cartridge fee
               </span>
             </div>
 
@@ -303,9 +306,59 @@ export const BusinessAndPitchTab: React.FC = () => {
                 {ghgAvoidedTonsCo2} tCO₂e/yr
               </div>
               <span className="text-[11px] text-slate-400 block mt-1">
-                Supports Xylem’s Net-Zero Servitization goals
+                Assumes {BASE_ECONOMICS.co2PerTonneMedia} tCO₂e per tonne (reactivated GAC; low end of the range implied by Vilén 2022)
               </span>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-7 bg-[#061320] border border-slate-800 rounded-xl p-4 overflow-x-auto">
+            <div className="text-[11px] font-mono uppercase text-emerald-300 mb-2">
+              Three scenarios (6 vessels) • break-even at {Math.round(econ.breakEvenExtension * 1000) / 10}% extension with these inputs
+            </div>
+            <table className="w-full text-xs font-mono">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left font-normal">Scenario</th>
+                  <th className="text-right font-normal">Net / yr</th>
+                  <th className="text-right font-normal">Media avoided</th>
+                  <th className="text-right font-normal">CO₂e avoided</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ECONOMIC_SCENARIOS.map((sc) => {
+                  const r = computeEconomics(sc.inputs);
+                  return (
+                    <tr key={sc.id} className={sc.id === 'base' ? 'text-white' : 'text-slate-300'}>
+                      <td className="py-1">{sc.label}</td>
+                      <td className={`text-right ${r.net >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {r.net >= 0 ? '+' : '−'}${Math.abs(Math.round(r.net)).toLocaleString('en-US')}
+                      </td>
+                      <td className="text-right">{r.mediaAvoidedTonnes.toFixed(1)} t</td>
+                      <td className="text-right">{r.co2AvoidedTonnes.toFixed(1)} t</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-slate-500 mt-2">
+              Inputs: ${BASE_ECONOMICS.mediaCostPerVesselYear.toLocaleString('en-US')} media per vessel-year, ${BASE_ECONOMICS.labCostPerSample}/sample,
+              {Math.round(BASE_ECONOMICS.labReductionFraction * 100)}% fewer routine samples (quarterly compliance retained), ${BASE_ECONOMICS.feePerVesselYear.toLocaleString('en-US')} fee per
+              vessel-year. All are assumptions to confirm with utilities.
+            </p>
+          </div>
+          <div className="lg:col-span-5 bg-[#061320] border border-cyan-500/30 rounded-xl p-4 text-xs space-y-1.5">
+            <div className="text-[11px] font-mono uppercase text-cyan-300">In-silico evidence behind the timing claim</div>
+            <p className="text-slate-300">
+              Daily decision simulation on {ops.plants} synthetic plants: rotation a median{' '}
+              <strong className="text-white">{Math.round(ops.twin.medianDays)} days</strong> before the PFOA/PFOS lead-outlet breach (service
+              window {ops.serviceLeadTimeDays} d), never after it. A static vendor curve was late in {ops.staticVendorCurve.afterBreach} of {ops.plants}.
+            </p>
+            <p className="text-slate-500">
+              This supports the timing logic, not the 28% figure: bed-life extension depends on today&apos;s practice at each utility and must
+              be measured in the pilot.
+            </p>
           </div>
         </div>
       </div>
@@ -397,7 +450,7 @@ export const BusinessAndPitchTab: React.FC = () => {
             Competitive Benchmarking • Positioning Against Offline Labs, Field Kits &amp; Static Curves
           </span>
           <h3 className="text-base font-bold text-white mt-0.5">
-            Why In-Line Mid-Bed Sensing + PINN Digital Twin Complements Quarterly LC-MS/MS Certification
+            Why In-Line Mid-Bed Sensing + a Breakthrough Twin Complements Quarterly LC-MS/MS
           </h3>
         </div>
 
@@ -452,7 +505,7 @@ export const BusinessAndPitchTab: React.FC = () => {
         <div className="mb-4">
           <span className="text-xs font-mono uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
             <Rocket className="w-4 h-4" />
-            Post-Challenge Validation Roadmap • Advancing from TRL 3 Simulation to TRL 6 Pilot
+            Post-Challenge Validation Roadmap • From TRL 2–3 Simulation to a TRL 6 Pilot
           </span>
           <h3 className="text-base font-bold text-white mt-0.5">
             Proposed 12-Month Software, Hardware &amp; Pilot Verification Plan with Mentors &amp; Utility Partners
@@ -508,11 +561,11 @@ export const BusinessAndPitchTab: React.FC = () => {
               </span>
             </div>
             <h4 className="text-xs font-bold text-white">
-              Continuous Rapid Small-Scale Column Test (RSSCT) &amp; PINN Assimilation
+              Continuous Rapid Small-Scale Column Test (RSSCT) &amp; Twin Assimilation
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               Mount in-line Influent, Mid-Bed (z/L = 0.50), and Effluent pods on bench-scale GAC/IX
-              columns; validate 30-day cartridge indexing and live PINN breakthrough forecasting
+              columns; validate 30-day cartridge indexing and live twin breakthrough forecasting
               under variable DOC and flow rates.
             </p>
           </div>
@@ -545,7 +598,7 @@ export const BusinessAndPitchTab: React.FC = () => {
               3-Minute Pitch Architecture (Aligned with Official Xylem Challenge Judging Criteria)
             </span>
             <h3 className="text-base font-bold text-white mt-0.5">
-              Focused Storyboard: Mid-Bed Real-Time Sensing + PINN Breakthrough Twin → ~28% Media Savings
+              Focused Storyboard: Mid-Bed Sensing + Breakthrough Twin → Forecast-Gated Media Changeout
             </h3>
           </div>
         </div>

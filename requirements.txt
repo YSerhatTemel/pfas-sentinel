@@ -1,7 +1,0 @@
-# PFAS-Sentinel Python Scientific Environment
-# Core PINN simulation (simulation/pfas_sentinel_pinn_model.py) runs on Python 3.8+ Standard Library (0 external dependencies required).
-# The packages below are optional for extended matrix analytics, plotting, and Jupyter notebooks:
-
-numpy>=1.22.0
-scipy>=1.8.0
-matplotlib>=3.5.0

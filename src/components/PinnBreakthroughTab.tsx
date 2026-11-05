@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  Cpu,
-  Gauge,
-  Sliders,
-  TrendingUp,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BookOpen, CheckCircle2, Cpu, FlaskConical, Sliders, TrendingUp } from 'lucide-react';
 import {
   FacilityProfile,
+  LAST_OBSERVATION_DAY,
   PFAS_SPECIES,
-  PILOT_DATASET_PROVENANCE,
   PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS,
-  computeBedVolumes,
-  computeBreakthroughConcentration,
-  predictBreakthroughTimeDays,
-  runPinnParameterAssimilation,
+  SPECIES_ORDER,
+  TARGET_PPT,
+  TRAIN_DAYS,
+  getValidationFit,
+  pdeResidualRms,
+  plantSpecFor,
+  staticPriorConcentration,
+  truthConcentration,
+  twinConcentration,
 } from '../data/pfasPhysicsEngine';
+import type { SpeciesId } from '../data/pfasPhysicsEngine';
+import validationReport from '../../simulation/validation_report.json';
 
 interface PinnBreakthroughTabProps {
   facility: FacilityProfile;
@@ -27,19 +24,22 @@ interface PinnBreakthroughTabProps {
   setOperatingDay: (d: number) => void;
 }
 
-export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
-  facility,
-  operatingDay,
-  setOperatingDay,
-}) => {
-  const [focusSpecies, setFocusSpecies] = useState<'PFBA' | 'PFBS' | 'PFOA' | 'PFOS'>('PFBA');
-  const [customC0, setCustomC0] = useState<number>(facility.influentProfile.PFBA);
+const r1 = (x: number) => Math.round(x * 10) / 10;
+const r2 = (x: number) => Math.round(x * 100) / 100;
+const TRAIN_END = TRAIN_DAYS[TRAIN_DAYS.length - 1];
+const fmtDay = (d: number) => (d >= 1500 ? '>1500' : `${r1(d)}`);
+
+export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({ facility, operatingDay, setOperatingDay }) => {
+  const [focusSpecies, setFocusSpecies] = useState<SpeciesId>('PFOA');
+  const [customC0, setCustomC0] = useState<number>(facility.influentProfile.PFOA);
   const [customFlowMGD, setCustomFlowMGD] = useState<number>(facility.flowRateMGD);
   const [customMassKg, setCustomMassKg] = useState<number>(facility.mediaMassKg);
   const [customNom, setCustomNom] = useState<number>(facility.matrixDefaults.nomMgL);
-  const [showStaticThomasComparison, setShowStaticThomasComparison] = useState<boolean>(true);
-  const [includeCompetitiveRollup, setIncludeCompetitiveRollup] = useState<boolean>(true);
-  const [showEmpiricalScatter, setShowEmpiricalScatter] = useState<boolean>(true);
+  const [showStatic, setShowStatic] = useState<boolean>(true);
+  const [includeRollup, setIncludeRollup] = useState<boolean>(true);
+  const [showObservations, setShowObservations] = useState<boolean>(true);
+  const [showTestbench, setShowTestbench] = useState<boolean>(true);
+  const [experimental, setExperimental] = useState<boolean>(false);
 
   useEffect(() => {
     setCustomC0(facility.influentProfile[focusSpecies]);
@@ -48,173 +48,106 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
     setCustomNom(facility.matrixDefaults.nomMgL);
   }, [facility.id]);
 
-  const effectiveEbctMinutes = Number(
-    (
-      facility.ebctMinutes *
-      (facility.flowRateMGD / Math.max(0.2, customFlowMGD)) *
-      (customMassKg / Math.max(500, facility.mediaMassKg))
-    ).toFixed(2)
-  );
-
-  const speciesConfig = PFAS_SPECIES[focusSpecies];
-
-  // Run hybrid PINN-style Gradient Descent PDE + Mid-Bed Telemetry Assimilation Solver
-  const pinnDiagnostics = runPinnParameterAssimilation({
-    speciesId: focusSpecies,
-    mediaType: facility.mediaType,
-    C0: customC0,
+  const plant = plantSpecFor(facility, {
     flowRateMGD: customFlowMGD,
     mediaMassKg: customMassKg,
     nomMgL: customNom,
-    ebctMinutes: effectiveEbctMinutes,
-    includeCompetitiveRollup,
+    includeRollup,
+    c0Override: { [focusSpecies]: customC0 },
   });
+  const fit = getValidationFit(plant, experimental);
+  const res = fit.species[focusSpecies];
+  const pde = pdeResidualRms(plant, fit.theta);
+  const speciesConfig = PFAS_SPECIES[focusSpecies];
 
-  // Generate time-series points from Day 0 to Day 400 (covers PFOA/PFOS effluent breakthrough)
-  const daysArray = Array.from({ length: 81 }, (_, i) => i * 5); // 0, 5, 10 ... 400
-
-  // Directly use PINN-assimilated [learnedKth, learnedQ0] breakthrough predictions
-  const midBedDay4Ppt = pinnDiagnostics.assimilatedMidBed4PptDay;
-  const effluentPinnDay4Ppt = pinnDiagnostics.assimilatedEffluent4PptDay;
-  const effluentStaticDay4Ppt = pinnDiagnostics.staticBaselineEffluent4PptDay;
-
-  const advanceWarningDays = Math.max(0, Number((effluentPinnDay4Ppt - midBedDay4Ppt).toFixed(1)));
-  const blindBreakthroughGapDays = Math.max(
-    0,
-    Number((effluentStaticDay4Ppt - effluentPinnDay4Ppt).toFixed(1))
-  );
-
-  // Peak roll-up concentration check across the 400-day window
-  const peakEffluentPpt = Math.max(
-    ...daysArray.map((d) =>
-      computeBreakthroughConcentration({
-        speciesId: focusSpecies,
-        mediaType: facility.mediaType,
-        C0: customC0,
-        flowRateMGD: customFlowMGD,
-        mediaMassKg: customMassKg,
-        day: d,
-        bedDepthFraction: 1.0,
-        nomMgL: customNom,
-        usePinnCorrection: true,
-        includeCompetitiveRollup,
-      })
-    )
-  );
-  const peakRollupRatioPct = Math.round((peakEffluentPpt / Math.max(1, customC0)) * 100);
-
-  // Helper to convert (day, ppt) into SVG coordinates (Chart 680x280)
+  const daysArray = Array.from({ length: 81 }, (_, i) => i * 5);
   const chartWidth = 640;
   const chartHeight = 230;
   const padLeft = 52;
   const padTop = 20;
-  const maxY = Math.max(35, customC0 * (includeCompetitiveRollup ? 1.38 : 1.08));
+  const peakTruth = Math.max(...daysArray.map((d) => truthConcentration(plant, focusSpecies, 1, d)));
+  const maxY = Math.max(35, customC0 * 1.1, peakTruth * 1.05);
+  const toX = (day: number) => padLeft + (Math.min(400, day) / 400) * (chartWidth - padLeft - 20);
+  const toY = (ppt: number) => padTop + chartHeight - (Math.min(maxY, ppt) / maxY) * chartHeight;
+  const path = (fn: (d: number) => number) =>
+    daysArray.map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(d).toFixed(1)} ${toY(fn(d)).toFixed(1)}`).join(' ');
 
-  const toX = (day: number) => padLeft + (day / 400) * (chartWidth - padLeft - 20);
-  const toY = (ppt: number) =>
-    padTop + chartHeight - (Math.min(maxY, ppt) / maxY) * chartHeight;
+  const twinMid = (d: number) => twinConcentration(fit, focusSpecies, 0.5, d);
+  const twinOut = (d: number) => twinConcentration(fit, focusSpecies, 1, d);
+  const staticOut = (d: number) => staticPriorConcentration(plant, focusSpecies, 1, d);
+  const truthOut = (d: number) => truthConcentration(plant, focusSpecies, 1, d);
 
-  const buildCurvePath = (opts: {
-    speciesId: 'PFBA' | 'PFBS' | 'PFOA' | 'PFOS';
-    bedDepthFraction: number;
-    usePinn: boolean;
-    c0Val: number;
-    rollup: boolean;
-  }) => {
-    return daysArray
-      .map((d, idx) => {
-        const c = computeBreakthroughConcentration({
-          speciesId: opts.speciesId,
-          mediaType: facility.mediaType,
-          C0: opts.c0Val,
-          flowRateMGD: customFlowMGD,
-          mediaMassKg: customMassKg,
-          day: d,
-          bedDepthFraction: opts.bedDepthFraction,
-          nomMgL: customNom,
-          usePinnCorrection: opts.usePinn,
-          includeCompetitiveRollup: opts.rollup,
-        });
-        return `${idx === 0 ? 'M' : 'L'} ${toX(d).toFixed(1)} ${toY(c).toFixed(1)}`;
-      })
-      .join(' ');
-  };
+  const advanceWarningDays = r1(res.effluent4PptDay - res.midBed4PptDay);
+  const twinError = r1(res.effluent4PptDay - res.testbenchEffluent4PptDay);
+  const staticError = r1(res.staticEffluent4PptDay - res.testbenchEffluent4PptDay);
+  const peakRollupPct = Math.round((peakTruth / Math.max(1, customC0)) * 100);
 
-  const epa4PptY = toY(4.0);
-  const influentC0Y = toY(customC0);
-  const currentDayX = toX(Math.min(400, operatingDay));
+  const ablation = validationReport.ablation as Record<
+    string,
+    { allSpecies: { maeDays: number; biasDays: number; p90AbsDays: number }; pfoaPfos: { maeDays: number; maxAbsDays: number } }
+  >;
+  const unc = validationReport.uncertainty;
+  const ops = validationReport.operational;
+  const historyCards = fit.history.filter((h) => [1, 50, 100, 150, 200, 250].includes(h.epoch));
 
   return (
     <div className="space-y-6">
-      {/* Top Governing Equation & PINN Explanation Banner */}
+      {/* Banner */}
       <div className="bg-[#0B1D30] border border-cyan-500/30 rounded-xl p-5">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           <div className="lg:col-span-7 space-y-2">
             <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" />
-              Software &amp; AI Innovation • Physics-Informed Neural Network (PINN) PDE Solver
+              Breakthrough Twin Lab • validation protocol on a synthetic testbench
             </span>
-            <h2 className="text-lg font-bold text-white">
-              Agentic Breakthrough &amp; Chromatographic Roll-Up Digital Twin
-            </h2>
+            <h2 className="text-lg font-bold text-white">Physics-based breakthrough twin with shared bed-condition assimilation</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Classical static adsorption models fail because influent concentration (<code className="text-cyan-300">C₀</code>),
-              Sensus flow rate (<code className="text-cyan-300">Q</code>), and Natural Organic Matter (NOM)
-              fluctuate continuously, while long-chain PFOS/PFOA displace short-chain PFBA/PFBS
-              (<strong className="text-rose-300">chromatographic roll-up Cₜ &gt; C₀</strong>).
-              PFAS-Sentinel assimilates 15-minute telemetry from{' '}
-              <strong className="text-amber-300">Influent (C₀)</strong> and{' '}
-              <strong className="text-amber-300">Mid-Bed (C_mid)</strong> into a PINN minimizing both data
-              and PDE collocation residuals:
+              A hidden <strong className="text-white">virtual plant</strong> (NOM fouling that differs by species, a
+              breakthrough shape the model does not have, roll-up and sensor-grade noise) generates mid-bed and outlet
+              data. The twin starts from clean-water vendor parameters and learns two shared bed-condition factors from
+              the <strong className="text-amber-300">mid-bed data of all four species up to day {TRAIN_END}</strong>. Because PFBA and
+              PFBS reach the mid-bed first, their data inform the slower <strong className="text-rose-300">PFOA/PFOS</strong> forecast.
+              Days 155–{LAST_OBSERVATION_DAY} are held out; later days are extrapolation.
             </p>
           </div>
-
-          {/* Mathematical Formula Display Card */}
-          <div className="lg:col-span-5 bg-[#061320] border border-cyan-500/40 rounded-xl p-4 font-mono text-center shadow-inner">
-            <div className="text-[11px] text-cyan-300 mb-1 uppercase tracking-wider">
-              1D Advection-Sorption PDE &amp; 2-Layer Neural Residual
-            </div>
+          <div className="lg:col-span-5 bg-[#061320] border border-cyan-500/40 rounded-xl p-4 font-mono text-center">
+            <div className="text-[11px] text-cyan-300 mb-1 uppercase tracking-wider">Model &amp; loss</div>
             <div className="text-xs font-bold text-white py-2 px-2.5 bg-[#0B1D30] rounded-lg border border-slate-800">
-              L_PINN = ||Ĉ_mid − C_obs||² + λ·||∂Ĉ/∂t + u_MTZ·∂Ĉ/∂z||²
+              Ĉ(z,t) = C₀·σ(−ξ) [+ G·N_W]  •  ξ = k·q·M·z/Q − k·C₀·t
             </div>
             <div className="text-[10px] text-slate-400 mt-1">
-              where Ĉ(z, t) = C_Thomas(z, t; k_Th, q₀) + N_W(z, t) • u_MTZ = Q·C₀/(q₀·M)
+              σ(−ξ) is the travelling-wave solution of ∂C/∂t + u·∂C/∂z = 0 (u = Q·C₀/(q·M)); k, q share e^φ across species
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2 text-[11px] text-slate-400">
               <div>
-                <span className="text-cyan-300 font-bold">Learned k_Th:</span>{' '}
-                {pinnDiagnostics.learnedKth}
+                <span className="text-cyan-300 font-bold">k / k_prior:</span> {r2(res.learnedKth / res.priorKth)}
               </div>
               <div>
-                <span className="text-emerald-300 font-bold">Learned q₀:</span>{' '}
-                {pinnDiagnostics.learnedQ0} ng/g
+                <span className="text-emerald-300 font-bold">q / q_prior:</span> {r2(res.learnedQ0 / res.priorQ0)}
               </div>
               <div>
-                <span className="text-amber-300 font-bold">95% CI / R²:</span> ±
-                {pinnDiagnostics.breakthrough95CiDays}d ({pinnDiagnostics.empiricalR2})
+                <span className="text-amber-300 font-bold">Band:</span> ±{r1(res.uncertaintyBandDays)} d
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Interactive Chart & Parameter Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left 8 Columns: Multi-Species & Mid-Bed vs Effluent Breakthrough Curve */}
+        {/* Chart */}
         <div className="lg:col-span-8 bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-cyan-400" />
-                Dynamic Breakthrough &amp; Roll-Up: Mid-Bed (C<sub>mid</sub>) vs. Effluent (C<sub>t</sub>)
+                Mid-bed (z/L = 0.50) and outlet (z/L = 1.00) breakthrough
               </h3>
               <p className="text-xs text-slate-400">
-                Includes empirical LC-MS/MS validation checkpoints &amp; C4 competitive desorption overshoot (&gt;C₀)
+                Points are synthetic observations from the testbench (not LC-MS/MS data). {experimental ? 'PINN-style option ON.' : ''}
               </p>
             </div>
-
             <div className="flex items-center gap-1.5 bg-[#061320] p-1 rounded-lg border border-slate-800">
-              {(['PFBA', 'PFBS', 'PFOA', 'PFOS'] as const).map((sp) => (
+              {SPECIES_ORDER.map((sp) => (
                 <button
                   key={sp}
                   onClick={() => {
@@ -222,9 +155,7 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
                     setCustomC0(facility.influentProfile[sp]);
                   }}
                   className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
-                    focusSpecies === sp
-                      ? 'bg-cyan-500 text-slate-950'
-                      : 'text-slate-400 hover:text-white'
+                    focusSpecies === sp ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   {sp}
@@ -233,641 +164,312 @@ export const PinnBreakthroughTab: React.FC<PinnBreakthroughTabProps> = ({
             </div>
           </div>
 
-          {/* Interactive SVG Breakthrough Graph */}
           <div className="bg-[#061320] border border-slate-800 rounded-xl p-3">
-            <svg
-              viewBox="0 0 660 285"
-              className="w-full h-auto select-none"
-              aria-label="PFAS Breakthrough Curve Graph"
-            >
-              {/* Horizontal Grid Lines */}
-              {[0, 0.25, 0.5, 0.75, 1].map((frac, idx) => {
-                const val = Number((maxY * frac).toFixed(0));
+            <svg viewBox="0 0 660 285" className="w-full h-auto select-none" aria-label="Breakthrough curves">
+              {/* Train / test / extrapolation regions */}
+              <rect x={toX(0)} y={padTop} width={toX(TRAIN_END) - toX(0)} height={chartHeight} fill="#0EA5E9" opacity="0.05" />
+              <rect x={toX(TRAIN_END)} y={padTop} width={toX(LAST_OBSERVATION_DAY) - toX(TRAIN_END)} height={chartHeight} fill="#A855F7" opacity="0.07" />
+              <rect x={toX(LAST_OBSERVATION_DAY)} y={padTop} width={toX(400) - toX(LAST_OBSERVATION_DAY)} height={chartHeight} fill="#F59E0B" opacity="0.05" />
+              <text x={toX(TRAIN_END / 2)} y={padTop - 6} textAnchor="middle" fill="#38BDF8" fontSize="8.5" fontFamily="JetBrains Mono">
+                TRAIN (mid-bed ≤ day {TRAIN_END})
+              </text>
+              <text x={(toX(TRAIN_END) + toX(LAST_OBSERVATION_DAY)) / 2} y={padTop - 6} textAnchor="middle" fill="#D8B4FE" fontSize="8.5" fontFamily="JetBrains Mono">
+                TEST
+              </text>
+              <text x={(toX(LAST_OBSERVATION_DAY) + toX(400)) / 2} y={padTop - 6} textAnchor="middle" fill="#FCD34D" fontSize="8.5" fontFamily="JetBrains Mono">
+                EXTRAPOLATION (no data)
+              </text>
+
+              {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                const val = Math.round(maxY * frac);
                 const y = toY(val);
                 return (
-                  <g key={idx}>
-                    <line
-                      x1={padLeft}
-                      y1={y}
-                      x2={chartWidth - 20}
-                      y2={y}
-                      stroke="#1E293B"
-                      strokeDasharray="3 3"
-                    />
-                    <text
-                      x={padLeft - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fill="#64748B"
-                      fontSize="9.5"
-                      fontFamily="JetBrains Mono"
-                    >
+                  <g key={frac}>
+                    <line x1={padLeft} y1={y} x2={chartWidth - 20} y2={y} stroke="#1E293B" strokeDasharray="3 3" />
+                    <text x={padLeft - 8} y={y + 3} textAnchor="end" fill="#64748B" fontSize="9.5" fontFamily="JetBrains Mono">
                       {val} ppt
                     </text>
                   </g>
                 );
               })}
+              {[0, 50, 100, 150, 200, 250, 300, 350, 400].map((d) => (
+                <text key={d} x={toX(d)} y={padTop + chartHeight + 16} textAnchor="middle" fill="#64748B" fontSize="9.5" fontFamily="JetBrains Mono">
+                  Day {d}
+                </text>
+              ))}
 
-              {/* Vertical Day Grid Lines */}
-              {[0, 50, 100, 150, 200, 250, 300, 350, 400].map((d) => {
-                const x = toX(d);
-                return (
-                  <g key={d}>
-                    <line
-                      x1={x}
-                      y1={padTop}
-                      x2={x}
-                      y2={padTop + chartHeight}
-                      stroke="#1E293B"
-                      strokeDasharray="3 3"
-                    />
-                    <text
-                      x={x}
-                      y={padTop + chartHeight + 16}
-                      textAnchor="middle"
-                      fill="#64748B"
-                      fontSize="9.5"
-                      fontFamily="JetBrains Mono"
-                    >
-                      Day {d}
-                    </text>
+              <line x1={padLeft} y1={toY(TARGET_PPT)} x2={chartWidth - 20} y2={toY(TARGET_PPT)} stroke="#EF4444" strokeWidth="1.6" strokeDasharray="6 3" />
+              <text x={chartWidth - 24} y={toY(TARGET_PPT) - 5} textAnchor="end" fill="#FCA5A5" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">
+                {speciesConfig.id === 'PFOA' || speciesConfig.id === 'PFOS' ? 'Lead-outlet trigger = 4.0 ppt (MCL level)' : '4.0 ppt tracer level (no actuation)'}
+              </text>
+              <line x1={toX(operatingDay)} y1={padTop} x2={toX(operatingDay)} y2={padTop + chartHeight} stroke="#38BDF8" strokeWidth="1.2" />
+
+              {showTestbench && <path d={path(truthOut)} fill="none" stroke="#E2E8F0" strokeWidth="1.2" strokeDasharray="1 3" />}
+              {showStatic && <path d={path(staticOut)} fill="none" stroke="#94A3B8" strokeWidth="2" strokeDasharray="4 4" />}
+              <path d={path(twinMid)} fill="none" stroke="#F59E0B" strokeWidth="2.5" />
+              <path d={path(twinOut)} fill="none" stroke="#10B981" strokeWidth="3" />
+
+              {showObservations &&
+                res.points.map((pt) => (
+                  <g key={pt.day}>
+                    {pt.split === 'TEST' && <circle cx={toX(pt.day)} cy={toY(pt.observedMidBedPpt)} r="6.5" fill="none" stroke="#A855F7" strokeWidth="1.2" />}
+                    <circle cx={toX(pt.day)} cy={toY(pt.observedMidBedPpt)} r="3.5" fill="#061320" stroke="#FBBF24" strokeWidth="2" />
+                    <circle cx={toX(pt.day)} cy={toY(pt.observedEffluentPpt)} r="3.5" fill="#061320" stroke="#34D399" strokeWidth="2" />
                   </g>
-                );
-              })}
+                ))}
 
-              {/* Influent C0 Reference Line (to clearly visualize Roll-Up Ct > C0) */}
-              <line
-                x1={padLeft}
-                y1={influentC0Y}
-                x2={chartWidth - 20}
-                y2={influentC0Y}
-                stroke="#A855F7"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-              />
-              <text
-                x={chartWidth - 24}
-                y={influentC0Y - 4}
-                textAnchor="end"
-                fill="#D8B4FE"
-                fontSize="8.5"
-                fontFamily="JetBrains Mono"
-              >
-                Influent C₀ = {customC0} ppt {peakRollupRatioPct > 102 ? `(Roll-Up Peak: ${peakRollupRatioPct}% C₀)` : ''}
-              </text>
-
-              {/* EPA 4.0 ppt Mandatory MCL / Trigger Threshold Line */}
-              <line
-                x1={padLeft}
-                y1={epa4PptY}
-                x2={chartWidth - 20}
-                y2={epa4PptY}
-                stroke="#EF4444"
-                strokeWidth="1.8"
-                strokeDasharray="6 3"
-              />
-              <text
-                x={chartWidth - 24}
-                y={epa4PptY - 5}
-                textAnchor="end"
-                fill="#FCA5A5"
-                fontSize="9.5"
-                fontWeight="700"
-                fontFamily="JetBrains Mono"
-              >
-                {speciesConfig.id === 'PFOA' || speciesConfig.id === 'PFOS'
-                  ? 'US EPA Binding Statutory MCL: 4.0 ppt'
-                  : `MTZ Tracer Alert (no actuation): 4.0 ppt (${speciesConfig.statutoryLimitLabel})`}
-              </text>
-
-              {/* Current Operating Day Vertical Cursor */}
-              <line
-                x1={currentDayX}
-                y1={padTop}
-                x2={currentDayX}
-                y2={padTop + chartHeight}
-                stroke="#38BDF8"
-                strokeWidth="1.5"
-              />
-              <text
-                x={currentDayX + 4}
-                y={padTop + 12}
-                fill="#38BDF8"
-                fontSize="9.5"
-                fontWeight="700"
-                fontFamily="JetBrains Mono"
-              >
-                Today (Day {operatingDay})
-              </text>
-
-              {/* Curve A: Mid-Bed Sensor C_mid (z/L = 0.50) Early Warning */}
-              <path
-                d={buildCurvePath({
-                  speciesId: focusSpecies,
-                  bedDepthFraction: 0.5,
-                  usePinn: true,
-                  c0Val: customC0,
-                  rollup: includeCompetitiveRollup,
-                })}
-                fill="none"
-                stroke="#F59E0B"
-                strokeWidth="2.5"
-              />
-
-              {/* Curve B: PINN Effluent Prediction C_t (z/L = 1.00) */}
-              <path
-                d={buildCurvePath({
-                  speciesId: focusSpecies,
-                  bedDepthFraction: 1.0,
-                  usePinn: true,
-                  c0Val: customC0,
-                  rollup: includeCompetitiveRollup,
-                })}
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="3"
-              />
-
-              {/* Curve C: Classical Static Thomas Model (Uncompensated for NOM fouling & Roll-Up) */}
-              {showStaticThomasComparison && (
-                <path
-                  d={buildCurvePath({
-                    speciesId: focusSpecies,
-                    bedDepthFraction: 1.0,
-                    usePinn: false,
-                    c0Val: customC0,
-                    rollup: false,
-                  })}
-                  fill="none"
-                  stroke="#94A3B8"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
-                />
-              )}
-
-              {/* Empirical Pilot Column Validation Points (TRAIN Days 30..135 vs HOLDOUT TEST Days 155..210) */}
-              {showEmpiricalScatter && (
-                <g>
-                  <line
-                    x1={toX(145)}
-                    y1={padTop}
-                    x2={toX(145)}
-                    y2={padTop + chartHeight}
-                    stroke="#A855F7"
-                    strokeWidth="1.2"
-                    strokeDasharray="4 3"
-                  />
-                  <text
-                    x={toX(145) + 4}
-                    y={padTop + 26}
-                    fill="#D8B4FE"
-                    fontSize="8.5"
-                    fontWeight="700"
-                    fontFamily="JetBrains Mono"
-                  >
-                    Holdout Test Split (Days 155–210) →
-                  </text>
-                  {pinnDiagnostics.empiricalPoints.map((pt, i) => {
-                    const isTest = pt.split === 'TEST';
-                    return (
-                      <g key={i}>
-                        {isTest && (
-                          <circle
-                            cx={toX(pt.day)}
-                            cy={toY(pt.measuredMidBedPpt)}
-                            r="6.5"
-                            fill="none"
-                            stroke="#A855F7"
-                            strokeWidth="1.2"
-                          />
-                        )}
-                        <circle
-                          cx={toX(pt.day)}
-                          cy={toY(pt.measuredMidBedPpt)}
-                          r="3.5"
-                          fill="#061320"
-                          stroke="#FBBF24"
-                          strokeWidth="2"
-                        />
-                        <circle
-                          cx={toX(pt.day)}
-                          cy={toY(pt.measuredEffluentPpt)}
-                          r="3.5"
-                          fill="#061320"
-                          stroke="#34D399"
-                          strokeWidth="2"
-                        />
-                      </g>
-                    );
-                  })}
-                </g>
-              )}
-
-              {/* Highlight Advance Warning Window between Mid-Bed 4 ppt and Effluent 4 ppt */}
-              {midBedDay4Ppt < 400 && effluentPinnDay4Ppt < 400 && (
-                <g>
-                  <circle
-                    cx={toX(midBedDay4Ppt)}
-                    cy={epa4PptY}
-                    r="5"
-                    fill="#F59E0B"
-                    stroke="#061320"
-                    strokeWidth="1.5"
-                  />
-                  <circle
-                    cx={toX(effluentPinnDay4Ppt)}
-                    cy={epa4PptY}
-                    r="5"
-                    fill="#10B981"
-                    stroke="#061320"
-                    strokeWidth="1.5"
-                  />
-                </g>
-              )}
-
-              {/* Legend Box */}
-              <rect x={padLeft + 8} y={padTop + 6} width="295" height="74" rx="6" fill="#0B1D30" stroke="#1E3A5F" />
+              <rect x={padLeft + 8} y={padTop + 6} width="300" height="88" rx="6" fill="#0B1D30" stroke="#1E3A5F" />
               <line x1={padLeft + 16} y1={padTop + 20} x2={padLeft + 36} y2={padTop + 20} stroke="#F59E0B" strokeWidth="2.5" />
               <text x={padLeft + 42} y={padTop + 23} fill="#FDE68A" fontSize="9" fontFamily="JetBrains Mono">
-                Mid-Bed C_mid (4 ppt @ Day {midBedDay4Ppt})
+                Twin, mid-bed (4 ppt @ day {fmtDay(res.midBed4PptDay)})
               </text>
               <line x1={padLeft + 16} y1={padTop + 35} x2={padLeft + 36} y2={padTop + 35} stroke="#10B981" strokeWidth="3" />
               <text x={padLeft + 42} y={padTop + 38} fill="#6EE7B7" fontSize="9" fontFamily="JetBrains Mono">
-                PINN + Roll-Up C_t (Day {effluentPinnDay4Ppt} ±{pinnDiagnostics.breakthrough95CiDays}d)
+                Twin, outlet (day {fmtDay(res.effluent4PptDay)} ±{r1(res.uncertaintyBandDays)})
               </text>
               <line x1={padLeft + 16} y1={padTop + 50} x2={padLeft + 36} y2={padTop + 50} stroke="#94A3B8" strokeWidth="2" strokeDasharray="3 3" />
               <text x={padLeft + 42} y={padTop + 53} fill="#94A3B8" fontSize="9" fontFamily="JetBrains Mono">
-                Static Thomas (Blind @ Day {effluentStaticDay4Ppt})
+                Static vendor curve (day {fmtDay(res.staticEffluent4PptDay)})
               </text>
-              <circle cx={padLeft + 26} cy={padTop + 66} r="3.5" fill="#061320" stroke="#34D399" strokeWidth="2" />
-              <text x={padLeft + 42} y={padTop + 69} fill="#E2E8F0" fontSize="9" fontFamily="JetBrains Mono">
-                Digitized Pilot GAC Data (R²={pinnDiagnostics.empiricalR2})
+              <line x1={padLeft + 16} y1={padTop + 65} x2={padLeft + 36} y2={padTop + 65} stroke="#E2E8F0" strokeWidth="1.2" strokeDasharray="1 3" />
+              <text x={padLeft + 42} y={padTop + 68} fill="#E2E8F0" fontSize="9" fontFamily="JetBrains Mono">
+                Hidden testbench plant (day {fmtDay(res.testbenchEffluent4PptDay)})
+              </text>
+              <circle cx={padLeft + 26} cy={padTop + 81} r="3.5" fill="#061320" stroke="#34D399" strokeWidth="2" />
+              <text x={padLeft + 42} y={padTop + 84} fill="#E2E8F0" fontSize="9" fontFamily="JetBrains Mono">
+                Synthetic observations (ringed = held-out test)
               </text>
             </svg>
           </div>
 
-          {/* 3 Insight Callout Pills Below Chart */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
             <div className="bg-[#061320] border border-amber-500/30 rounded-lg p-3">
-              <span className="text-[10px] font-mono uppercase text-amber-300 block">
-                Mid-Bed Early Warning Lead Time
-              </span>
-              <div className="text-lg font-bold font-mono text-white mt-0.5">
-                +{advanceWarningDays} Days Notice
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Time between C<sub>mid</sub> trigger (Day {midBedDay4Ppt}) and effluent breach (Day{' '}
-                {effluentPinnDay4Ppt})
-              </p>
+              <span className="text-[10px] font-mono uppercase text-amber-300 block">Mid-bed lead time</span>
+              <div className="text-lg font-bold font-mono text-white mt-0.5">+{advanceWarningDays} days</div>
+              <p className="text-[11px] text-slate-400 mt-0.5">Same species: mid-bed 4 ppt → outlet 4 ppt</p>
             </div>
-
             <div className="bg-[#061320] border border-rose-500/30 rounded-lg p-3">
-              <span className="text-[10px] font-mono uppercase text-rose-300 block">
-                C4 Competitive Roll-Up &amp; Blind Gap
-              </span>
-              <div className="text-lg font-bold font-mono text-rose-200 mt-0.5">
-                {peakRollupRatioPct > 102
-                  ? `${peakRollupRatioPct}% C₀ Roll-Up`
-                  : `${blindBreakthroughGapDays}d Static Error`}
+              <span className="text-[10px] font-mono uppercase text-rose-300 block">Outlet forecast error vs hidden plant</span>
+              <div className="text-lg font-bold font-mono text-white mt-0.5">
+                {twinError > 0 ? '+' : ''}
+                {twinError} d <span className="text-xs text-slate-400">(static {staticError > 0 ? '+' : ''}{staticError} d)</span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                {peakRollupRatioPct > 102
-                  ? `PFOS/NOM displaces ${focusSpecies} to ${peakEffluentPpt} ppt (>C₀)`
-                  : `Static model overestimates bed life by ${blindBreakthroughGapDays} days`}
+                {peakRollupPct > 102 ? `Testbench roll-up peak ${peakRollupPct}% of C₀ (flagged, not forecast).` : 'Negative = early (conservative).'}
               </p>
             </div>
-
             <div className="bg-[#061320] border border-emerald-500/30 rounded-lg p-3">
-              <span className="text-[10px] font-mono uppercase text-emerald-300 block">
-                Holdout Test vs. Static Baseline
-              </span>
+              <span className="text-[10px] font-mono uppercase text-emerald-300 block">Held-out test RMSE (days 155–210)</span>
               <div className="text-lg font-bold font-mono text-emerald-300 mt-0.5">
-                {pinnDiagnostics.testHoldoutRmsePpt}p{' '}
-                <span className="text-xs text-slate-400">
-                  vs. {pinnDiagnostics.staticBaselineRmsePpt}p (Static)
-                </span>
+                {r2(res.testRmsePpt)} ppt <span className="text-xs text-slate-400">vs {r2(res.staticTestRmsePpt)} static</span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Train RMSE: {pinnDiagnostics.trainRmsePpt}p (Days 30–135) • 95% CI: ±
-                {pinnDiagnostics.breakthrough95CiDays}d
-              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Train RMSE {r2(res.trainRmsePpt)} ppt (mid-bed, days 30–{TRAIN_END})</p>
             </div>
           </div>
         </div>
 
-        {/* Right 4 Columns: Interactive Kinetic Parameter Sliders */}
+        {/* Controls */}
         <div className="lg:col-span-4 bg-[#0B1D30] border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-cyan-400" />
-                PINN Kinetic Boundary Controls
+                Plant &amp; testbench controls
               </h3>
               <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                24-Epoch Solver
+                {fit.config.epochs} Adam epochs
               </span>
             </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Influent {focusSpecies} (C₀):</span>
-                <span className="font-mono font-bold text-cyan-300">{customC0} ppt (ng/L)</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={120}
-                step={1}
-                value={customC0}
-                onChange={(e) => setCustomC0(Number(e.target.value))}
-                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Sensus/MJK Flow Rate (Q):</span>
-                <span className="font-mono font-bold text-cyan-300">{customFlowMGD} MGD</span>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={5.0}
-                step={0.1}
-                value={customFlowMGD}
-                onChange={(e) => setCustomFlowMGD(Number(e.target.value))}
-                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Active {facility.mediaType} Media Mass (M):</span>
-                <span className="font-mono font-bold text-emerald-300">
-                  {customMassKg.toLocaleString()} kg
-                </span>
-              </div>
-              <input
-                type="range"
-                min={2000}
-                max={20000}
-                step={200}
-                value={customMassKg}
-                onChange={(e) => setCustomMassKg(Number(e.target.value))}
-                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">NOM Competitive Fouling (DOC):</span>
-                <span className="font-mono font-bold text-amber-300">{customNom} mg/L</span>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={6.5}
-                step={0.2}
-                value={customNom}
-                onChange={(e) => setCustomNom(Number(e.target.value))}
-                className="w-full accent-amber-400 h-1.5 bg-slate-800 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300">Inspection Day Cursor (t):</span>
-                <span className="font-mono font-bold text-white">Day {operatingDay}</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={400}
-                step={1}
-                value={operatingDay}
-                onChange={(e) => setOperatingDay(Number(e.target.value))}
-                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
-              />
-            </div>
-
-            <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            {[
+              { label: `Influent ${focusSpecies} (C₀)`, value: `${customC0} ppt`, min: 10, max: 120, step: 1, v: customC0, set: setCustomC0 },
+              { label: 'Flow rate (Q)', value: `${customFlowMGD} MGD`, min: 0.5, max: 5, step: 0.1, v: customFlowMGD, set: setCustomFlowMGD },
+              { label: `${facility.mediaType} media mass (M)`, value: `${customMassKg.toLocaleString('en-US')} kg`, min: 2000, max: 20000, step: 200, v: customMassKg, set: setCustomMassKg },
+              { label: 'Testbench NOM (hidden fouling driver)', value: `${customNom} mg/L`, min: 0.5, max: 6.5, step: 0.2, v: customNom, set: setCustomNom },
+              { label: 'Day cursor (t)', value: `Day ${operatingDay}`, min: 10, max: 400, step: 1, v: operatingDay, set: setOperatingDay },
+            ].map((c) => (
+              <div key={c.label}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-300">{c.label}:</span>
+                  <span className="font-mono font-bold text-cyan-300">{c.value}</span>
+                </div>
                 <input
-                  type="checkbox"
-                  checked={includeCompetitiveRollup}
-                  onChange={(e) => setIncludeCompetitiveRollup(e.target.checked)}
-                  className="rounded accent-rose-500"
+                  type="range"
+                  min={c.min}
+                  max={c.max}
+                  step={c.step}
+                  value={c.v}
+                  onChange={(e) => c.set(Number(e.target.value))}
+                  className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded"
                 />
-                Simulate C4 Competitive Roll-Up (Cₜ &gt; C₀)
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showEmpiricalScatter}
-                  onChange={(e) => setShowEmpiricalScatter(e.target.checked)}
-                  className="rounded accent-emerald-500"
-                />
-                Show Empirical LC-MS/MS Pilot Checkpoints
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showStaticThomasComparison}
-                  onChange={(e) => setShowStaticThomasComparison(e.target.checked)}
-                  className="rounded accent-cyan-500"
-                />
-                Show Uncompensated Static Thomas Curve
-              </label>
+              </div>
+            ))}
+            <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-xs text-slate-300">
+              {[
+                { label: 'Short-chain roll-up in the testbench', v: includeRollup, set: setIncludeRollup },
+                { label: 'Show synthetic observations', v: showObservations, set: setShowObservations },
+                { label: 'Show static vendor curve', v: showStatic, set: setShowStatic },
+                { label: 'Show hidden testbench plant', v: showTestbench, set: setShowTestbench },
+                { label: 'PINN-style option: neural correction + PDE penalty', v: experimental, set: setExperimental },
+              ].map((c) => (
+                <label key={c.label} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={c.v} onChange={(e) => c.set(e.target.checked)} className="rounded accent-cyan-500" />
+                  {c.label}
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Multi-Species Exhaustion Order Summary & Dataset Export */}
-          <div className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-3">
-            <h4 className="text-xs font-mono uppercase text-slate-400">
-              Predicted 4.0 ppt Breakthrough Sequence
-            </h4>
-            <div className="space-y-1.5 text-xs font-mono">
-              {(['PFBA', 'PFBS', 'PFOA', 'PFOS'] as const).map((sp) => {
-                const d = predictBreakthroughTimeDays({
-                  speciesId: sp,
-                  mediaType: facility.mediaType,
-                  C0: sp === focusSpecies ? customC0 : facility.influentProfile[sp],
-                  flowRateMGD: customFlowMGD,
-                  mediaMassKg: customMassKg,
-                  bedDepthFraction: 1.0,
-                  targetPpt: 4.0,
-                  nomMgL: customNom,
-                  usePinnCorrection: true,
-                });
-                const rem = Math.max(0, d - operatingDay);
-                const remDays = Math.floor(rem);
-                const remHrs = Math.round((rem - remDays) * 24);
-                return (
-                  <div key={sp} className="flex items-center justify-between">
-                    <span style={{ color: PFAS_SPECIES[sp].color }} className="font-bold">
-                      {sp} ({PFAS_SPECIES[sp].chainType.split(' ')[0]})
-                    </span>
-                    <span className="text-slate-200">
-                      Day {d} ({rem > 0 ? `${remDays}d ${remHrs}h left` : 'Exhausted'})
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
+          <div className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <h4 className="text-xs font-mono uppercase text-slate-400">Outlet 4 ppt: twin vs hidden plant</h4>
+            {SPECIES_ORDER.map((sp) => {
+              const s = fit.species[sp];
+              return (
+                <div key={sp} className="flex items-center justify-between text-xs font-mono">
+                  <span style={{ color: PFAS_SPECIES[sp].color }} className="font-bold">
+                    {sp}
+                  </span>
+                  <span className="text-slate-200">
+                    {fmtDay(s.effluent4PptDay)} ±{r1(s.uncertaintyBandDays)} <span className="text-slate-500">(plant {fmtDay(s.testbenchEffluent4PptDay)})</span>
+                  </span>
+                </div>
+              );
+            })}
             <button
               onClick={() => {
-                const header =
-                  'Day,Species,Influent_C0_ppt,MidBed_Cmid_ppt,Effluent_PINN_Rollup_Ct_ppt,Effluent_Static_Ct_ppt,Flow_MGD,NOM_mgL\n';
+                const header = 'Day,Species,Twin_MidBed_ppt,Twin_Outlet_ppt,Static_Outlet_ppt,Testbench_Outlet_ppt\n';
                 const rows = daysArray
-                  .map((d) => {
-                    const cMid = computeBreakthroughConcentration({
-                      speciesId: focusSpecies,
-                      mediaType: facility.mediaType,
-                      C0: customC0,
-                      flowRateMGD: customFlowMGD,
-                      mediaMassKg: customMassKg,
-                      day: d,
-                      bedDepthFraction: 0.5,
-                      nomMgL: customNom,
-                      usePinnCorrection: true,
-                      includeCompetitiveRollup,
-                    });
-                    const cEffPinn = computeBreakthroughConcentration({
-                      speciesId: focusSpecies,
-                      mediaType: facility.mediaType,
-                      C0: customC0,
-                      flowRateMGD: customFlowMGD,
-                      mediaMassKg: customMassKg,
-                      day: d,
-                      bedDepthFraction: 1.0,
-                      nomMgL: customNom,
-                      usePinnCorrection: true,
-                      includeCompetitiveRollup,
-                    });
-                    const cEffStatic = computeBreakthroughConcentration({
-                      speciesId: focusSpecies,
-                      mediaType: facility.mediaType,
-                      C0: customC0,
-                      flowRateMGD: customFlowMGD,
-                      mediaMassKg: customMassKg,
-                      day: d,
-                      bedDepthFraction: 1.0,
-                      nomMgL: 1.0,
-                      usePinnCorrection: false,
-                      includeCompetitiveRollup: false,
-                    });
-                    return `${d},${focusSpecies},${customC0},${cMid},${cEffPinn},${cEffStatic},${customFlowMGD},${customNom}`;
-                  })
+                  .map((d) => `${d},${focusSpecies},${r2(twinMid(d))},${r2(twinOut(d))},${r2(staticOut(d))},${r2(truthOut(d))}`)
                   .join('\n');
-                const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+                const blob = new Blob(['# Synthetic in-silico data (PFAS-Sentinel testbench)\n' + header + rows], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `pfas_sentinel_${facility.id}_${focusSpecies}_pinn_dataset.csv`;
+                a.download = `pfas_sentinel_${facility.id}_${focusSpecies}_twin_curves.csv`;
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="w-full py-2 px-3 rounded-lg bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-semibold transition-all text-center"
+              className="w-full py-2 px-3 rounded-lg bg-[#10263F] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-semibold"
             >
-              ↓ Export PINN &amp; Roll-Up Dataset (.CSV)
+              ↓ Export curves (.CSV)
             </button>
           </div>
         </div>
       </div>
 
-      {/* Bottom Section: Live PINN Gradient Descent Convergence & PDE Collocation Diagnostics */}
-      <div className="bg-[#0B1D30] border border-slate-800 rounded-xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+      {/* Diagnostics and evidence */}
+      <div className="bg-[#0B1D30] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Cpu className="w-4 h-4 text-emerald-400" />
-              PINN Parameter Assimilation &amp; PDE Collocation Residual Convergence
+              Assimilation diagnostics
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Live gradient descent optimization of [k_Th, q_0] from Mid-Bed (z/L = 0.50) telemetry + Thomas PDE residuals
+              Exact analytical gradients (checked against finite differences in the test suite), Adam, weak prior on the
+              bed-condition factors (±25%).
             </p>
           </div>
-
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
             <span className="px-2.5 py-1 rounded bg-[#061320] border border-slate-800 text-slate-300">
-              Prior Static q₀: <strong>{pinnDiagnostics.priorStaticQ0} ng/g</strong> → Assimilated q₀:{' '}
-              <strong className="text-emerald-300">{pinnDiagnostics.learnedQ0} ng/g</strong>
+              q₀: {Math.round(res.priorQ0)} → <strong className="text-emerald-300">{Math.round(res.learnedQ0)}</strong>
             </span>
             <span className="px-2.5 py-1 rounded bg-[#061320] border border-slate-800 text-slate-300">
-              Prior k_Th: <strong>{pinnDiagnostics.priorStaticKth}</strong> → Assimilated k_Th:{' '}
-              <strong className="text-cyan-300">{pinnDiagnostics.learnedKth}</strong>
+              k_Th: {res.priorKth.toFixed(5)} → <strong className="text-cyan-300">{res.learnedKth.toFixed(5)}</strong>
             </span>
-            <span className="px-2.5 py-1 rounded bg-purple-950/30 border border-purple-500/40 text-purple-200">
-              Train RMSE: <strong>{pinnDiagnostics.trainRmsePpt}p</strong> | Holdout Test RMSE:{' '}
-              <strong className="text-emerald-300">{pinnDiagnostics.testHoldoutRmsePpt}p</strong> vs.
-              Static: <strong className="text-amber-300">{pinnDiagnostics.staticBaselineRmsePpt}p</strong>
+            <span className="px-2.5 py-1 rounded bg-[#061320] border border-slate-800 text-slate-300">
+              PDE residual RMS: adv {pde.adv.toExponential(1)} • kin {pde.kin.toExponential(1)}
             </span>
           </div>
         </div>
 
-        {/* Pilot Dataset Provenance & Train/Test Protocol Metadata Box */}
-        <div className="mb-4 bg-[#061320] border border-cyan-500/30 rounded-xl p-3.5 text-xs space-y-1">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-mono font-bold text-cyan-300 uppercase">
-              Digitized Pilot GAC Dataset Provenance &amp; Out-of-Sample Evaluation Protocol
-            </span>
-            <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
-              Train (n=5: Days 30–135) → Holdout Test (n=3: Days 155–210)
-            </span>
-          </div>
-          <p className="text-slate-300">
-            <strong className="text-white">Source &amp; Sorbent Conditions:</strong>{' '}
-            {PILOT_DATASET_PROVENANCE.sourceStudies} • {PILOT_DATASET_PROVENANCE.sorbentAndHydraulicSpec}
-          </p>
-          <p className="text-slate-400 font-mono text-[11px]">
-            <strong className="text-emerald-300">Protocol:</strong>{' '}
-            {PILOT_DATASET_PROVENANCE.trainTestProtocol} ({PILOT_DATASET_PROVENANCE.digitizationUncertainty})
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-xs font-mono">
-          {pinnDiagnostics.lossHistory.map((step) => (
-            <div
-              key={step.epoch}
-              className="bg-[#061320] border border-slate-800 rounded-lg p-3 flex flex-col justify-between"
-            >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs font-mono">
+          {historyCards.map((h) => (
+            <div key={h.epoch} className="bg-[#061320] border border-slate-800 rounded-lg p-3">
               <div className="flex items-center justify-between text-[10px] text-cyan-400">
-                <span>EPOCH {step.epoch}</span>
-                {step.epoch === pinnDiagnostics.epochsRun && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                )}
+                <span>EPOCH {h.epoch}</span>
+                {h.epoch === fit.config.epochs && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
               </div>
-              <div className="text-sm font-bold text-white mt-1">
-                L = {step.totalLoss.toFixed(3)}
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1">
-                PDE: {step.pdeLoss.toFixed(3)} | Data: {step.dataLoss.toFixed(3)}
-              </div>
+              <div className="text-sm font-bold text-white mt-1">L = {h.total.toExponential(2)}</div>
+              <div className="text-[10px] text-slate-400 mt-1">data {h.data.toExponential(1)}</div>
             </div>
           ))}
         </div>
 
-        {/* Published Peer-Reviewed GAC/IX Literature Benchmark Alignment */}
-        <div className="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS.map((lit, idx) => (
-            <div
-              key={idx}
-              className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-1.5"
-            >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-3 border-t border-slate-800/80">
+          <div className="bg-[#061320] border border-cyan-500/30 rounded-xl p-3.5 text-xs">
+            <div className="font-mono font-bold text-cyan-300 uppercase mb-2 flex items-center gap-1.5">
+              <FlaskConical className="w-3.5 h-3.5" /> Ablation (16 random plants)
+            </div>
+            <table className="w-full text-[11px] font-mono">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left font-normal">Model</th>
+                  <th className="text-right font-normal">MAE all</th>
+                  <th className="text-right font-normal">MAE PFOA/S</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(ablation).map(([name, v]) => (
+                  <tr key={name} className={name.includes('default') ? 'text-emerald-300' : 'text-slate-300'}>
+                    <td className="py-0.5">{name}</td>
+                    <td className="text-right">{r1(v.allSpecies.maeDays)} d</td>
+                    <td className="text-right">{r1(v.pfoaPfos.maeDays)} d</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-slate-500 mt-2">
+              Outlet 4 ppt day error vs the hidden plant. Joint fitting (the tracer idea) gives the big gain. The
+              PINN-style network only helps with the PDE penalty and adds a small further gain, but forecasts a
+              little later; the 2-parameter model stays the decision default.
+            </p>
+          </div>
+          <div className="bg-[#061320] border border-purple-500/30 rounded-xl p-3.5 text-xs space-y-1">
+            <div className="font-mono font-bold text-purple-300 uppercase mb-1">Uncertainty band check</div>
+            <p className="text-slate-300">
+              Nominal 95% band, model-form term calibrated on one set of synthetic plants (coverage{' '}
+              {Math.round(unc.coverageCalibrationSet * 100)}%), checked on another:{' '}
+              <strong className="text-white">{Math.round(unc.coverageHoldoutSet * 100)}% coverage</strong>.
+            </p>
+            <p className="text-slate-400">
+              Without the model-form term only {Math.round(unc.coverageHoldoutParametricOnly * 100)}% — parametric
+              uncertainty alone is overconfident. The band is a decision aid, not a certified interval.
+            </p>
+          </div>
+          <div className="bg-[#061320] border border-emerald-500/30 rounded-xl p-3.5 text-xs space-y-1">
+            <div className="font-mono font-bold text-emerald-300 uppercase mb-1">Operational decision test</div>
+            <p className="text-slate-300">
+              Daily simulation on {ops.plants} plants: the twin rotated a median{' '}
+              <strong className="text-white">{Math.round(ops.twin.medianDays)} days</strong> before the PFOA/PFOS lead-outlet
+              breach (range {Math.round(ops.twin.minDays)}–{Math.round(ops.twin.maxDays)}; target {ops.serviceLeadTimeDays}), never after it.
+            </p>
+            <p className="text-slate-400">
+              A static vendor curve rotated after the breach in {ops.staticVendorCurve.afterBreach} of {ops.plants} plants.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 text-xs space-y-1">
+          <span className="font-mono font-bold text-cyan-300 uppercase">Data provenance</span>
+          <p className="text-slate-300">
+            All observations are generated by the in-silico testbench in <code>src/data/hybridTwin.ts</code> (mirrored in{' '}
+            <code>simulation/pfas_sentinel_core.py</code>). The qualitative trends from the studies below informed the
+            testbench; no published data points were digitized. Real-site validation is planned for TRL 4–6.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {PUBLISHED_LITERATURE_BREAKTHROUGH_BENCHMARKS.map((lit) => (
+            <div key={lit.studyCitation} className="bg-[#061320] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-cyan-300">{lit.studyCitation}</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
-                  Literature Fit
+                  Literature anchor
                 </span>
               </div>
               <div className="text-[11px] font-mono text-amber-300">{lit.mediaAndScale}</div>
               <p className="text-xs text-slate-300">{lit.keyEmpiricalFinding}</p>
-              <p className="text-[11px] font-mono text-emerald-400">
-                → {lit.pinnModelAgreement}
-              </p>
+              <p className="text-[11px] font-mono text-emerald-400">→ {lit.pinnModelAgreement}</p>
             </div>
           ))}
         </div>
