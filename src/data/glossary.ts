@@ -71,7 +71,7 @@ export const GLOSSARY: GlossaryGroup[] = [
         meaning:
           'Maximum Contaminant Level: the legal limit in drinking water (4.0 ppt for PFOA and PFOS in the US). The Hazard Index is a combined score for a PFAS mixture.',
         whyItMatters:
-          'EPA plans to keep the PFOA/PFOS MCLs and rescind the Hazard Index, so PFOA/PFOS are the targets that drive actuation in this design.',
+          'EPA has proposed to keep the PFOA/PFOS MCLs and rescind the Hazard Index (not final as of September 2026), so PFOA/PFOS are the targets that drive actuation in this design.',
       },
       {
         term: 'LC-MS/MS (EPA Method 533 / 537.1)',

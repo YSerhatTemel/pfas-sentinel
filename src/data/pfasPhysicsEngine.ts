@@ -24,6 +24,7 @@ import {
 import type { MixtureBenchmark, SensorMatrix } from './sensorModel';
 import { mulberry32 } from './rng';
 import externalValidation from '../../simulation/external_validation.json';
+import fullScaleValidation from '../../simulation/external_validation_fullscale.json';
 
 export { PFAS_SPECIES, SPECIES_ORDER };
 export type { PfasSpeciesConfig, SpeciesId, MediaType };
@@ -104,7 +105,7 @@ export const XYLEM_FACILITIES: FacilityProfile[] = [
     name: 'Kennebunk, Kennebunkport & Wells Water District (KKWWD)',
     shortName: 'KKWWD Maine (GAC)',
     location: 'Maine, USA (EPA Region 1)',
-    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS | Compliance 2029, extension to 2031 announced)',
+    regulatoryRegime: 'US EPA MCL (4.0 ppt PFOA/PFOS | Compliance 2029; extension to 2031 proposed, not final)',
     mediaType: 'GAC',
     mediaBrand: 'Evoqua AquaCarb® Coconut-Based GAC, Lead-Lag (as in published KKWWD case)',
     flowRateMGD: 2.1,
@@ -476,7 +477,8 @@ export const SENSOR_SIMULATED_LOD_PPT: Record<SpeciesId, number> = Object.fromEn
 /**
  * Instantaneous screen of simulated final-train effluent against:
  * 1. US EPA (89 FR 32532, April 2024): PFOA, PFOS MCL 4.0 ppt (kept; compliance 2029, extension to 2031
- *    announced May 2025). PFHxS, PFNA, HFPO-DA 10 ppt and the Hazard Index are proposed for rescission.
+ *    proposed May 2026, not final as of Sept 2026). PFHxS, PFNA, HFPO-DA 10 ppt and the Hazard Index are
+ *    proposed for rescission (also not final).
  *    Formal compliance uses running annual averages of quarterly samples, not one value.
  * 2. EU DWD 2020/2184 "Sum of PFAS" (20 named PFAS, 100 ng/L): only 7 of the 20 are modelled here,
  *    so the value is a partial 7-analyte estimate. "PFAS Total" (500 ng/L) is not estimated.
@@ -665,15 +667,20 @@ export const EXTERNAL_TWIN_CHECK = {
   fourNgLForecasts: externalValidation.summary.postHoc4NgL.forecasts,
   fourNgLInside: externalValidation.summary.postHoc4NgL.byMethod.TWIN.inside,
   cleanWaterRatioSpread: externalValidation.cleanWaterPrior['200x325'].ratioSpread,
+  fullScaleFourNgLForecasts: fullScaleValidation.summary.fourNgLPrimary.forecasts,
+  fullScaleTwinLate: fullScaleValidation.summary.fourNgLPrimary.byMethod.TWIN.late,
+  midbedLeadRatios: Object.values(fullScaleValidation.postHocMidbedLead).flatMap((site) =>
+    [site.PFOA.ratioToOutlet, site.PFOS.ratioToOutlet].filter((v): v is number => typeof v === 'number'),
+  ),
 };
 
 export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
   {
     challenge: 'Breakthrough Twin on Measured Data: Curve Shape & Starting Values',
-    physicalCause: `On a public U.S. EPA pilot (two F400 GAC columns, outlet data only), measured curves start at zero and approach the influent slowly. The symmetric curve form misplaces the early 4 ng/L crossing (inside the sampling interval in ${EXTERNAL_TWIN_CHECK.fourNgLInside} of ${EXTERNAL_TWIN_CHECK.fourNgLForecasts} forecasts), and clean-water isotherm capacities are off by factors that differ about ${Math.round(EXTERNAL_TWIN_CHECK.cleanWaterRatioSpread / 10) * 10}-fold between species.`,
+    physicalCause: `Measured curves start at zero and approach the influent slowly, and the front spreads as it moves through the bed. On a full-scale lead-lag plant the twin's lead-outlet 4 ng/L forecast from the halfway port was late in ${EXTERNAL_TWIN_CHECK.fullScaleTwinLate} of ${EXTERNAL_TWIN_CHECK.fullScaleFourNgLForecasts} cases; on an EPA pilot the crossing fell inside the sampling interval in ${EXTERNAL_TWIN_CHECK.fourNgLInside} of ${EXTERNAL_TWIN_CHECK.fourNgLForecasts}. Clean-water isotherm capacities are off by factors that differ about ${Math.round(EXTERNAL_TWIN_CHECK.cleanWaterRatioSpread / 10) * 10}-fold between species.`,
     pfasSentinelMitigation:
-      'Start the twin from site-water data (RSSCT, pilot or the previous bed) instead of vendor clean-water curves; move to an asymmetric curve form (generalized logistic or a PSDM-based twin); re-test both on a second, independent dataset with a mid-bed port.',
-    trlTarget: `Measured-data check done: shared bed condition beat per-species fitting (${round1(EXTERNAL_TWIN_CHECK.twinDay50ErrorFirstCutoff)} vs ${round1(EXTERNAL_TWIN_CHECK.independentDay50ErrorFirstCutoff)} days); no gain yet over a good site-specific curve`,
+      'Keep the halfway-port crossing as the model-free early-warning signal and operator sign-off as the default; start the twin from site-water data (RSSCT, pilot or previous bed); use the asymmetric curve form (confirmed on full-scale data) and let the front spread with depth; re-test on a third dataset with a mid-bed port and an influent series.',
+    trlTarget: `Measured data: the halfway port crossed 4 ng/L at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}–${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet's bed volumes; shared factors beat per-species fitting (${round1(EXTERNAL_TWIN_CHECK.twinDay50ErrorFirstCutoff)} vs ${round1(EXTERNAL_TWIN_CHECK.independentDay50ErrorFirstCutoff)} days); 4 ng/L forecast not yet reliable`,
   },
   {
     challenge: 'Ultra-Trace Limit of Detection (Target 1–4 ppt) Signal-to-Noise Ratio',
@@ -796,10 +803,10 @@ export const REGULATORY_TIMELINE: RegulatoryMilestone[] = [
     status: 'UPCOMING DEADLINE',
   },
   {
-    date: 'May 2025 → 2031',
+    date: 'May 2026 (proposed) → 2029 or 2031',
     authority: 'US EPA (Federal)',
-    title: 'PFOA/PFOS Kept; Deadline Extended',
-    mandate: 'EPA announced it will keep the 4.0 ppt PFOA/PFOS MCLs, extend compliance from April 2029 to April 2031, and rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits (proposed rules followed). PFOA/PFOS remain the durable treatment target.',
+    title: 'PFOA/PFOS Kept; Extension Proposed, Not Final',
+    mandate: 'Announced May 2025 and proposed May 18, 2026 (comments closed July 20, 2026): keep the 4.0 ppt PFOA/PFOS MCLs, extend compliance from 2029 to 2031, rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits. Not final as of September 2026, with AWWA v. EPA argued in the D.C. Circuit on Sept 18, 2026; until a final rule, the 2024 rule and its 2029 date stand. PFOA/PFOS remain the durable treatment target either way.',
     status: 'UPCOMING DEADLINE',
   },
 ];

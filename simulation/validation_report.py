@@ -196,10 +196,20 @@ def summarize_margins(margins):
 
 
 def main():
+    report, reference = build_report(QUICK, "--with-hybrid-ops" in sys.argv)
+    with open(os.path.join(HERE, "validation_report.json"), "w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2)
+    with open(os.path.join(HERE, "reference_outputs.json"), "w", encoding="utf-8") as fh:
+        json.dump(reference, fh, indent=2)
+    print("written validation_report.json and reference_outputs.json in", report["runtimeSeconds"], "s")
+
+
+def build_report(quick: bool = False, with_hybrid_ops: bool = False):
+    """Compute the full report and the parity fixture (used by main() and by the CI reproducibility test)."""
     t0 = time.time()
-    n_plants = 6 if QUICK else 16
-    n_ops = 4 if QUICK else 12
-    report = {"generatedBy": "simulation/validation_report.py", "quick": QUICK, "twinConfig": core.TWIN_CONFIG}
+    n_plants = 6 if quick else 16
+    n_ops = 4 if quick else 12
+    report = {"generatedBy": "simulation/validation_report.py", "quick": quick, "twinConfig": core.TWIN_CONFIG}
 
     report["facilities"] = {}
     for fid, plant in FACILITIES.items():
@@ -253,15 +263,12 @@ def main():
     }
     hybrid_cfg = dict(core.EXPERIMENTAL_HYBRID_CONFIG)
     hybrid = {"config": hybrid_cfg, "coverageHoldoutSet": coverage(uncertainty_cases(set_b, hybrid_cfg), configured)}
-    if "--with-hybrid-ops" in sys.argv:
+    if with_hybrid_ops:
         hy_ops = [operational_decisions(p, hybrid_cfg) for p in set_b[:n_ops]] + [operational_decisions(p, hybrid_cfg) for p in FACILITIES.values()]
         hybrid["operational"] = summarize_margins([o["twinMarginDays"] for o in hy_ops])
     report["experimentalHybrid"] = hybrid
     print("hybrid done", round(time.time() - t0, 1), "s", hybrid)
     report["runtimeSeconds"] = round(time.time() - t0, 1)
-
-    with open(os.path.join(HERE, "validation_report.json"), "w", encoding="utf-8") as fh:
-        json.dump(report, fh, indent=2)
 
     kk = FACILITIES["kkwwd-maine"]
     op = core.fit_plant_twin(kk, as_of_day=240)
@@ -275,9 +282,7 @@ def main():
                               "sensitivityDiagonal": [cal["sensitivity"][g][g] for g in range(4)]},
         "sensorBenchmarkFullMapePct": report["sensor"]["benchmark"]["noise_x1"]["methods"]["full"]["mapePct"],
     }
-    with open(os.path.join(HERE, "reference_outputs.json"), "w", encoding="utf-8") as fh:
-        json.dump(reference, fh, indent=2)
-    print("written validation_report.json and reference_outputs.json in", report["runtimeSeconds"], "s")
+    return report, reference
 
 
 if __name__ == "__main__":

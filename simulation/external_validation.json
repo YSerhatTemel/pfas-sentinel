@@ -74,7 +74,9 @@
    "TWIN",
    "TWIN_HYBRID",
    "INDEPENDENT",
-   "DATA_ONLY"
+   "DATA_ONLY",
+   "STATIC_ASYM",
+   "TWIN_ASYM"
   ],
   "displayCase": {
    "source": "preAS",
@@ -88,52 +90,68 @@
    "PFBA": {
     "thomasNrmse": 0.2033,
     "epaPsdmNrmse": 0.2398,
+    "asymNrmse": 0.2033,
     "thomasA": 0.2052,
-    "thomasDay50": 4.259
+    "thomasDay50": 4.259,
+    "asymNu": 5.0
    },
    "PFBS": {
     "thomasNrmse": 0.1886,
     "epaPsdmNrmse": 0.1947,
+    "asymNrmse": 0.1879,
     "thomasA": 0.03899,
-    "thomasDay50": 56.08
+    "thomasDay50": 56.08,
+    "asymNu": 0.05
    },
    "PFOA": {
     "thomasNrmse": 0.1431,
     "epaPsdmNrmse": 0.1555,
+    "asymNrmse": 0.1346,
     "thomasA": 0.03031,
-    "thomasDay50": 57.44
+    "thomasDay50": 57.44,
+    "asymNu": 0.05
    },
    "PFOS": {
     "thomasNrmse": 0.2377,
     "epaPsdmNrmse": 0.2298,
+    "asymNrmse": 0.2268,
     "thomasA": 0.01199,
-    "thomasDay50": 108.3
+    "thomasDay50": 108.3,
+    "asymNu": 0.05
    }
   },
   "postAS": {
    "PFBA": {
     "thomasNrmse": 0.2318,
     "epaPsdmNrmse": 0.2233,
+    "asymNrmse": 0.231,
     "thomasA": 0.1726,
-    "thomasDay50": 4.84
+    "thomasDay50": 4.84,
+    "asymNu": 5.0
    },
    "PFBS": {
     "thomasNrmse": 0.2063,
     "epaPsdmNrmse": 0.2187,
+    "asymNrmse": 0.2047,
     "thomasA": 0.03618,
-    "thomasDay50": 56.96
+    "thomasDay50": 56.96,
+    "asymNu": 0.05
    },
    "PFOA": {
     "thomasNrmse": 0.1325,
     "epaPsdmNrmse": 0.1679,
+    "asymNrmse": 0.1203,
     "thomasA": 0.01877,
-    "thomasDay50": 68.1
+    "thomasDay50": 68.1,
+    "asymNu": 0.05
    },
    "PFOS": {
     "thomasNrmse": 0.2196,
     "epaPsdmNrmse": 0.211,
+    "asymNrmse": 0.2083,
     "thomasA": 0.01093,
-    "thomasDay50": 125.5
+    "thomasDay50": 125.5,
+    "asymNu": 0.05
    }
   },
   "columnToColumnNrmse": {
@@ -160,6 +178,10 @@
     "TWIN": {
      "kineticFactor": 1.329,
      "capacityFactor": 1.119
+    },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.303,
+     "capacityFactor": 0.9639
     },
     "INDEPENDENT": {
      "PFBA": {
@@ -351,6 +373,74 @@
      "primaryTestNrmse": 0.3989,
      "primaryAbsDay50Error": 80.45
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.505,
+       "testNrmse": 0.3645,
+       "day50": 6.427,
+       "day4NgL": 10.76,
+       "day50Error": 1.587
+      },
+      "PFBS": {
+       "testRmseNgL": 1.873,
+       "testNrmse": 0.2118,
+       "day50": 54.21,
+       "day4NgL": 52.52,
+       "day50Error": -2.75
+      },
+      "PFOA": {
+       "testRmseNgL": 2.731,
+       "testNrmse": 0.1123,
+       "day50": 57.07,
+       "day4NgL": 14.38,
+       "day50Error": -11.03
+      },
+      "PFOS": {
+       "testRmseNgL": 9.741,
+       "testNrmse": 0.2114,
+       "day50": 106.4,
+       "day4NgL": 0.0,
+       "day50Error": -19.1
+      }
+     },
+     "primaryTestNrmse": 0.1693,
+     "primaryAbsDay50Error": 15.07
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.505,
+       "testNrmse": 0.3645,
+       "day50": 7.008,
+       "day4NgL": 10.34,
+       "day50Error": 2.168
+      },
+      "PFBS": {
+       "testRmseNgL": 1.862,
+       "testNrmse": 0.2105,
+       "day50": 49.73,
+       "day4NgL": 48.43,
+       "day50Error": -7.23
+      },
+      "PFOA": {
+       "testRmseNgL": 2.624,
+       "testNrmse": 0.1079,
+       "day50": 51.78,
+       "day4NgL": 19.02,
+       "day50Error": -16.32
+      },
+      "PFOS": {
+       "testRmseNgL": 10.03,
+       "testNrmse": 0.2177,
+       "day50": 95.73,
+       "day4NgL": 0.0,
+       "day50Error": -29.77
+      }
+     },
+     "primaryTestNrmse": 0.1718,
+     "primaryAbsDay50Error": 23.05
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -406,6 +496,8 @@
      "TWIN_HYBRID": "late",
      "INDEPENDENT": "late",
      "DATA_ONLY": "early",
+     "STATIC_ASYM": "late",
+     "TWIN_ASYM": "late",
      "twinBandDays": 23.97,
      "twinBandOverlapsInterval": true
     },
@@ -415,6 +507,8 @@
      "TWIN_HYBRID": "late",
      "INDEPENDENT": "late",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "inside",
+     "TWIN_ASYM": "inside",
      "twinBandDays": 20.89,
      "twinBandOverlapsInterval": true
     },
@@ -424,6 +518,8 @@
      "TWIN_HYBRID": "early",
      "INDEPENDENT": "late",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "early",
+     "TWIN_ASYM": "early",
      "twinBandDays": 0.5,
      "twinBandOverlapsInterval": false
     }
@@ -445,6 +541,10 @@
     "TWIN": {
      "kineticFactor": 1.353,
      "capacityFactor": 0.9162
+    },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.22,
+     "capacityFactor": 0.9521
     },
     "INDEPENDENT": {
      "PFBA": {
@@ -636,6 +736,74 @@
      "primaryTestNrmse": 0.3065,
      "primaryAbsDay50Error": 57.52
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.055,
+       "testNrmse": 0.299,
+       "day50": 6.427,
+       "day4NgL": 9.319,
+       "day50Error": 1.587
+      },
+      "PFBS": {
+       "testRmseNgL": 1.987,
+       "testNrmse": 0.2246,
+       "day50": 54.21,
+       "day4NgL": 56.39,
+       "day50Error": -2.75
+      },
+      "PFOA": {
+       "testRmseNgL": 2.75,
+       "testNrmse": 0.113,
+       "day50": 57.07,
+       "day4NgL": 13.63,
+       "day50Error": -11.03
+      },
+      "PFOS": {
+       "testRmseNgL": 9.877,
+       "testNrmse": 0.2144,
+       "day50": 106.4,
+       "day4NgL": 0.0,
+       "day50Error": -19.1
+      }
+     },
+     "primaryTestNrmse": 0.1714,
+     "primaryAbsDay50Error": 15.07
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.055,
+       "testNrmse": 0.299,
+       "day50": 6.666,
+       "day4NgL": 9.037,
+       "day50Error": 1.826
+      },
+      "PFBS": {
+       "testRmseNgL": 1.914,
+       "testNrmse": 0.2165,
+       "day50": 49.91,
+       "day4NgL": 51.7,
+       "day50Error": -7.05
+      },
+      "PFOA": {
+       "testRmseNgL": 2.729,
+       "testNrmse": 0.1122,
+       "day50": 52.16,
+       "day4NgL": 16.55,
+       "day50Error": -15.94
+      },
+      "PFOS": {
+       "testRmseNgL": 9.981,
+       "testNrmse": 0.2166,
+       "day50": 96.71,
+       "day4NgL": 0.0,
+       "day50Error": -28.79
+      }
+     },
+     "primaryTestNrmse": 0.1725,
+     "primaryAbsDay50Error": 22.36
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -691,6 +859,8 @@
      "TWIN_HYBRID": "late",
      "INDEPENDENT": "inside",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "late",
+     "TWIN_ASYM": "late",
      "twinBandDays": 17.85,
      "twinBandOverlapsInterval": true
     }
@@ -2351,6 +2521,420 @@
       43.79,
       43.89
      ]
+    },
+    "TWIN_ASYM": {
+     "PFBA": [
+      1.545,
+      2.374,
+      3.61,
+      5.139,
+      6.065,
+      6.266,
+      6.292,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295,
+      6.295
+     ],
+     "PFBS": [
+      0.2598,
+      0.3841,
+      0.5444,
+      0.7427,
+      0.9787,
+      1.25,
+      1.553,
+      1.882,
+      2.23,
+      2.59,
+      2.955,
+      3.32,
+      3.678,
+      4.026,
+      4.358,
+      4.673,
+      4.968,
+      5.242,
+      5.496,
+      5.728,
+      5.941,
+      6.133,
+      6.307,
+      6.464,
+      6.605,
+      6.731,
+      6.843,
+      6.943,
+      7.031,
+      7.11,
+      7.18,
+      7.241,
+      7.296,
+      7.344,
+      7.386,
+      7.423,
+      7.456,
+      7.485,
+      7.51,
+      7.533,
+      7.552,
+      7.569,
+      7.584,
+      7.598,
+      7.609,
+      7.619,
+      7.628,
+      7.636,
+      7.643,
+      7.649,
+      7.654,
+      7.659,
+      7.663,
+      7.667,
+      7.67,
+      7.672,
+      7.675,
+      7.677,
+      7.679,
+      7.68,
+      7.682,
+      7.683,
+      7.684,
+      7.685,
+      7.686,
+      7.687,
+      7.687,
+      7.688,
+      7.688,
+      7.689,
+      7.689,
+      7.689,
+      7.69,
+      7.69,
+      7.69,
+      7.69,
+      7.69,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.691,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692,
+      7.692
+     ],
+     "PFOA": [
+      1.707,
+      2.163,
+      2.684,
+      3.267,
+      3.908,
+      4.598,
+      5.332,
+      6.098,
+      6.889,
+      7.694,
+      8.506,
+      9.314,
+      10.11,
+      10.89,
+      11.65,
+      12.39,
+      13.09,
+      13.76,
+      14.39,
+      14.99,
+      15.55,
+      16.07,
+      16.56,
+      17.02,
+      17.44,
+      17.83,
+      18.18,
+      18.51,
+      18.82,
+      19.09,
+      19.35,
+      19.58,
+      19.79,
+      19.99,
+      20.16,
+      20.32,
+      20.47,
+      20.6,
+      20.72,
+      20.83,
+      20.92,
+      21.01,
+      21.09,
+      21.17,
+      21.23,
+      21.29,
+      21.35,
+      21.4,
+      21.44,
+      21.48,
+      21.52,
+      21.55,
+      21.58,
+      21.6,
+      21.63,
+      21.65,
+      21.67,
+      21.69,
+      21.7,
+      21.72,
+      21.73,
+      21.74,
+      21.75,
+      21.76,
+      21.77,
+      21.78,
+      21.79,
+      21.79,
+      21.8,
+      21.8,
+      21.81,
+      21.81,
+      21.82,
+      21.82,
+      21.82,
+      21.82,
+      21.83,
+      21.83,
+      21.83,
+      21.83,
+      21.83,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.84,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85,
+      21.85
+     ],
+     "PFOS": [
+      4.95,
+      5.46,
+      5.997,
+      6.56,
+      7.148,
+      7.76,
+      8.394,
+      9.048,
+      9.721,
+      10.41,
+      11.12,
+      11.84,
+      12.57,
+      13.3,
+      14.05,
+      14.8,
+      15.56,
+      16.32,
+      17.07,
+      17.83,
+      18.58,
+      19.33,
+      20.07,
+      20.8,
+      21.53,
+      22.25,
+      22.95,
+      23.64,
+      24.32,
+      24.99,
+      25.65,
+      26.29,
+      26.91,
+      27.52,
+      28.11,
+      28.69,
+      29.25,
+      29.8,
+      30.33,
+      30.84,
+      31.34,
+      31.82,
+      32.29,
+      32.74,
+      33.18,
+      33.6,
+      34.0,
+      34.4,
+      34.77,
+      35.14,
+      35.49,
+      35.82,
+      36.15,
+      36.46,
+      36.76,
+      37.04,
+      37.32,
+      37.58,
+      37.84,
+      38.08,
+      38.31,
+      38.54,
+      38.75,
+      38.96,
+      39.15,
+      39.34,
+      39.52,
+      39.69,
+      39.86,
+      40.02,
+      40.17,
+      40.31,
+      40.45,
+      40.58,
+      40.71,
+      40.83,
+      40.94,
+      41.05,
+      41.16,
+      41.26,
+      41.35,
+      41.44,
+      41.53,
+      41.61,
+      41.69,
+      41.77,
+      41.84,
+      41.91,
+      41.98,
+      42.04,
+      42.1,
+      42.16,
+      42.21,
+      42.26,
+      42.31,
+      42.36,
+      42.4,
+      42.45,
+      42.49,
+      42.53,
+      42.56
+     ]
     }
    },
    "curveDays": [
@@ -2916,6 +3500,10 @@
      "kineticFactor": 1.6,
      "capacityFactor": 0.7696
     },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.361,
+     "capacityFactor": 0.8711
+    },
     "INDEPENDENT": {
      "PFBA": {
       "kineticFactor": 0.8631,
@@ -3106,6 +3694,74 @@
      "primaryTestNrmse": 0.2425,
      "primaryAbsDay50Error": 46.32
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.73,
+       "testNrmse": 0.2517,
+       "day50": 6.427,
+       "day4NgL": 8.165,
+       "day50Error": 1.587
+      },
+      "PFBS": {
+       "testRmseNgL": 2.08,
+       "testNrmse": 0.2353,
+       "day50": 54.21,
+       "day4NgL": 57.73,
+       "day50Error": -2.75
+      },
+      "PFOA": {
+       "testRmseNgL": 2.706,
+       "testNrmse": 0.1112,
+       "day50": 57.07,
+       "day4NgL": 13.13,
+       "day50Error": -11.03
+      },
+      "PFOS": {
+       "testRmseNgL": 10.11,
+       "testNrmse": 0.2195,
+       "day50": 106.4,
+       "day4NgL": 0.0,
+       "day50Error": -19.1
+      }
+     },
+     "primaryTestNrmse": 0.174,
+     "primaryAbsDay50Error": 15.07
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.73,
+       "testNrmse": 0.2517,
+       "day50": 6.163,
+       "day4NgL": 7.44,
+       "day50Error": 1.323
+      },
+      "PFBS": {
+       "testRmseNgL": 1.983,
+       "testNrmse": 0.2243,
+       "day50": 45.47,
+       "day4NgL": 48.06,
+       "day50Error": -11.49
+      },
+      "PFOA": {
+       "testRmseNgL": 2.995,
+       "testNrmse": 0.1231,
+       "day50": 47.47,
+       "day4NgL": 15.19,
+       "day50Error": -20.63
+      },
+      "PFOS": {
+       "testRmseNgL": 10.03,
+       "testNrmse": 0.2177,
+       "day50": 87.95,
+       "day4NgL": 0.0,
+       "day50Error": -37.55
+      }
+     },
+     "primaryTestNrmse": 0.1768,
+     "primaryAbsDay50Error": 29.09
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -3172,6 +3828,10 @@
     "TWIN": {
      "kineticFactor": 1.6,
      "capacityFactor": 1.063
+    },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.6,
+     "capacityFactor": 0.8736
     },
     "INDEPENDENT": {
      "PFBA": {
@@ -3363,6 +4023,74 @@
      "primaryTestNrmse": 0.3777,
      "primaryAbsDay50Error": 66.73
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.34,
+       "testNrmse": 0.3404,
+       "day50": 6.18,
+       "day4NgL": 11.49,
+       "day50Error": 1.921
+      },
+      "PFBS": {
+       "testRmseNgL": 1.683,
+       "testNrmse": 0.1903,
+       "day50": 52.31,
+       "day4NgL": 50.49,
+       "day50Error": -3.77
+      },
+      "PFOA": {
+       "testRmseNgL": 4.09,
+       "testNrmse": 0.1681,
+       "day50": 63.9,
+       "day4NgL": 4.005,
+       "day50Error": 6.46
+      },
+      "PFOS": {
+       "testRmseNgL": 10.92,
+       "testNrmse": 0.2369,
+       "day50": 116.1,
+       "day4NgL": 0.0,
+       "day50Error": 7.8
+      }
+     },
+     "primaryTestNrmse": 0.2054,
+     "primaryAbsDay50Error": 7.13
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 2.339,
+       "testNrmse": 0.3404,
+       "day50": 6.657,
+       "day4NgL": 9.974,
+       "day50Error": 2.398
+      },
+      "PFBS": {
+       "testRmseNgL": 1.683,
+       "testNrmse": 0.1903,
+       "day50": 42.25,
+       "day4NgL": 41.11,
+       "day50Error": -13.83
+      },
+      "PFOA": {
+       "testRmseNgL": 2.836,
+       "testNrmse": 0.1166,
+       "day50": 50.09,
+       "day4NgL": 12.65,
+       "day50Error": -7.35
+      },
+      "PFOS": {
+       "testRmseNgL": 10.81,
+       "testNrmse": 0.2346,
+       "day50": 91.81,
+       "day4NgL": 2.371,
+       "day50Error": -16.49
+      }
+     },
+     "primaryTestNrmse": 0.1852,
+     "primaryAbsDay50Error": 11.92
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -3418,6 +4146,8 @@
      "TWIN_HYBRID": "late",
      "INDEPENDENT": "late",
      "DATA_ONLY": "early",
+     "STATIC_ASYM": "inside",
+     "TWIN_ASYM": "early",
      "twinBandDays": 21.57,
      "twinBandOverlapsInterval": true
     },
@@ -3427,6 +4157,8 @@
      "TWIN_HYBRID": "inside",
      "INDEPENDENT": "late",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "early",
+     "TWIN_ASYM": "early",
      "twinBandDays": 22.4,
      "twinBandOverlapsInterval": true
     },
@@ -3436,6 +4168,8 @@
      "TWIN_HYBRID": "early",
      "INDEPENDENT": "late",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "early",
+     "TWIN_ASYM": "early",
      "twinBandDays": 0.5,
      "twinBandOverlapsInterval": false
     }
@@ -3457,6 +4191,10 @@
     "TWIN": {
      "kineticFactor": 1.6,
      "capacityFactor": 0.8753
+    },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.566,
+     "capacityFactor": 0.859
     },
     "INDEPENDENT": {
      "PFBA": {
@@ -3648,6 +4386,74 @@
      "primaryTestNrmse": 0.2913,
      "primaryAbsDay50Error": 46.18
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.885,
+       "testNrmse": 0.2742,
+       "day50": 6.18,
+       "day4NgL": 9.718,
+       "day50Error": 1.921
+      },
+      "PFBS": {
+       "testRmseNgL": 1.789,
+       "testNrmse": 0.2023,
+       "day50": 52.31,
+       "day4NgL": 54.67,
+       "day50Error": -3.77
+      },
+      "PFOA": {
+       "testRmseNgL": 3.981,
+       "testNrmse": 0.1636,
+       "day50": 63.9,
+       "day4NgL": 2.962,
+       "day50Error": 6.46
+      },
+      "PFOS": {
+       "testRmseNgL": 11.3,
+       "testNrmse": 0.2454,
+       "day50": 116.1,
+       "day4NgL": 0.0,
+       "day50Error": 7.8
+      }
+     },
+     "primaryTestNrmse": 0.2085,
+     "primaryAbsDay50Error": 7.13
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.885,
+       "testNrmse": 0.2742,
+       "day50": 6.423,
+       "day4NgL": 8.683,
+       "day50Error": 2.164
+      },
+      "PFBS": {
+       "testRmseNgL": 1.655,
+       "testNrmse": 0.1872,
+       "day50": 41.88,
+       "day4NgL": 43.39,
+       "day50Error": -14.2
+      },
+      "PFOA": {
+       "testRmseNgL": 2.847,
+       "testNrmse": 0.117,
+       "day50": 49.81,
+       "day4NgL": 10.88,
+       "day50Error": -7.63
+      },
+      "PFOS": {
+       "testRmseNgL": 10.9,
+       "testNrmse": 0.2366,
+       "day50": 91.21,
+       "day4NgL": 0.6186,
+       "day50Error": -17.09
+      }
+     },
+     "primaryTestNrmse": 0.1867,
+     "primaryAbsDay50Error": 12.36
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -3703,6 +4509,8 @@
      "TWIN_HYBRID": "inside",
      "INDEPENDENT": "early",
      "DATA_ONLY": "early",
+     "STATIC_ASYM": "inside",
+     "TWIN_ASYM": "inside",
      "twinBandDays": 14.82,
      "twinBandOverlapsInterval": true
     }
@@ -3724,6 +4532,10 @@
     "TWIN": {
      "kineticFactor": 1.561,
      "capacityFactor": 0.8634
+    },
+    "TWIN_ASYM": {
+     "kineticFactor": 1.42,
+     "capacityFactor": 0.9185
     },
     "INDEPENDENT": {
      "PFBA": {
@@ -3915,6 +4727,74 @@
      "primaryTestNrmse": 0.2107,
      "primaryAbsDay50Error": 30.19
     },
+    "STATIC_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.554,
+       "testNrmse": 0.2261,
+       "day50": 6.18,
+       "day4NgL": 8.307,
+       "day50Error": 1.921
+      },
+      "PFBS": {
+       "testRmseNgL": 1.895,
+       "testNrmse": 0.2143,
+       "day50": 52.31,
+       "day4NgL": 56.12,
+       "day50Error": -3.77
+      },
+      "PFOA": {
+       "testRmseNgL": 3.972,
+       "testNrmse": 0.1633,
+       "day50": 63.9,
+       "day4NgL": 2.251,
+       "day50Error": 6.46
+      },
+      "PFOS": {
+       "testRmseNgL": 11.86,
+       "testNrmse": 0.2575,
+       "day50": 116.1,
+       "day4NgL": 0.0,
+       "day50Error": 7.8
+      }
+     },
+     "primaryTestNrmse": 0.2156,
+     "primaryAbsDay50Error": 7.13
+    },
+    "TWIN_ASYM": {
+     "species": {
+      "PFBA": {
+       "testRmseNgL": 1.554,
+       "testNrmse": 0.2261,
+       "day50": 6.76,
+       "day4NgL": 8.258,
+       "day50Error": 2.501
+      },
+      "PFBS": {
+       "testRmseNgL": 1.73,
+       "testNrmse": 0.1957,
+       "day50": 45.07,
+       "day4NgL": 47.76,
+       "day50Error": -11.01
+      },
+      "PFOA": {
+       "testRmseNgL": 3.128,
+       "testNrmse": 0.1286,
+       "day50": 53.75,
+       "day4NgL": 10.33,
+       "day50Error": -3.69
+      },
+      "PFOS": {
+       "testRmseNgL": 11.23,
+       "testNrmse": 0.2437,
+       "day50": 98.35,
+       "day4NgL": 0.0,
+       "day50Error": -9.95
+      }
+     },
+     "primaryTestNrmse": 0.1948,
+     "primaryAbsDay50Error": 6.82
+    },
     "ORACLE": {
      "species": {
       "PFBA": {
@@ -3970,6 +4850,8 @@
      "TWIN_HYBRID": "inside",
      "INDEPENDENT": "inside",
      "DATA_ONLY": "inside",
+     "STATIC_ASYM": "late",
+     "TWIN_ASYM": "inside",
      "twinBandDays": 10.45,
      "twinBandOverlapsInterval": true
     }
@@ -3998,6 +4880,14 @@
     "meanPrimaryTestNrmse": 0.3883,
     "meanPrimaryAbsDay50Error": 73.59
    },
+   "STATIC_ASYM": {
+    "meanPrimaryTestNrmse": 0.1874,
+    "meanPrimaryAbsDay50Error": 11.1
+   },
+   "TWIN_ASYM": {
+    "meanPrimaryTestNrmse": 0.1785,
+    "meanPrimaryAbsDay50Error": 17.48
+   },
    "ORACLE": {
     "meanPrimaryTestNrmse": 0.189
    }
@@ -4023,6 +4913,14 @@
     "meanPrimaryTestNrmse": 0.2989,
     "meanPrimaryAbsDay50Error": 51.85
    },
+   "STATIC_ASYM": {
+    "meanPrimaryTestNrmse": 0.19,
+    "meanPrimaryAbsDay50Error": 11.1
+   },
+   "TWIN_ASYM": {
+    "meanPrimaryTestNrmse": 0.1796,
+    "meanPrimaryAbsDay50Error": 17.36
+   },
    "ORACLE": {
     "meanPrimaryTestNrmse": 0.1938
    }
@@ -4047,6 +4945,14 @@
    "DATA_ONLY": {
     "meanPrimaryTestNrmse": 0.2266,
     "meanPrimaryAbsDay50Error": 38.26
+   },
+   "STATIC_ASYM": {
+    "meanPrimaryTestNrmse": 0.1948,
+    "meanPrimaryAbsDay50Error": 11.1
+   },
+   "TWIN_ASYM": {
+    "meanPrimaryTestNrmse": 0.1858,
+    "meanPrimaryAbsDay50Error": 17.95
    },
    "ORACLE": {
     "meanPrimaryTestNrmse": 0.1989
@@ -4079,6 +4985,16 @@
      "early": 3,
      "inside": 6,
      "late": 0
+    },
+    "STATIC_ASYM": {
+     "early": 3,
+     "inside": 3,
+     "late": 3
+    },
+    "TWIN_ASYM": {
+     "early": 4,
+     "inside": 3,
+     "late": 2
     }
    },
    "twinBandOverlaps": 7,

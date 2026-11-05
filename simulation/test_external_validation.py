@@ -73,6 +73,33 @@ class ExternalProtocolTests(unittest.TestCase):
             self.assertLess(s[str(cutoff)]["TWIN"]["meanPrimaryAbsDay50Error"], s[str(cutoff)]["INDEPENDENT"]["meanPrimaryAbsDay50Error"])
             self.assertLess(s[str(cutoff)]["TWIN"]["meanPrimaryAbsDay50Error"], s[str(cutoff)]["DATA_ONLY"]["meanPrimaryAbsDay50Error"])
 
+    def test_richards_training_equals_core_training_when_symmetric(self):
+        # With nu = 1 the generalized logistic is the app's logistic, so the separate trainer must reproduce
+        # core.train_twin (same loss, prior, bounds and Adam settings).
+        data = ev.load_pilot()
+        cutoff = 28
+        tgt = data["postAS"]
+        priors = {"PFBA": (0.2, 4.0), "PFBS": (0.04, 55.0), "PFOA": (0.03, 60.0), "PFOS": (0.012, 110.0)}
+        c0 = {sp: ev.mean_influent(tgt[sp], cutoff) for sp in ev.SPECIES}
+        obs = [{"sp": sp, "z": 1.0, "t": p[0], "y": p[2]} for sp in ev.SPECIES for p in tgt[sp] if p[0] <= cutoff]
+        cfg = dict(core.TWIN_CONFIG)
+        core_theta = core.train_twin(None, ev.SPECIES, obs, cfg, {sp: ev.context(a, t, c0[sp]) for sp, (a, t) in priors.items()})["theta"]
+        rich = ev.train_shared_richards({sp: {"a": a, "t0": t, "nu": 1.0} for sp, (a, t) in priors.items()}, c0, obs, cfg)
+        self.assertTrue(math.isclose(core_theta[0], rich[0], rel_tol=1e-9, abs_tol=1e-12))
+        self.assertTrue(math.isclose(core_theta[1], rich[1], rel_tol=1e-9, abs_tol=1e-12))
+
+    def test_richards_gradient_matches_finite_differences(self):
+        a, t0, nu, t = 0.03, 60.0, 0.45, 41.0
+        f, d_la, d_lt, d_lnu = ev._richards_grad(a, t0, nu, t)
+        h = 1e-6
+        num = [
+            (ev.richards_fraction(a * math.exp(h), t0, nu, t) - ev.richards_fraction(a * math.exp(-h), t0, nu, t)) / (2 * h),
+            (ev.richards_fraction(a, t0 * math.exp(h), nu, t) - ev.richards_fraction(a, t0 * math.exp(-h), nu, t)) / (2 * h),
+            (ev.richards_fraction(a, t0, nu * math.exp(h), t) - ev.richards_fraction(a, t0, nu * math.exp(-h), t)) / (2 * h),
+        ]
+        for an, nm in zip((d_la, d_lt, d_lnu), num):
+            self.assertTrue(math.isclose(an, nm, rel_tol=1e-5, abs_tol=1e-9), (an, nm))
+
     def test_context_mapping_matches_thomas_curve(self):
         ctx = ev.context(0.05, 60.0, 24.0)
         zeros = [0.0] * core.N_PARAMS

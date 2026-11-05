@@ -3,7 +3,7 @@ import { CheckCircle2, Database, XCircle } from 'lucide-react';
 import externalReportJson from '../../simulation/external_validation.json';
 
 type Species = 'PFBA' | 'PFBS' | 'PFOA' | 'PFOS';
-type Method = 'STATIC' | 'TWIN' | 'TWIN_HYBRID' | 'INDEPENDENT' | 'DATA_ONLY';
+type Method = 'STATIC' | 'TWIN' | 'TWIN_HYBRID' | 'INDEPENDENT' | 'DATA_ONLY' | 'TWIN_ASYM';
 
 interface SummaryRow {
   meanPrimaryTestNrmse: number;
@@ -37,8 +37,9 @@ const METHOD_LABEL: Record<Method, string> = {
   TWIN_HYBRID: 'Twin, PINN-style option',
   INDEPENDENT: 'Each species fitted alone',
   DATA_ONLY: 'Early samples only, no prior',
+  TWIN_ASYM: 'Twin, asymmetric curve (added later)',
 };
-const METHODS: Method[] = ['STATIC', 'TWIN', 'TWIN_HYBRID', 'INDEPENDENT', 'DATA_ONLY'];
+const METHODS: Method[] = ['STATIC', 'TWIN', 'TWIN_HYBRID', 'TWIN_ASYM', 'INDEPENDENT', 'DATA_ONLY'];
 const CURVE_STYLE: { key: 'STATIC' | 'TWIN' | 'DATA_ONLY'; label: string; color: string; dash?: string }[] = [
   { key: 'STATIC', label: 'Sibling-column curve', color: '#94a3b8', dash: '5 4' },
   { key: 'TWIN', label: 'Twin (data ≤ cut-off)', color: '#22d3ee' },
@@ -82,12 +83,12 @@ export const ExternalValidationCard: React.FC = () => {
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * maxY);
 
   return (
-    <div className="bg-[#0B1D30] border border-emerald-500/30 rounded-xl p-5 space-y-4">
+    <div id="external-check" className="bg-[#0B1D30] border border-emerald-500/30 rounded-xl p-5 space-y-4 scroll-mt-44">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 max-w-3xl">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Database className="w-4 h-4 text-emerald-400" />
-            External check on measured pilot data (U.S. EPA)
+            External check 1: measured pilot data (U.S. EPA)
           </h3>
           <p className="text-xs text-slate-400">
             Two identical F400 GAC columns at a New Jersey groundwater utility, fed the same well water and sampled{' '}
@@ -190,7 +191,7 @@ export const ExternalValidationCard: React.FC = () => {
               </thead>
               <tbody>
                 {METHODS.map((m) => (
-                  <tr key={m} className={`border-t border-slate-800/70 ${m === 'TWIN' ? 'text-cyan-300' : 'text-slate-300'}`}>
+                  <tr key={m} className={`border-t border-slate-800/70 ${m === 'TWIN' ? 'text-cyan-300' : m === 'TWIN_ASYM' ? 'text-violet-300' : 'text-slate-300'}`}>
                     <td className="py-1 pr-2">{METHOD_LABEL[m]}</td>
                     <td className="py-1 pl-2 text-right whitespace-nowrap">
                       {cutoffs.map((c) => d1(s[String(c)][m].meanPrimaryAbsDay50Error)).join(' / ')} d
@@ -272,7 +273,7 @@ export const ExternalValidationCard: React.FC = () => {
       </div>
       <p className="text-[10px] text-slate-500">
         Limits: one site, one carbon, two columns on the same water, 14-day sampling, a short 3.5-minute contact time (full-scale
-        beds use 10–20 min) and no mid-bed port. Next step: an asymmetric curve form, tested on a second independent dataset.
+        beds use 10–20 min) and no mid-bed port. The asymmetric curve (row added after these results) is tested on independent full-scale data in the next card.
         Code and protocol: <code>simulation/external_validation.py</code>.
       </p>
     </div>

@@ -28,6 +28,14 @@ E2  Clean-water prior check. The app's synthetic "vendor curve" assumes clean-wa
     q_e(C0)*M/(Q*C0) is compared with the observed 50 % day for each species. If the shared-factor assumption held,
     the four ratios observed/predicted would be equal.
 
+E3  Asymmetric curve option (added after E1/E2, before any second dataset was opened). Same as TWIN, but the
+    travelling-wave profile is the generalized logistic (Richards) c/C0 = (1 + nu*exp(a*(t0 - t)))^(-1/nu), which
+    still solves dC/dt + u*dC/dz = 0 exactly; nu < 1 gives the measured shape (fast early rise, slow approach to
+    C0). nu is taken per species from the design curve together with a and t0; the two shared bed-condition factors
+    scale a and t0 exactly as in TWIN, with the same loss, prior, bounds and Adam settings. Methods STATIC_ASYM and
+    TWIN_ASYM, scored like the others. On these EPA data E3 is exploratory (the data had been seen); the
+    confirmatory test is a second, independent dataset.
+
 Limitations that apply to every number produced here: one site, one carbon, two columns fed the same water,
 14-day sampling, EBCT about 3.5 min (full-scale beds use 10-20 min), no intermediate sampling port, so the twin is
 tested on outlet data only (in the app it learns from a mid-bed port).
@@ -64,7 +72,9 @@ CUTOFF_DAYS = [14, 28, 42]
 DIRECTIONS = [("preAS", "postAS"), ("postAS", "preAS")]
 DISPLAY_CASE = {"source": "preAS", "target": "postAS", "cutoff": 28}
 TARGET_NG_L = 4.0
-METHODS = ["STATIC", "TWIN", "TWIN_HYBRID", "INDEPENDENT", "DATA_ONLY"]
+METHODS = ["STATIC", "TWIN", "TWIN_HYBRID", "INDEPENDENT", "DATA_ONLY", "STATIC_ASYM", "TWIN_ASYM"]
+LOG_NU_BOUNDS = (math.log(0.05), math.log(5.0))
+START_NU = [0.3, 1.0, 3.0]
 LOG_A_BOUNDS = (math.log(1e-3), math.log(5.0))
 LOG_T50_BOUNDS = (math.log(0.05), math.log(5000.0))
 START_T50 = [0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
@@ -119,23 +129,28 @@ def thomas_fraction(a: float, t50: float, t: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
-def _loss(la: float, lt: float, pts: List[Tuple[float, float]], c0: float) -> float:
+def _tz(p: Tuple[float, ...]) -> Tuple[float, float, float]:
+    """(t, y) or (t, y, z) -> (t, y, z); z = relative depth (1 = vessel outlet)."""
+    return p[0], p[1], (p[2] if len(p) > 2 else 1.0)
+
+
+def _loss(la: float, lt: float, pts: List[Tuple[float, ...]], c0: float) -> float:
     a, t50 = math.exp(la), math.exp(lt)
-    return sum((thomas_fraction(a, t50, t) - y / c0) ** 2 for t, y in pts) / len(pts)
+    return sum((thomas_fraction(a, t50 * z, t) - y / c0) ** 2 for t, y, z in map(_tz, pts)) / len(pts)
 
 
-def _lm(pts: List[Tuple[float, float]], c0: float, la: float, lt: float, iters: int = 200) -> Tuple[float, float, float]:
+def _lm(pts: List[Tuple[float, ...]], c0: float, la: float, lt: float, iters: int = 200) -> Tuple[float, float, float]:
     lam = 1e-2
     cur = _loss(la, lt, pts, c0)
     for _ in range(iters):
         a, t50 = math.exp(la), math.exp(lt)
         jtj = [[0.0, 0.0], [0.0, 0.0]]
         jtr = [0.0, 0.0]
-        for t, y in pts:
-            s = thomas_fraction(a, t50, t)
+        for t, y, z in map(_tz, pts):
+            s = thomas_fraction(a, t50 * z, t)
             g = s * (1 - s)
             r = s - y / c0
-            j = (g * a * (t - t50), -g * a * t50)
+            j = (g * a * (t - t50 * z), -g * a * t50 * z)
             for i in range(2):
                 jtr[i] += j[i] * r
                 for k in range(2):
@@ -163,7 +178,7 @@ def _lm(pts: List[Tuple[float, float]], c0: float, la: float, lt: float, iters: 
     return la, lt, cur
 
 
-def fit_thomas(pts: List[Tuple[float, float]], c0: float) -> Dict[str, float]:
+def fit_thomas(pts: List[Tuple[float, ...]], c0: float) -> Dict[str, float]:
     best: Optional[Tuple[float, float, float]] = None
     for t50 in START_T50:
         for a in START_A:
@@ -172,6 +187,108 @@ def fit_thomas(pts: List[Tuple[float, float]], c0: float) -> Dict[str, float]:
                 best = res
     assert best is not None
     return {"a": math.exp(best[0]), "t50": math.exp(best[1]), "loss": best[2]}
+
+
+# ---------------------------------------------------------------------------------------------
+# E3: generalized-logistic (Richards) travelling wave, 3-parameter design-curve fit and shared-factor training
+# ---------------------------------------------------------------------------------------------
+def richards_fraction(a: float, t0: float, nu: float, t: float) -> float:
+    x = core.clamp(a * (t0 - t), -35.0, 35.0)
+    return (1.0 + nu * math.exp(x)) ** (-1.0 / nu)
+
+
+def _richards_grad(a: float, t0: float, nu: float, t: float) -> Tuple[float, float, float, float]:
+    """Value and derivatives w.r.t. log a, log t0, log nu."""
+    x_raw = a * (t0 - t)
+    x = core.clamp(x_raw, -35.0, 35.0)
+    e = math.exp(x)
+    base = 1.0 + nu * e
+    f = base ** (-1.0 / nu)
+    inside = abs(x_raw) < 35.0
+    df_dx = -(base ** (-1.0 / nu - 1.0)) * e if inside else 0.0
+    d_la = df_dx * x_raw
+    d_lt = df_dx * a * t0
+    d_lnu = f * (math.log(base) / nu - e / base)  # nu * df/dnu
+    return f, d_la, d_lt, d_lnu
+
+
+def _lm3(pts: List[Tuple[float, ...]], c0: float, u: List[float], iters: int = 200) -> Tuple[List[float], float]:
+    bounds = [LOG_A_BOUNDS, LOG_T50_BOUNDS, LOG_NU_BOUNDS]
+
+    def loss(v: List[float]) -> float:
+        a, t0, nu = (math.exp(x) for x in v)
+        return sum((richards_fraction(a, t0 * z, nu, t) - y / c0) ** 2 for t, y, z in map(_tz, pts)) / len(pts)
+
+    cur = loss(u)
+    lam = 1e-2
+    for _ in range(iters):
+        a, t0, nu = (math.exp(x) for x in u)
+        jtj = [[0.0] * 3 for _ in range(3)]
+        jtr = [0.0] * 3
+        for t, y, z in map(_tz, pts):
+            f, *j = _richards_grad(a, t0 * z, nu, t)
+            r = f - y / c0
+            for i in range(3):
+                jtr[i] += j[i] * r
+                for k in range(3):
+                    jtj[i][k] += j[i] * j[k]
+        improved = False
+        for _ in range(12):
+            m = [[jtj[i][k] * ((1 + lam) if i == k else 1.0) + (1e-12 if i == k else 0.0) for k in range(3)] for i in range(3)]
+            try:
+                d = core.solve_linear_system(m, jtr)
+            except Exception:  # singular step: increase damping
+                lam *= 10
+                continue
+            cand = [core.clamp(u[i] - d[i], *bounds[i]) for i in range(3)]
+            new = loss(cand)
+            if new < cur:
+                u, cur = cand, new
+                lam = max(lam / 3, 1e-9)
+                improved = True
+                break
+            lam *= 4
+        if not improved or cur < 1e-14:
+            break
+    return u, cur
+
+
+def fit_richards(pts: List[Tuple[float, ...]], c0: float) -> Dict[str, float]:
+    best: Optional[Tuple[List[float], float]] = None
+    for t0 in START_T50:
+        for a in START_A:
+            for nu in START_NU:
+                res = _lm3(pts, c0, [math.log(a), math.log(t0), math.log(nu)])
+                if best is None or res[1] < best[1] - 1e-15:
+                    best = res
+    assert best is not None
+    a, t0, nu = (math.exp(x) for x in best[0])
+    return {"a": a, "t0": t0, "nu": nu, "loss": best[1]}
+
+
+def train_shared_richards(priors: Dict[str, Dict[str, float]], c0: Dict[str, float], obs: List[Dict], cfg: Dict) -> List[float]:
+    """Two shared factors (kinetic, capacity) on Richards design curves; the same loss, prior, bounds and Adam
+    settings as core.train_twin (checked against it for nu = 1 in the tests)."""
+    th = [0.0, 0.0]
+    m1 = [0.0, 0.0]
+    m2 = [0.0, 0.0]
+    n = len(obs)
+    for ep in range(1, int(cfg["epochs"]) + 1):
+        g = [2 * cfg["lambdaPrior"] * th[0], 2 * cfg["lambdaPrior"] * th[1]]
+        for o in obs:
+            p = priors[o["sp"]]
+            f, d_la, d_lt, _ = _richards_grad(p["a"] * math.exp(th[0]), p["t0"] * math.exp(th[1]) * o.get("z", 1.0), p["nu"], o["t"])
+            r = (c0[o["sp"]] * f - o["y"]) / c0[o["sp"]]
+            g[0] += 2 * r * d_la / n
+            g[1] += 2 * r * d_lt / n
+        for i in range(2):
+            m1[i] = cfg["beta1"] * m1[i] + (1 - cfg["beta1"]) * g[i]
+            m2[i] = cfg["beta2"] * m2[i] + (1 - cfg["beta2"]) * g[i] * g[i]
+            mh = m1[i] / (1 - math.pow(cfg["beta1"], ep))
+            vh = m2[i] / (1 - math.pow(cfg["beta2"], ep))
+            th[i] -= cfg["lrPhys"] * mh / (math.sqrt(vh) + cfg["eps"])
+            th[i] = core.clamp(th[i], -cfg["phiBound"], cfg["phiBound"])
+    return th
 
 
 # ---------------------------------------------------------------------------------------------
@@ -230,6 +347,7 @@ def column_reference(points: Dict[str, List[Point]]) -> Dict[str, Dict[str, floa
         c0 = mean_influent(pts)
         fit = fit_thomas([(p[0], p[2]) for p in pts], c0)
         fit["C0"] = c0
+        fit["asym"] = fit_richards([(p[0], p[2]) for p in pts], c0)
         ref[sp] = fit
     return ref
 
@@ -254,6 +372,12 @@ def run_case(data: Dict[str, Dict[str, List[Point]]], refs: Dict[str, Dict[str, 
     cfg_h = dict(core.TWIN_CONFIG)
     cfg_h.update(core.EXPERIMENTAL_HYBRID_CONFIG)
     theta_h = core.train_twin(None, SPECIES, obs, cfg_h, ctxs)["theta"]
+    priors_asym = {
+        sp: {"a": refs[source][sp]["asym"]["a"], "t0": refs[source][sp]["asym"]["t0"] * flow_ratio, "nu": refs[source][sp]["asym"]["nu"]}
+        for sp in SPECIES
+    }
+    th_asym = train_shared_richards(priors_asym, c0_model, obs, cfg)
+    learned["TWIN_ASYM"] = {"kineticFactor": math.exp(th_asym[0]), "capacityFactor": math.exp(th_asym[1])}
     learned["INDEPENDENT"] = {}
     for sp in SPECIES:
         ctx = ctxs[sp]
@@ -268,6 +392,10 @@ def run_case(data: Dict[str, Dict[str, List[Point]]], refs: Dict[str, Dict[str, 
         curves["DATA_ONLY"][sp] = lambda t, d=d, c0=c0_model[sp]: c0 * thomas_fraction(d["a"], d["t50"], t)
         o = refs[target][sp]
         curves["ORACLE"][sp] = lambda t, o=o: o["C0"] * thomas_fraction(o["a"], o["t50"], t)
+        pa = priors_asym[sp]
+        curves["STATIC_ASYM"][sp] = lambda t, pa=pa, c0=c0_model[sp]: c0 * richards_fraction(pa["a"], pa["t0"], pa["nu"], t)
+        curves["TWIN_ASYM"][sp] = lambda t, pa=pa, c0=c0_model[sp]: c0 * richards_fraction(
+            pa["a"] * math.exp(th_asym[0]), pa["t0"] * math.exp(th_asym[1]), pa["nu"], t)
 
     test_points = {sp: [p for p in tgt[sp] if p[0] > cutoff] for sp in SPECIES}
     c0_eval = {sp: mean_influent(tgt[sp]) for sp in SPECIES}
@@ -321,6 +449,7 @@ def run_case(data: Dict[str, Dict[str, List[Point]]], refs: Dict[str, Dict[str, 
         "modelC0NgL": {sp: r4(c0_model[sp]) for sp in SPECIES},
         "learned": {
             "TWIN": {k: r4(v) for k, v in learned["TWIN"].items()},
+            "TWIN_ASYM": {k: r4(v) for k, v in learned["TWIN_ASYM"].items()},
             "INDEPENDENT": {sp: {k: r4(v) for k, v in learned["INDEPENDENT"][sp].items()} for sp in SPECIES},
         },
         "methods": out_methods,
@@ -329,7 +458,7 @@ def run_case(data: Dict[str, Dict[str, List[Point]]], refs: Dict[str, Dict[str, 
     }
     if keep_curves:
         case["curves"] = {
-            m: {sp: [r4(curves[m][sp](t)) for t in CURVE_DAYS] for sp in SPECIES} for m in ["STATIC", "TWIN", "DATA_ONLY", "ORACLE"]
+            m: {sp: [r4(curves[m][sp](t)) for t in CURVE_DAYS] for sp in SPECIES} for m in ["STATIC", "TWIN", "DATA_ONLY", "ORACLE", "TWIN_ASYM"]
         }
         case["curveDays"] = CURVE_DAYS
         case["observed"] = {sp: [{"day": p[0], "effluent": p[2], "influent": p[1], "known": p[0] <= cutoff} for p in tgt[sp]] for sp in SPECIES}
@@ -375,8 +504,10 @@ def in_sample_scores(data: Dict[str, Dict[str, List[Point]]], refs: Dict[str, Di
             o = refs[col][sp]
             twin_err = [(o["C0"] * thomas_fraction(o["a"], o["t50"], p[0]) - p[2]) / c0 for p in pts]
             psdm_err = [(psdm[sp][p[0]] - p[2]) / c0 for p in pts]
-            per[sp] = {"thomasNrmse": r4(_rmse(twin_err)), "epaPsdmNrmse": r4(_rmse(psdm_err)),
-                       "thomasA": r4(o["a"]), "thomasDay50": r4(o["t50"])}
+            g = o["asym"]
+            asym_err = [(o["C0"] * richards_fraction(g["a"], g["t0"], g["nu"], p[0]) - p[2]) / c0 for p in pts]
+            per[sp] = {"thomasNrmse": r4(_rmse(twin_err)), "epaPsdmNrmse": r4(_rmse(psdm_err)), "asymNrmse": r4(_rmse(asym_err)),
+                       "thomasA": r4(o["a"]), "thomasDay50": r4(o["t50"]), "asymNu": r4(g["nu"])}
         out[col] = per
     rep = {}
     for sp in SPECIES:

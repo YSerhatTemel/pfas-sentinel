@@ -63,7 +63,7 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Engineering Integrity, In-Silico Evidence & Servitization ROI',
       criterion: 'Challenge Fit & Feasibility',
       script:
-        `“We tested the twin honestly: a hidden virtual plant generates the data and the model never sees its parameters. Across 16 simulated plants it forecast the PFOA/PFOS breach with a ${twinMae}-day mean error versus ${staticMae} days for a vendor curve, and in a daily decision test it rotated a median ${Math.round(ops.twin.medianDays)} days before the breach, never after it. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”`,
+        `“We tested the twin honestly: a hidden virtual plant generates the data and the model never sees its parameters. Across 16 simulated plants it forecast the PFOA/PFOS breach with a ${twinMae}-day mean error versus ${staticMae} days for a vendor curve, and in a daily decision test it rotated a median ${Math.round(ops.twin.medianDays)} days before the breach, never after it. We then tested it, unchanged, on public measured data. At a full-scale lead-lag plant the mid-bed port crossed 4 ppt at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)} to ${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet’s bed volumes — real early warning — but the twin’s outlet forecast came too late, so we report that openly and fix it next, with operator sign-off as the default. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”`,
     },
     {
       part: 'Part 4 • 2:25 – 3:00',
@@ -361,8 +361,10 @@ export const BusinessAndPitchTab: React.FC = () => {
               be measured in the pilot.
             </p>
             <p className="text-slate-500">
-              On measured EPA pilot data the timing logic is not yet proven: the twin&apos;s 4 ng/L crossing fell inside the sampling interval in{' '}
-              {EXTERNAL_TWIN_CHECK.fourNgLInside} of {EXTERNAL_TWIN_CHECK.fourNgLForecasts} forecasts (Twin Lab tab, external check).
+              On measured data the timing logic is not yet proven: at a full-scale plant the twin&apos;s lead-outlet 4 ng/L forecast was late in{' '}
+              {EXTERNAL_TWIN_CHECK.fullScaleTwinLate} of {EXTERNAL_TWIN_CHECK.fullScaleFourNgLForecasts} cases, while the halfway port itself crossed 4 ng/L
+              at {Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}–{Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the
+              outlet&apos;s bed volumes (Twin Lab tab, external checks).
             </p>
           </div>
         </div>
@@ -540,9 +542,10 @@ export const BusinessAndPitchTab: React.FC = () => {
               records and score its PFOA/PFOS breakthrough forecasts against what actually happened.
             </p>
             <p className="text-xs text-slate-400 leading-relaxed">
-              A first check on public EPA pilot data (Twin Lab tab) already sets two tasks: an asymmetric
-              curve form for the early 4 ng/L crossing, and starting values from an RSSCT in site water
-              instead of clean-water vendor curves.
+              Checks on public measured data (Twin Lab tab) already set the first tasks: a front that
+              spreads with depth (the twin&apos;s 4 ng/L outlet forecast was late at a full-scale plant),
+              starting values from an RSSCT in site water, and a model-free guard based on the
+              mid-bed crossing.
             </p>
           </div>
 

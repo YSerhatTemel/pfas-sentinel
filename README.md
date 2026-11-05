@@ -1,7 +1,7 @@
 # PFAS-Sentinel™ | Mid-Bed MIP Sensing & a Physics-Based Breakthrough Twin
 
 **Challenge #2: Water Quality — Xylem Global Student Innovation Challenge 2026**  
-**Technology Readiness Level:** TRL 2–3 (numerical proof of concept on a synthetic testbench, plus a first check of the twin on public U.S. EPA pilot data)  
+**Technology Readiness Level:** TRL 2–3 (numerical proof of concept on a synthetic testbench, plus checks of the twin on two public measured datasets)  
 **Target platform (concept):** Xylem Vue powered by GoAigua & Evoqua media service  
 **Stack:** TypeScript / React 18 / Vite / Tailwind CSS · Python 3.8+ (standard library only) · [MIT License](LICENSE)
 
@@ -12,17 +12,27 @@
 
 **🔗 Live interactive demo:** https://yserhattemel.github.io/pfas-sentinel/ · New to the terminology? See [Key terms, explained](#key-terms-explained).
 
+| [![Plant twin](docs/screenshots/01-plant-twin.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=twin) | [![Breakthrough Twin Lab](docs/screenshots/03-twin-lab.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn) |
+| :---: | :---: |
+| **1. Plant twin** — simulated lead-lag train, mid-bed tracer, final-effluent screen | **3. Breakthrough Twin Lab** — validation protocol on the synthetic testbench |
+| [![External check on EPA pilot data](docs/screenshots/04-external-check-1.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn#external-check) | [![External check on a full-scale plant](docs/screenshots/05-external-check-2.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn#fullscale-check) |
+| **External check 1** — measured EPA pilot data (Section 3.8.1) | **External check 2** — full-scale plant with a mid-bed port (Section 3.8.2) |
+| [![Early-warning system](docs/screenshots/06-early-warning.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=agentic) | [![Sensor concept](docs/screenshots/02-sensor.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=biosensor) |
+| **4. Early-warning system** — computed interlocks, co-pilot sign-off, audit log | **2. Sensor concept** — MIP array, calibration-based blind estimator |
+
+*Screenshots of the live demo; click one to open that tab. The [Impact & ROI tab](https://yserhattemel.github.io/pfas-sentinel/?tab=business) ([screenshot](docs/screenshots/07-impact.png)) holds the economics, roadmap and pitch script.*
+
 > [!NOTE]
 > PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
 
 > [!IMPORTANT]
-> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only test on measured data: the twin, unchanged, on a public U.S. EPA GAC pilot dataset — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py` and `python simulation/external_validation.py` and checked by the test suites.
+> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only part that uses measured data: the twin, unchanged, on a public U.S. EPA pilot dataset and on a full-scale lead-lag plant with a mid-bed port — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py` , `python simulation/external_validation.py` and `python simulation/external_validation_fullscale.py`, and checked by the test suites (CI recomputes every number).
 
 ### How PFAS-Sentinel addresses the judging criteria
 | Criterion | Where to look |
 | :--- | :--- |
 | **Impact** — meaningfulness & reach | In-silico decision test and economics with sensitivity and US market size ([Sections 3.5](#35-results-on-the-testbench) and [8](#8-municipal-economic--environmental-model)) |
-| **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports ([Section 4](#4-hardware-hydraulic-interfacing--durability)); interlocked, logged control ([Section 3.7](#37-early-warning-decision-and-safety-interlocks)); first check on measured EPA pilot data, weaknesses included ([Section 3.8](#38-external-check-on-measured-pilot-data-us-epa)); TRL 2–3 disclosure and 12-month roadmap with a software-first Phase 0 ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
+| **Challenge Fit & Feasibility** — Water Quality, real-world path | Retrofit onto existing vessel ports ([Section 4](#4-hardware-hydraulic-interfacing--durability)); interlocked, logged control ([Section 3.7](#37-early-warning-decision-and-safety-interlocks)); checks on two public measured datasets, weaknesses included ([Section 3.8](#38-external-checks-on-measured-data)); TRL 2–3 disclosure and 12-month roadmap with a software-first Phase 0 ([Section 6](#6-technology-readiness-level--in-silico-disclosure)) |
 | **Innovation** — originality | Mid-bed PFBA/PFBS as early tracers that teach the twin the bed's condition, so PFOA/PFOS forecasts improve before PFOA/PFOS themselves move ([Section 3](#3-model-and-methods)) |
 | **Ecosystem fit** — how it plugs into Xylem | One sensor pod + one twin, designed around six existing Xylem/Evoqua offerings ([table below](#xylem-ecosystem-integration)) |
 
@@ -77,7 +87,9 @@ Utilities removing PFAS ("forever chemicals") with granular activated carbon (GA
 | Is the uncertainty band honest? | Nominal 95%; **91%** coverage on held-out synthetic plants (67% without the model-form term) |
 | Does the 4×4 deconvolution matter? | Random mixtures: **21%** mean error with it, **76%** without |
 
-**First check on measured data (Section 3.8, U.S. EPA pilot, two F400 columns):** sharing the bed condition across species beat fitting each species alone (PFOA/PFOS day-50 error **8.5 vs 41.7 days** at the earliest cut-off). But the twin did **not** beat a good site-specific starting curve, its 4 ng/L crossing was inside the sampling interval in only **3 of 9** forecasts, and clean-water isotherms proved unusable as starting values. These are the next things to fix.
+**Checks on measured data (Section 3.8):**
+- *Supported:* at a full-scale lead-lag plant the **mid-bed (halfway) port crossed 4 ng/L at 37–51% of the lead outlet's bed volumes** for PFOA/PFOS — real early warning. Sharing the bed condition across species beat fitting each species alone on EPA pilot data (day-50 error **8.5 vs 41.7 days**), and an asymmetric curve form cut the full-scale forecast error from 22–23% to 14–18%.
+- *Not yet supported:* the twin's forecast of the lead-outlet 4 ng/L crossing was **late in 7 of 7** full-scale cases, it did not beat a good site-specific starting curve, and clean-water isotherms are unusable as starting values. These are the next things to fix.
 
 ### Modeled economics (6-vessel plant, assumptions in Section 8)
 | Metric | Value |
@@ -102,7 +114,7 @@ The project uses specialist vocabulary from water treatment, electrochemistry an
 | **Mass Transfer Zone (MTZ)** | The band of media that is actively adsorbing. Above it the media is saturated; below it the media is still clean. | The MTZ moves down the bed like a slow wave. Tracking its position is what lets the twin forecast when the outlet will exceed the limit. |
 | **Breakthrough & Bed Volumes (BV)** | Breakthrough is when a contaminant starts appearing at the outlet. One bed volume is the amount of water equal to the volume of the media bed. | Bed volumes let results from columns of different sizes be compared; the literature reports PFAS breakthrough in BV. |
 | **Chromatographic roll-up (Cₜ > C₀)** | Strongly held long-chain PFAS push weakly held short-chain PFAS back off the carbon, so the outlet can briefly carry more short-chain PFAS than the inlet. | Grab samples taken every few weeks can miss these spikes completely; continuous mid-bed data can see them coming. |
-| **MCL / Hazard Index** | Maximum Contaminant Level: the legal limit in drinking water (4.0 ppt for PFOA and PFOS in the US). The Hazard Index is a combined score for a PFAS mixture. | EPA plans to keep the PFOA/PFOS MCLs and rescind the Hazard Index, so PFOA/PFOS are the targets that drive actuation in this design. |
+| **MCL / Hazard Index** | Maximum Contaminant Level: the legal limit in drinking water (4.0 ppt for PFOA and PFOS in the US). The Hazard Index is a combined score for a PFAS mixture. | EPA has proposed to keep the PFOA/PFOS MCLs and rescind the Hazard Index (not final as of September 2026), so PFOA/PFOS are the targets that drive actuation in this design. |
 | **LC-MS/MS (EPA Method 533 / 537.1)** | Liquid chromatography with tandem mass spectrometry: the certified laboratory method for measuring PFAS at parts-per-trillion levels. | It is accurate but slow and costly (the project assumes 10–14 days and $300–$500 per sample, to be confirmed with labs). PFAS-Sentinel keeps it for compliance and adds continuous data in between. |
 | **RSSCT** | Rapid Small-Scale Column Test: a lab column filled with crushed media that reproduces months of full-scale operation in days or weeks. | It is the planned TRL 5 step for testing the sensor cartridge and the twin on real breakthrough curves without a full-scale plant. |
 
@@ -269,8 +281,11 @@ Interlocks are **computed from simulated telemetry**, not fixed: sonde heartbeat
 
 **Lead-lag rotation in the twin:** the lead vessel is $z \in [0,1]$, the lag $z \in [1,2]$. At rotation the former lag becomes the lead with an equivalent loading time (the mass it has retained), and fresh media becomes the lag. Compliance values shown in the demo are an **instantaneous screen of the simulated final effluent**, not a compliance determination.
 
-### 3.8 External check on measured pilot data (U.S. EPA)
-Everything above uses the synthetic testbench. As a first check against measurements, the twin was run **unchanged** (same code, same settings) on a public U.S. EPA pilot dataset (Haupert et al. 2023; data [doi:10.23719/1529105](https://doi.org/10.23719/1529105), public domain). Two identical Calgon F400 GAC columns (4.07 kg each, empty-bed contact time ≈ 3.5 min) at a New Jersey groundwater utility were fed the same well water and sampled 18 times over 392 days. Mean influent: PFBA 6.9, PFBS 8.8, PFOA 24.3, PFOS 46.1 ng/L. Code, protocol and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/data/`](simulation/data); results: `simulation/external_validation.json`; the Twin Lab tab shows the same results.
+### 3.8 External checks on measured data
+Everything above uses the synthetic testbench. The twin was then run **unchanged** (same code, same settings) on two independent public datasets. Code, protocols and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/external_validation_fullscale.py`](simulation/external_validation_fullscale.py), [`simulation/data/`](simulation/data); results in `simulation/external_validation*.json`; the Twin Lab tab shows both checks.
+
+#### 3.8.1 U.S. EPA pilot: two identical F400 columns
+Public U.S. EPA pilot dataset (Haupert et al. 2023; data [doi:10.23719/1529105](https://doi.org/10.23719/1529105), public domain). Two identical Calgon F400 GAC columns (4.07 kg each, empty-bed contact time ≈ 3.5 min) at a New Jersey groundwater utility were fed the same well water and sampled 18 times over 392 days. Mean influent: PFBA 6.9, PFBS 8.8, PFOA 24.3, PFOS 46.1 ng/L.
 
 **Protocol (fixed after looking at the raw table, before any model was fitted to it).** The twin needs species-specific starting values. A utility would take them from a pilot, an RSSCT in site water or the previous bed; here, curves fitted to all data of one column are the starting values for the other (both directions). The twin then learns from the outlet samples taken on or before a cut-off day (14, 28 or 42) and is scored on the later samples. There is no mid-bed port in this pilot, so the twin learns from outlet data only.
 
@@ -279,22 +294,51 @@ Everything above uses the synthetic testbench. As a first check against measurem
 | Sibling-column curve, unchanged | 10.5 / 10.5 / 10.5 d | 19 / 20 / 20% |
 | **Twin, shared bed condition (default)** | **8.5 / 9.6 / 16.5 d** | 21 / 19 / 20% |
 | Twin, PINN-style option | 8.5 / 5.6 / 13.0 d | 20 / 19 / 20% |
+| Twin, asymmetric curve (added after these results, see below) | 17.5 / 17.4 / 18.0 d | 18 / 18 / 19% |
 | Same model, each species fitted alone | 41.7 / 26.5 / 18.0 d | 28 / 23 / 23% |
 | Curve through the early samples only, no prior | 73.6 / 51.9 / 38.3 d | 39 / 30 / 23% |
 | Best curve of this form, fitted to all data (reference) | — | 19 / 19 / 20% |
 
-*Day-50 error:* the day the outlet reaches 50% of influent, against a curve of the same form fitted to all data of that column. *Error on later samples:* RMSE divided by the mean influent; the two columns differ from each other by 7–11% of influent on the same days.
+*Day-50 error:* the day the outlet reaches 50% of influent, against a symmetric curve fitted to all data of that column (so it slightly penalizes the asymmetric curve). *Error on later samples:* RMSE divided by the mean influent; the two columns differ from each other by 7–11% of influent on the same days.
 
-**What the measured data support**
+**What these data support**
 - **Sharing the bed condition across species helps** — most when data are scarce (8.5 vs 41.7 days at cut-off 14) — and a prior is essential: a curve through the early samples alone was off by 38–74 days.
 - **The curve form is adequate on average.** Fitted to all data, it matches the measured curves about as closely as EPA's own fitted pore and surface diffusion model (in-sample error 13–24% vs 16–24% of influent).
 
-**What they do not support (yet)**
+**What they do not support**
 - **No gain over a good site-specific starting curve.** Learning from the new column did not beat leaving the sibling curve unchanged (errors within the measurement scatter; day-50 error better at cut-offs 14 and 28, worse at 42). In this pilot the starting curve was already nearly right, so there was little to correct; the synthetic advantage (17 vs 54 days in Section 3.5) comes from a starting curve that is wrong.
 - **The 4 ng/L crossing is the weak spot.** Measured curves start at zero and approach the influent level only slowly. A symmetric curve fitted to the whole run starts too high — it puts PFOS above 4 ng/L on day 0, while the samples stay below 4 ng/L through day 14. The planned comparison of 4 ng/L days against the reference curve was therefore invalid; **after the first run** it was replaced by a check against the observed sampling interval. In the 9 forecasts still open at the cut-off, the twin was inside the interval 3 times, late 4 times and early twice (its band overlapped the interval 7 times). A curve through the early samples alone was inside 6 times but missed the rest of the curve.
 - **Clean-water isotherms are not usable starting values.** With F400 isotherms measured by EPA in organic-free water (Abulikemu et al. 2025), the equilibrium 50% day overestimates the observed one by factors that differ **640-fold** between species (130-fold with the coarser 60×100 mesh data). The gap reflects natural organic matter, competition and slow diffusion into the grains at short contact times. One shared factor cannot correct a gap that differs this much between species, so the twin must start from site-water data.
 
-**Limits:** one site, one carbon, two columns on the same water, 14-day sampling, a 3.5-minute contact time (full-scale beds use 10–20 min) and outlet-only data. **Consequences for the roadmap:** an asymmetric curve form (for example the generalized logistic already used by the testbench, or a PSDM-based twin) and starting values from an RSSCT in site water — both to be tested on a second, independent dataset before any claim about 4 ng/L forecasts on real beds.
+**Asymmetric curve option (added after these results).** The same twin with a generalized-logistic (Richards) front, $C/C_0 = (1+\nu\,e^{a(t_0 z - t)})^{-1/\nu}$, which still solves the advection equation exactly; $\nu$ comes from the starting curve and the two shared factors are learned as before. Here it had the lowest later-sample error (18–19%) and fewer late 4 ng/L forecasts (2 instead of 4 of 9, inside still 3). Because these data had been seen, this was only exploratory; the confirmatory test is 3.8.2.
+
+#### 3.8.2 Full-scale lead-lag GAC with a mid-bed port (Penn State, 2021)
+Crew (2021, Penn State master's paper, [doi:10.26207/qc55-h661](https://doi.org/10.26207/qc55-h661), CC BY-SA 4.0) reports two full-scale lead-lag trains of one water system (Sites 1 and 2; coconut GAC AquaCarb 1230CX, 285 ft³ per vessel), sampled weekly at the lead vessel's **halfway port** ($z = 0.5$) and **between the vessels** (lead outlet, $z = 1$) for about 1.5 years — the exact layout PFAS-Sentinel is designed for. PFBA was not measured, so PFHxA serves as the short-chain tracer. The results exist only as charts; because the charts are vector graphics, the points were read from their drawing coordinates, calibrated on each chart's own gridlines (largest residual 0.03 ng/L and 5 bed volumes) and checked against the bed volumes the author states in the text (all within one sampling interval). Influent is given only as averages (site 1: PFOA 11, PFOS 18 ng/L; site 2: PFOA 14, PFOS 172 ng/L); bed volumes carry ±10% uncertainty. Extraction tool: [`simulation/tools/extract_crew2021_charts.py`](simulation/tools/extract_crew2021_charts.py).
+
+**Protocol (written before the chart data were extracted).** The twin learns from halfway-port samples up to 1/3 or 1/2 of each site's record and forecasts the lead outlet through its travelling-wave scaling. Starting values come from the *other* site (same carbon and vessels, different wells, both directions). Scores: error on the later lead-outlet samples and the 4 ng/L crossing against the observed sampling interval. This is also the confirmatory test of the asymmetric curve.
+
+| Method — PFOA + PFOS, both directions | Later lead-outlet samples (% of influent), cut-off 1/3 / 1/2 | Lead-outlet 4 ng/L crossing, 7 open forecasts |
+| :--- | ---: | :--- |
+| Other site's curve, unchanged | 17 / 18% | 0 inside · 3 early · 4 late |
+| Twin, shared bed condition (default) | 23 / 22% | 0 inside · 7 late |
+| **Twin, asymmetric curve** | **18 / 14%** | 0 inside · 7 late |
+| Same model, each species fitted alone | 21 / 25% | 0 inside · 7 late |
+| Halfway-port data only, no prior | 21 / 24% | 0 inside · 7 late |
+| Other site's asymmetric curve, unchanged | 20 / 21% | 0 inside · 4 early · 3 late |
+
+**What these data support**
+- **The mid-bed port gives early warning.** At both plants the halfway port crossed 4 ng/L long before the lead outlet: at 37–51% of the outlet's bed volumes for PFOA and PFOS (57–68% for PFHxA). This is a model-free comparison added after the protocol's results, but it is the physical basis of the sensor concept, observed at full scale.
+- **The asymmetric curve form is confirmed for the bulk of the curve.** On these independent data it cut the twin's later-sample error from 22–23% to 14–18% and was the best method at the later cut-off.
+
+**What they do not support**
+- **The twin's 4 ng/L forecast is not yet usable.** Every twin variant forecast the lead-outlet crossing too late in all 7 open cases — the unsafe direction. The twin maps the halfway port to the outlet assuming the breakthrough front keeps its shape; here the outlet's fitted 50% point came 1.5–1.7 times earlier than that mapping predicts, i.e. the front spreads as it moves through the bed. The 4 ng/L level also sits close to the 1 ng/L reporting step of these low-concentration data.
+- **Sharing the bed condition did not help across sites.** With another site's curve as the starting point, learning from the halfway port made the symmetric twin worse than leaving the curve unchanged (22–23% vs 17–18%).
+
+#### 3.8.3 What follows from both checks
+- **Decision layer:** until a model passes the 4 ng/L test on real data, the outlet forecast cannot be the only basis for rotation. The halfway-port crossing itself is the robust, model-free signal (it led the outlet in every case), and the operator sign-off (co-pilot) mode stays the default.
+- **Model:** the asymmetric front is supported; the front must also be allowed to spread with depth; starting values must come from site water (RSSCT, pilot or previous bed), not clean-water isotherms.
+- **Data:** a third independent dataset with a mid-bed port and an influent series, ideally a partner utility's records (Phase 0).
+- **Limits:** two studies, two carbons, low concentrations at three of four columns, influent known only as averages at full scale, bed volumes ±10%, and charted rather than tabulated full-scale data.
 
 ---
 
@@ -314,9 +358,9 @@ Everything above uses the synthetic testbench. As a first check against measurem
 ## 5. Regulatory Positioning
 
 **US EPA NPDWR (April 2024, 89 FR 32532)**
-- **PFOA and PFOS: MCL 4.0 ppt.** Initial monitoring by 2027 with public reporting of levels; compliance originally by 2029.
+- **PFOA and PFOS: MCL 4.0 ppt.** Initial monitoring by 2027 with public reporting of levels; compliance by 2029 under the 2024 rule (a move to 2031 is proposed, see below).
 - PFHxS, PFNA, HFPO-DA (GenX): MCL 10 ppt; Hazard Index for mixtures incl. PFBS.
-- **Update:** in May 2025 EPA announced it will **keep the PFOA/PFOS MCLs**, extend their compliance date to **2031**, and rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits (proposed rules followed). PFOA/PFOS are therefore the durable targets, which is why they alone drive actuation. The rule layer is software-configurable if the rules change again.
+- **Update:** EPA announced in May 2025, and formally proposed on May 18, 2026, to **keep the PFOA/PFOS MCLs**, extend their compliance date to **2031**, and rescind the PFHxS, PFNA, HFPO-DA and Hazard Index limits (comments closed July 20, 2026). **Neither proposal was final** at the last check (Harvard EELP tracker, updated September 18, 2026, the day the D.C. Circuit heard *AWWA v. EPA*), so the 2024 rule, including the 2029 compliance date, still stands. PFOA/PFOS are the durable targets either way, which is why they alone drive actuation. The rule layer is software-configurable if the rules change again.
 - Compliance is judged on **running annual averages of quarterly samples**; the demo's instantaneous screen of simulated data is not a compliance determination.
 
 **EU Drinking Water Directive (EU) 2020/2184 — applicable from January 2026**
@@ -340,10 +384,10 @@ Everything above uses the synthetic testbench. As a first check against measurem
 > [!IMPORTANT]
 > PFAS-Sentinel is a **TRL 2–3 computational proof-of-concept**. All observations, sensor signals and telemetry are generated by the in-silico testbench; they are **not field or laboratory measurements**. The single exception is the external check in Section 3.8, which uses published U.S. EPA pilot measurements as they are.
 
-- **No digitized literature data.** The testbench is informed by qualitative findings (McCleaf et al. 2017; Park et al. 2020), but no published data points were digitized; NOM-fouling strengths are assumptions. The EPA data in Section 3.8 were taken from EPA's published spreadsheet, not digitized from figures.
+- **No digitized literature data.** The testbench is informed by qualitative findings (McCleaf et al. 2017; Park et al. 2020), but no published data points were digitized; NOM-fouling strengths are assumptions. Exception, disclosed: the EPA data in Section 3.8.1 come from EPA's published spreadsheet, but the full-scale data in Section 3.8.2 were read from the vector charts of a public report (exact drawing coordinates, calibrated on the charts' gridlines and checked against the author's stated values).
 - **Facility profiles are representative, not utility data.** The KKWWD (lead-lag GAC) and Stratmoor Hills (selective IX) profiles are inspired by published Xylem/Evoqua case studies; flows, media masses and influent levels are illustrative. The EU hybrid profile is hypothetical.
 - **Inverse crime avoided by construction.** The twin's priors are vendor-level values, not the hidden testbench values; the sensor estimator learns only from simulated calibration runs.
-- **Open validation items:** the first external check (Section 3.8) found two weaknesses to fix — the symmetric curve form at the 4 ng/L crossing and the need for site-water starting values — and the fixes must be tested on a second, independent dataset, ideally with a mid-bed port; wet-lab sensor calibration; and utility interviews on today's changeout practice (to test the 20–30% hypothesis).
+- **Open validation items:** the external checks (Section 3.8) confirmed the mid-bed early warning and the asymmetric curve form, but the twin's 4 ng/L forecast was late on full-scale data and must be fixed (a front that spreads with depth, site-water starting values) and re-tested on a third dataset with a mid-bed port and influent series; wet-lab sensor calibration; and utility interviews on today's changeout practice (to test the 20–30% hypothesis).
 
 ### 12-month validation roadmap (two parallel tracks)
 
@@ -356,7 +400,7 @@ flowchart LR
     T5 --> T6
 ```
 
-- **Phase 0 (software-first).** Utilities already collect periodic mid-bed and outlet grab samples. The twin is built for this kind of sparse data — the validation protocol uses only five mid-bed points per species. Running it on a partner utility's historical records tests the forecasting value **before any sensor exists**, and is also where the PINN-style option is compared with the default on real data. The first public-data check (Section 3.8) already sets Phase 0's first two tasks: an asymmetric curve form for the 4 ng/L crossing, and starting values from an RSSCT in site water instead of clean-water vendor curves.
+- **Phase 0 (software-first).** Utilities already collect periodic mid-bed and outlet grab samples. The twin is built for this kind of sparse data — the validation protocol uses only five mid-bed points per species. Running it on a partner utility's historical records tests the forecasting value **before any sensor exists**, and is also where the PINN-style option is compared with the default on real data. The public-data checks (Section 3.8) already set Phase 0's first tasks: a front that may spread with depth (the asymmetric form helps but the 4 ng/L forecast was still late), starting values from an RSSCT in site water instead of clean-water vendor curves, and a model-free mid-bed guard in the decision layer.
 - **Sensor track (TRL 4 → 6).** Go/no-go measures: limit of detection and cross-selectivity against EPA Method 533 (TRL 4), 30-day cartridge stability in a rapid small-scale column test (TRL 5), and measured media-life extension at a utility slipstream (TRL 6; modeled 28%, break-even 6%).
 
 ---
@@ -441,9 +485,10 @@ Python reference and validation report (standard library only):
 python -m unittest discover -s simulation -p "test_*.py"
 python simulation/validation_report.py
 python simulation/external_validation.py
+python simulation/external_validation_fullscale.py
 ```
 
-The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. `external_validation.py` regenerates `simulation/external_validation.json` (Section 3.8) from the EPA data in `simulation/data/`. CI runs both test suites before every deployment.
+The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. `external_validation.py` and `external_validation_fullscale.py` regenerate `simulation/external_validation.json` and `simulation/external_validation_fullscale.json` (Section 3.8) from the data in `simulation/data/`. CI runs both test suites before every deployment, including a full recomputation of every synthetic and external number (about 8 minutes; locally `PFAS_FULL_REPRO=1` switches it on). Deep links: `?tab=pinn#external-check` opens the external checks in the demo.
 
 ---
 
@@ -457,10 +502,12 @@ pfas-sentinel/
 │   ├── validation_report.py            # Ablation, uncertainty calibration, decision test, sensor benchmark
 │   ├── validation_report.json          # Generated results (read by the README and the demo)
 │   ├── reference_outputs.json          # Fixture for the TS/Python parity test
-│   ├── external_validation.py          # Section 3.8: the twin on measured EPA pilot data
-│   ├── external_validation.json        # Generated results of the external check (read by the demo)
-│   ├── data/                           # EPA pilot data and F400 isotherms (public domain, sources in file headers)
-│   └── test_pfas_sentinel.py · test_external_validation.py   # Python unit tests
+│   ├── external_validation.py          # Section 3.8.1: the twin on measured EPA pilot data
+│   ├── external_validation_fullscale.py  # Section 3.8.2: full-scale lead-lag plant with a mid-bed port
+│   ├── external_validation*.json       # Generated results of the external checks (read by the demo)
+│   ├── data/                           # EPA pilot data, F400 isotherms, full-scale chart data (sources and licenses in headers)
+│   ├── tools/                          # Vector-chart reader used for the full-scale data
+│   └── test_*.py                       # Python unit tests (+ slow full reproducibility check run in CI)
 ├── src/
 │   ├── components/                     # The five demo tabs + glossary panel
 │   ├── data/
@@ -491,10 +538,11 @@ pfas-sentinel/
 9. Xylem. *PFOA/PFOS removed from municipal water well* (Stratmoor Hills, Colorado; selective single-use IX, 4 vessels, 350 gpm). https://www.xylem.com/en-lv/resources/case-studies/pfoapfos-removed-from-municipal-water-well/
 10. Xylem / Evoqua. *MitiGATOR™ Mobile System* (rental temporary treatment). https://www.xylem.com/en-uk/Catalog/products--services/services/temporary-water-treatment/mitigator-mobile-system/
 11. YSI, a Xylem brand. *EXO Modbus Signal Output Adapter*. https://www.ysi.com/product/id-599825/EXO-Modbus-Signal-Output-Adapter
-12. US EPA (May 2025). Announcement to keep PFOA/PFOS MCLs, extend compliance to 2031 and rescind PFHxS, PFNA, HFPO-DA and Hazard Index limits. Coverage: https://waterworld.com/water-utility-management/press-release/55290302/epa-announces-it-will-keep-maximum-contaminant-levels-for-pfoa-and-pfos
+12. US EPA (May 2025). Announcement to keep PFOA/PFOS MCLs, extend compliance to 2031 and rescind PFHxS, PFNA, HFPO-DA and Hazard Index limits: https://www.epa.gov/newsreleases/epa-announces-it-will-keep-maximum-contaminant-levels-pfoa-pfos — proposed rules of May 18–20, 2026 (e.g. Federal Register 2026-10085, rescission) and their status: Harvard Environmental & Energy Law Program, *PFAS in Drinking Water* tracker, https://eelp.law.harvard.edu/tracker/pfas-in-drinking-water/
 13. 2witech Solutions. Portable MIP-electrochemical PFAS screening device (NIEHS SRP, SBIR R43ES035347). https://www.niehs.nih.gov/research/supported/centers/srp/science_digest/2024/6/technology
 14. Verralize. Portable nanocarbon electrochemical PFAS sensor (company-reported 4 ppt in 12–15 min). https://www.innovationnewsnetwork.com/partner/verralizes-portable-sensor-delivers-lab-quality-pfas-detection/
 15. Rowan University (2025). NSF backs research on low-cost sensor to detect PFAS in water. https://today.rowan.edu/news/2025/10/nsf-backs-research-on-low-cost-sensor-to-detect-pfas-in-water.html
 16. Vilén, A., Laurell, P., & Vahala, R. (2022). Comparative life cycle assessment of activated carbon production from various raw materials. *Journal of Environmental Management* 324, 116356. https://doi.org/10.1016/j.jenvman.2022.116356
-17. Haupert, L. M., Redding, A., Gray, J. M., Civardi, J., Datsov, B., Sanan, T. T., Mills, M. A., Speth, T. F., & Burkhardt, J. B. (2023). Impact of phosphate addition on PFAS treatment performance for drinking water. *AWWA Water Science* 5(6), e1361. https://doi.org/10.1002/aws2.1361 — dataset: U.S. EPA ScienceHub, https://doi.org/10.23719/1529105 (used in Section 3.8).
+17. Haupert, L. M., Redding, A., Gray, J. M., Civardi, J., Datsov, B., Sanan, T. T., Mills, M. A., Speth, T. F., & Burkhardt, J. B. (2023). Impact of phosphate addition on PFAS treatment performance for drinking water. *AWWA Water Science* 5(6), e1361. https://doi.org/10.1002/aws2.1361 — dataset: U.S. EPA ScienceHub, https://doi.org/10.23719/1529105 (used in Section 3.8.1).
 18. Abulikemu, G., Pressman, J. G., Sorial, G. A., et al. (2025). Perfluoroalkyl chemical adsorption by granular activated carbon: Assessment of particle size impact on equilibrium parameters and associated rapid small-scale column test scaling assumptions. *Water Research* 271, 122977. https://doi.org/10.1016/j.watres.2024.122977 — dataset: U.S. EPA ScienceHub, https://doi.org/10.23719/1531709 (F400 isotherms, Section 3.8).
+19. Crew, A. D. (2021). *Analysis of Granular Activated Carbon Removal Efficiency of Per- and Polyfluoroalkyl Substances in Groundwater.* Professional master's paper, The Pennsylvania State University. ScholarSphere, https://doi.org/10.26207/qc55-h661 (CC BY-SA 4.0; full-scale data of Section 3.8.2, read from the report's vector charts).

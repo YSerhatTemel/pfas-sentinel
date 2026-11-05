@@ -12,6 +12,17 @@ import { GlossaryPanel } from './components/GlossaryPanel';
 
 type TabId = 'twin' | 'biosensor' | 'pinn' | 'agentic' | 'business';
 type SpeciesKey = 'PFOA' | 'PFOS' | 'PFBS' | 'PFBA';
+const TAB_IDS: TabId[] = ['twin', 'biosensor', 'pinn', 'agentic', 'business'];
+
+/** Deep link support: ?tab=pinn opens the Breakthrough Twin Lab, etc. */
+function initialTab(): TabId {
+  try {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return TAB_IDS.includes(t as TabId) ? (t as TabId) : 'twin';
+  } catch {
+    return 'twin';
+  }
+}
 
 const SCENARIO_PRESETS: Record<ScenarioId, { day?: number; flow: number; c0: number; species: SpeciesKey; label: string }> = {
   normal: { flow: 1.0, c0: 1.0, species: 'PFBA', label: 'Baseline operation' },
@@ -21,8 +32,26 @@ const SCENARIO_PRESETS: Record<ScenarioId, { day?: number; flow: number; c0: num
 };
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('twin');
+  const [activeTab, setActiveTabState] = useState<TabId>(initialTab);
+  const setActiveTab = (t: TabId) => {
+    setActiveTabState(t);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', t);
+      window.history.replaceState(null, '', url.toString());
+    } catch {
+      /* deep link is a convenience only */
+    }
+  };
   const [showGlossary, setShowGlossary] = useState<boolean>(false);
+
+  // Deep link to a section, e.g. ?tab=pinn#external-check (scrolls once after the tab has rendered).
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const timer = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [facilityId, setFacilityId] = useState<string>(XYLEM_FACILITIES[0].id);
   const facility: FacilityProfile = XYLEM_FACILITIES.find((f) => f.id === facilityId) || XYLEM_FACILITIES[0];
 
