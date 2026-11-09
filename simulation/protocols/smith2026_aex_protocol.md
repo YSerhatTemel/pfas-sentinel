@@ -169,3 +169,46 @@ On this resin PFBS elutes **after** PFOA (paper, Section 3.2), so it is not a fa
   - influent about 100 times the 4 ng/L level.
 - This is a controlled third check. It does **not** replace a full-scale GAC dataset with a mid-bed port; README §3.8.3 keeps that item open.
 - EPA's IEX-CM simulations in the paper are in-sample fits and are not used as a baseline.
+
+---
+
+## 7. Amendment A1: what the workbook contains (10 November 2026, before any model was fitted)
+
+This amendment was written after the workbook had been downloaded (SHA-256 `d19d9962c3d4e78076842d080cb208bdb783d99f4031b8c06ac166f86c0cb8bd`) and its structure had been examined. **No model had been fitted at that point.** It is committed together with the extracted CSV, before the analysis code exists.
+
+### What was looked at
+
+- The sheet names and column headers.
+- The categorical levels and their counts (species, nominal EBCT, NOM condition and replicate, outlier flags).
+- The bed-volume values of one train and species (PFBA, −NOM, Experiment 1, Replicate 1) and the largest bed volume of every train.
+- One concentration value: the earliest PFBA lead-effluent sample of the +NOM Experiment 1 Replicate 1 train, which appeared in an error message while the extractor was being written.
+
+No other concentration value was viewed.
+
+### What the workbook contains
+
+The workbook has no table of raw results. Instead, sheets `Fig1` (PFCAs) and `Fig2` (PFSAs, GenX) list **every sample plotted in Figures 1 and 2 as numbers**. For each sample they give:
+- the species,
+- the nominal EBCT (0.5 and 1.5 min = lead effluent; 1.0 and 2.5 min = lag effluent),
+- the NOM condition and replicate,
+- bed volumes ×1000 of that bed,
+- C/C0,
+- the authors' outlier flag.
+
+These are exact tabulated values, not values read from a picture. Extraction rule 4 ("not run on figures; figures are not digitized") was written to exclude digitizing. These sheets therefore count as per-sample lead and lag effluent data, and the protocol is run on them.
+
+### Consequences, fixed now
+
+1. **No per-sample influent and no ng/L values.** C/C0 is given as normalized by the authors with the mean influent of each condition (SI Table S5; influent standard deviation about 5–8 % of the mean).
+   - The model therefore works in C/C0 with $C_0 = 1$. This replaces "mean measured influent on or before the cut-off".
+   - **S4 (4 ng/L) is not scorable**, as foreseen in Section 3.
+   - Non-detect flags and reporting limits are not available; values are used as given.
+2. **Throughput axis.** Run time in days = BV × EBCT (the authors computed BV from run time and the actual EBCT).
+   - The train EBCT comes from Table S3.
+   - The lead EBCT is derived from the ratio of the last lead and lag bed volumes. It agrees with Table S3 within its rounding for all eight trains; the values are listed in the CSV header.
+   - Flow is 40 mL/min in every train, and resin mass is equal within an experiment. Run time is therefore proportional to the protocol's throughput per gram of resin within an experiment, and starting curves never cross experiments.
+   - $z_p$ stays at the resin-mass values 0.500 and 0.600.
+3. **Outliers.** The workbook flags 11 samples in `Fig1` and 8 in `Fig2`. The primary analysis keeps them. The sensitivity run (extraction rule 3) excludes the flagged samples.
+4. **Unchanged.** Everything else in Sections 1–6 is unchanged: species, cases, cut-offs, methods, scores and decision rules.
+
+The detailed underlying data that Dr. Haupert offered (with influent per sample and ng/L values) will be used to repeat the analysis as a check if they arrive. The primary results remain the ones from this workbook.
