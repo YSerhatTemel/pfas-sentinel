@@ -60,8 +60,12 @@ class AexReproducibility(unittest.TestCase):
             if "noCase" in case:
                 continue
             tgt = data[tuple(case["target"])]
+            # The JSON stores the cut-off rounded to 4 significant digits, so recompute the exact one
+            # (a sample taken on the cut-off day itself belongs to the training data).
+            cutoff = aex.cutoff_time(tgt, case["cutoff"])
+            self.assertAlmostEqual(cutoff, case["cutoffD"], delta=5e-4 * cutoff)
             for sp in aex.SPECIES:
-                expected = len([t for t, _ in tgt["lead"][sp] if t <= case["cutoffD"] * (1 + 1e-4)])
+                expected = len([t for t, _ in tgt["lead"][sp] if t <= cutoff])
                 self.assertEqual(case["trainingSamples"][sp], expected, (case["target"], case["cutoff"], sp))
         for case in rep["E7"]["cases"]:
             self.assertEqual(set(case.get("trainingSamples", {})) - set(aex.TRACERS), set())
