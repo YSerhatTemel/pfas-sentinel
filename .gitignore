@@ -40,3 +40,7 @@ tubitak_assets/
 
 # AI assistant / editor local config
 .claude/
+
+# Raw data shared privately by authors: never commit (only processed subsets go in simulation/data/)
+Smith-2026-all-data/
+*.zip
