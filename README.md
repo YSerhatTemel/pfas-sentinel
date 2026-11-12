@@ -26,7 +26,7 @@
 > PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
 
 > [!IMPORTANT]
-> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only part that uses measured data: the twin, unchanged, on a public U.S. EPA pilot dataset, on a full-scale lead-lag plant with a mid-bed port and on EPA anion-exchange columns tested under a pre-registered protocol — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py` , `python simulation/external_validation.py`, `python simulation/external_validation_fullscale.py` and `python simulation/external_validation_aex.py`, and checked by the test suites (CI recomputes every number).
+> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only part that uses measured data: the twin, unchanged, on a public U.S. EPA pilot dataset, on a full-scale lead-lag plant with a mid-bed port and on EPA anion-exchange columns tested under a pre-registered protocol — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py` , `python simulation/external_validation.py`, `python simulation/external_validation_fullscale.py`, `python simulation/external_validation_aex.py` and `python simulation/external_validation_aex_a2.py`, and checked by the test suites (CI recomputes every number).
 
 ### How PFAS-Sentinel addresses the judging criteria
 | Criterion | Where to look |
@@ -90,7 +90,7 @@ Utilities removing PFAS ("forever chemicals") with granular activated carbon (GA
 **Checks on measured data (Section 3.8):**
 - *Supported:* at a full-scale lead-lag plant the **mid-bed (halfway) port crossed 4 ng/L at 37–51% of the lead outlet's bed volumes** for PFOA/PFOS — real early warning. Sharing the bed condition across species beat fitting each species alone on EPA pilot data (day-50 error **8.5 vs 41.7 days**), and an asymmetric curve form cut the full-scale forecast error from 22–23% to 14–18%.
 - *Not yet supported:* the twin's forecast of the lead-outlet 4 ng/L crossing was **late in 7 of 7** full-scale cases, it did not beat a good site-specific starting curve, and clean-water isotherms are unusable as starting values. These are the next things to fix.
-- *Third check, pre-registered (EPA anion-exchange columns):* the twin's outlet forecast was again **late in 6 of 6** open cases, and a new two-point variant did not meet its pre-set bar (4 of 6 late). The data show why: the front **spreads with depth**, so a constant-shape mapping from the port is late at the outlet. Reusing a measured outlet curve from a duplicate bed was best (1 of 6 late).
+- *Third check, pre-registered (EPA anion-exchange columns):* the twin's outlet forecast was again **late in 6 of 6** open cases, and a new two-point variant did not meet its pre-set bar (4 of 6 late). The data show why: the front **spreads with depth**, so a constant-shape mapping from the port is late at the outlet. Reusing a measured outlet curve from a duplicate bed was best (1 of 6 late). A pre-registered repeat with the authors' detailed per-sample data gave the same three verdicts (twin late in 5 of 6).
 
 ### Modeled economics (6-vessel plant, assumptions in Section 8)
 | Metric | Value |
@@ -283,7 +283,7 @@ Interlocks are **computed from simulated telemetry**, not fixed: sonde heartbeat
 **Lead-lag rotation in the twin:** the lead vessel is $z \in [0,1]$, the lag $z \in [1,2]$. At rotation the former lag becomes the lead with an equivalent loading time (the mass it has retained), and fresh media becomes the lag. Compliance values shown in the demo are an **instantaneous screen of the simulated final effluent**, not a compliance determination.
 
 ### 3.8 External checks on measured data
-Everything above uses the synthetic testbench. The twin was then run **unchanged** (same code, same settings) on three independent public datasets. Code, protocols and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/external_validation_fullscale.py`](simulation/external_validation_fullscale.py), [`simulation/external_validation_aex.py`](simulation/external_validation_aex.py), [`simulation/protocols/`](simulation/protocols), [`simulation/data/`](simulation/data); results in `simulation/external_validation*.json`; the Twin Lab tab shows the first two checks.
+Everything above uses the synthetic testbench. The twin was then run **unchanged** (same code, same settings) on three independent public datasets. Code, protocols and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/external_validation_fullscale.py`](simulation/external_validation_fullscale.py), [`simulation/external_validation_aex.py`](simulation/external_validation_aex.py), [`simulation/external_validation_aex_a2.py`](simulation/external_validation_aex_a2.py), [`simulation/protocols/`](simulation/protocols), [`simulation/data/`](simulation/data); results in `simulation/external_validation*.json`; the Twin Lab tab shows the first two checks.
 
 #### 3.8.1 U.S. EPA pilot: two identical F400 columns
 Public U.S. EPA pilot dataset (Haupert et al. 2023; data [doi:10.23719/1529105](https://doi.org/10.23719/1529105), public domain). Two identical Calgon F400 GAC columns (4.07 kg each, empty-bed contact time ≈ 3.5 min) at a New Jersey groundwater utility were fed the same well water and sampled 18 times over 392 days. Mean influent: PFBA 6.9, PFBS 8.8, PFOA 24.3, PFOS 46.1 ng/L.
@@ -347,7 +347,7 @@ Smith et al. (2026, *Water Research* 288: 124685; data [doi:10.23719/1532427](ht
 How this maps onto the twin:
 - The lead-column effluent sits at 50% (short beds) or 60% (long beds) of a train's resin, so it plays the role of the **mid-bed port**. The lag effluent is the **outlet**.
 - Unlike 3.8.1–3.8.2, the influent is controlled, and the duplicate trains measure the scatter: 1.3–8.4% of influent at the outlet.
-- EPA's workbook gives every plotted sample as C/C0, with no ng/L values. The 4 ng/L level therefore cannot be scored. The event scored instead is the outlet crossing **10% of influent**.
+- EPA's workbook gives every plotted sample as C/C0, with no ng/L values. The 4 ng/L level therefore cannot be scored. The event scored instead is the outlet crossing **10% of influent**. (The authors' detailed data, at the end of this section, give ng/L but not the reporting limit, so 4 ng/L still cannot be scored.)
 
 **Protocol (pre-registered before the data were opened).**
 - **Registration:** [`simulation/protocols/smith2026_aex_protocol.md`](simulation/protocols/smith2026_aex_protocol.md), commit 81c12c8. Amendment A1, on the workbook's format, was committed (3f734ea) before any model was fitted.
@@ -395,6 +395,59 @@ The long-bed −NOM outlets never reached 10%, so 6 of the 8 cases had an open f
   - synthetic water and laboratory columns 2.6 cm across;
   - anion exchange, not GAC;
   - influent about 100 times the 4 ng/L level, C/C0 normalized by the mean influent, and the 10% crossing used in place of 4 ng/L.
+
+**Repeat with the authors' detailed data (amendments A2–A3, 12 November 2026)**
+
+After this check, Dr. L. Haupert (U.S. EPA, a co-author of the paper) shared the compiled raw data behind it: every sample in ng/L, with the measured influent of each train. The raw files stay private at the authors' request. A processed subset is in [`simulation/data/smith2026_aex_detailed.csv`](simulation/data/smith2026_aex_detailed.csv), made by [`simulation/tools/extract_smith2026_detailed.py`](simulation/tools/extract_smith2026_detailed.py).
+
+- **Registration:**
+  - Amendment A2 (commit 1e0632f) was pushed before the files were opened.
+  - Amendment A3 (commit 9c29860), on what the files contain, was committed before any model was fitted.
+  - The script [`simulation/external_validation_aex_a2.py`](simulation/external_validation_aex_a2.py) was committed before its first run (4174b53).
+- **What changes:**
+  - each train is normalized by its own measured influent, as known at the cut-off;
+  - non-detects count as 0 ng/L;
+  - laboratory duplicates are averaged;
+  - the samples the authors judged outliers are absent;
+  - Experiment 2 has up to three times as many outlet samples as the workbook.
+- **Not blind:** this is the same experiment, already seen through the workbook. The repeat checks whether the results depend on the workbook's format. It cannot test a model changed after these results.
+- **Still not scorable:** the 4 ng/L crossing. The files mark non-detects as "<MRL" but give no value for the reporting limit, and neither do the paper or its SI.
+
+**A correction to the check above.** The repeat's mapping check found an error in our extraction of the workbook.
+- For Experiment 2 we had converted bed volumes to days with the two-digit train EBCTs of SI Table S3 (2.6 and 2.7 min). The authors' bed volumes rest on 2.63–2.71 min, so our Experiment 2 run times were off by 0.4–1.5% per train. Experiment 1 was exact.
+- As registered, E6–E8 were rerun with the corrected times ([`simulation/external_validation_aex_a2.json`](simulation/external_validation_aex_a2.json), `correction`). No verdict and no early/inside/late count changed at any cut-off. The forecast errors moved by at most 0.03 percentage points, and E8 is unaffected.
+- Two registered numbers changed slightly:
+  - the E7 long-bed errors of the unchanged −NOM curve became +128–136% (from +134–139%);
+  - the replicate scatter of Experiment 2 became 0.4–1.5% of influent (from 1.3–1.7%).
+- The tables above keep the registered numbers.
+
+| Pre-registered verdict | Workbook, as registered | Workbook, times corrected | Authors' detailed data |
+| :--- | :--- | :--- | :--- |
+| Travelling-wave twin passes E6 | No: late in 6 of 6 | No: late in 6 of 6 | No: late in 5 of 6 |
+| Two-point twin counts as the fix | No: late in 4 of 6 | No: late in 4 of 6 | No: late in 5 of 6 |
+| Tracer claim (E7) supported | No: late in 2 of 2 | No: late in 2 of 2 | No: late in 4 of 4 |
+
+| Method — PFOA, cut-off K1, detailed data | Later outlet samples (% of influent) | Outlet 10% crossing, 6 open forecasts |
+| :--- | ---: | :--- |
+| Duplicate train's curve, travelling-wave form, unchanged | 5.0% (symmetric) / 4.2% (asymmetric) | 0 early · 0 inside · 6 late / 0 · 0 · 6 late |
+| Twin, shared bed condition (symmetric / asymmetric) | 7.4% / 6.5% | 0 inside · 6 late / 1 early · 0 inside · 5 late |
+| Same model, each species fitted alone | 12.7% | 0 inside · 6 late |
+| Port data only, no prior | 35.1% | 6 early · 0 inside · 0 late |
+| **Duplicate train's outlet curve, unchanged** | **2.7%** | 0 early · 4 inside · 2 late |
+| Two-point twin | 4.3% | 1 early · 0 inside · 5 late |
+
+**What the repeat supports**
+- **All three verdicts hold** with the measured influent, the non-detects and the authors' own outlier screening, as expected in advance.
+- **The duplicate trains agree more closely than the workbook suggested.** In the detailed data (each train's own influent, duplicates averaged, outliers removed), their outlets differ by 1.7% of influent on average (0.2–4.2% by condition), against 4.5–4.7% in the workbook.
+- **The front still spreads with depth (E8).** The median 50% ratio was 1.07–1.18 and the median slope ratio 0.55–0.95.
+- **The measured outlet curve of the duplicate train is still the best forecast** (2.7% error).
+- **The port-only curve was never late** (early in all 6 cases, 35% error).
+
+**What it does not support**
+- **The twin's outlet forecast.** It was late in 5 of 6 cases; the two-point twin too.
+- **The tracer claim.** The E7 cut-off now came earlier in the short beds (day 23 instead of 35), so all four +NOM outlet forecasts could be scored. All four were late: by +68% to +105% with the tracer factors, and by +140% to +163% without them.
+
+**What follows:** the conclusions of this section stand. The 4 ng/L level remains untested on these columns. If the authors state the reporting limit, the 4 ng/L items registered in A2 can be run, labelled as added after these results.
 
 ---
 
@@ -446,7 +499,7 @@ The tracers remain an early alert, but they do not replace PFOA/PFOS data at the
 > [!IMPORTANT]
 > PFAS-Sentinel is a **TRL 2–3 computational proof-of-concept**. All observations, sensor signals and telemetry are generated by the in-silico testbench; they are **not field or laboratory measurements**. The single exception is the external checks in Section 3.8, which use published measurements (U.S. EPA pilot and column studies, and a full-scale plant) as they are.
 
-- **No digitized literature data.** The testbench is informed by qualitative findings (McCleaf et al. 2017; Park et al. 2020), but no published data points were digitized; NOM-fouling strengths are assumptions. Exception, disclosed: the EPA data in Sections 3.8.1 and 3.8.4 come from EPA's published spreadsheets, but the full-scale data in Section 3.8.2 were read from the vector charts of a public report (exact drawing coordinates, calibrated on the charts' gridlines and checked against the author's stated values).
+- **No digitized literature data.** The testbench is informed by qualitative findings (McCleaf et al. 2017; Park et al. 2020), but no published data points were digitized; NOM-fouling strengths are assumptions. Exception, disclosed: the EPA data in Sections 3.8.1 and 3.8.4 come from EPA's published spreadsheets (and, for the repeat in 3.8.4, from the authors' detailed data, of which a processed subset is published), but the full-scale data in Section 3.8.2 were read from the vector charts of a public report (exact drawing coordinates, calibrated on the charts' gridlines and checked against the author's stated values).
 - **Facility profiles are representative, not utility data.** The KKWWD (lead-lag GAC) and Stratmoor Hills (selective IX) profiles are inspired by published Xylem/Evoqua case studies; flows, media masses and influent levels are illustrative. The EU hybrid profile is hypothetical.
 - **Inverse crime avoided by construction.** The twin's priors are vendor-level values, not the hidden testbench values; the sensor estimator learns only from simulated calibration runs.
 - **Open validation items:**
@@ -554,9 +607,11 @@ python -m unittest discover -s simulation -p "test_*.py"
 python simulation/validation_report.py
 python simulation/external_validation.py
 python simulation/external_validation_fullscale.py
+python simulation/external_validation_aex.py       # about 23 minutes
+python simulation/external_validation_aex_a2.py    # about 25 minutes
 ```
 
-The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. `external_validation.py` and `external_validation_fullscale.py` regenerate `simulation/external_validation.json` and `simulation/external_validation_fullscale.json` (Section 3.8) from the data in `simulation/data/`. CI runs both test suites before every deployment, including a full recomputation of every synthetic and external number (about 8 minutes; locally `PFAS_FULL_REPRO=1` switches it on). Deep links: `?tab=pinn#external-check` opens the external checks in the demo.
+The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. The `external_validation*.py` scripts regenerate `simulation/external_validation*.json` (Section 3.8) from the data in `simulation/data/`. CI runs both test suites before every deployment, including a full recomputation of every synthetic and external number (about an hour; locally `PFAS_FULL_REPRO=1` switches it on). Deep links: `?tab=pinn#external-check` opens the external checks in the demo.
 
 ---
 
@@ -573,10 +628,11 @@ pfas-sentinel/
 │   ├── external_validation.py          # Section 3.8.1: the twin on measured EPA pilot data
 │   ├── external_validation_fullscale.py  # Section 3.8.2: full-scale lead-lag plant with a mid-bed port
 │   ├── external_validation_aex.py      # Section 3.8.4: pre-registered check on EPA anion-exchange columns
+│   ├── external_validation_aex_a2.py   # Section 3.8.4: repeat with the authors' detailed data, time correction
 │   ├── protocols/                      # Pre-registered test protocols (committed before the data were opened)
 │   ├── external_validation*.json       # Generated results of the external checks (read by the demo)
-│   ├── data/                           # EPA pilot data, F400 isotherms, full-scale chart data (sources and licenses in headers)
-│   ├── tools/                          # Vector-chart reader (full-scale data) and EPA workbook extractor
+│   ├── data/                           # EPA pilot and column data, F400 isotherms, full-scale chart data (sources and licenses in headers)
+│   ├── tools/                          # Vector-chart reader (full-scale data), EPA workbook and detailed-data extractors
 │   └── test_*.py                       # Python unit tests (+ slow full reproducibility check run in CI)
 ├── src/
 │   ├── components/                     # The five demo tabs + glossary panel
