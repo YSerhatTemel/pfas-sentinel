@@ -290,3 +290,68 @@ These items use the ng/L values, which E6–E8 did not have.
   3. the analysis script, before its first run;
   4. the JSON, the tests and the README section, together.
 - The README gets a short subsection in §3.8.4 with every result, including failures. The outcome is also sent to Dr. Haupert.
+
+---
+
+## 9. Amendment A3: what the detailed files contain (12 November 2026, before any model was fitted to them)
+
+This amendment was written after the structure of the files had been examined and the extractor had been written. It is committed together with the extractor and the processed CSV. **No model had been fitted to these data at that point.**
+
+### 9.1 What was looked at
+
+- File names, sizes and SHA-256 hashes; the sheet names; the first rows of every sheet with all numbers masked.
+- The text of the `ReadMe` and `ChangeLog` sheets.
+- In the sheet `ALL_DATA`:
+  - the column headers;
+  - the categorical levels and their counts (train, sampling point, replicate label, sample type, treatment, experiment description);
+  - the median EBCT per train and sampling point;
+  - the run-time columns, compared with the workbook's run times;
+  - the sample IDs of rows that share a run time.
+- Aggregates of the mapping check: shares within a tolerance, largest differences, and the ratio of the implied normalization constant to the mean influent.
+- The paper and the SI were searched for a PFAS reporting limit.
+
+**No individual PFAS concentration was viewed.**
+
+### 9.2 What the files contain
+
+- **Two workbooks, one per experiment.** `121RC_…` is Experiment 1 (nominal EBCT 0.5 / 1.0 min) and `146RC_…` is Experiment 2 (1.5 / 2.5 min). Each holds a compiled table (`ALL_DATA`) plus laboratory reports, pivot tables, plots, model inputs, flow logs, and inorganic and carbon data. Only `ALL_DATA` is used.
+- **`ALL_DATA`** has one row per sample. It gives:
+  - the train (1–4; trains 1–2 are +NOM, trains 3–4 −NOM);
+  - the sampling point (c0 influent, c1 lead effluent, c2 lag effluent);
+  - the collection time and the run time ("Collection Experiment Time (days)");
+  - bed volumes;
+  - ng/L of nine PFAS.
+- **Every train has its own influent samples:** 74–119 PFOA influent samples per train.
+- **Non-detects** are written "<MRL". The value of the MRL is not given in the files, nor in the paper or the SI (which refer to the analytical method papers).
+- **Laboratory duplicates.** Rows that share a run time within a train and sampling point are two analyses of one sample (sample ID and ID + "DUP"): 129 such pairs in Experiment 1 and 111 in Experiment 2.
+- **Outliers.** The change log says that the authors replaced the values they judged outliers with "na". There is no outlier flag. In Experiment 1, 89 values that the workbook gives are "na" in the files.
+- **More samples than the workbook.** The files hold samples that the paper's figures do not show, most of them in Experiment 2. In one train, for example, there are 79 PFOA lag samples against 26 in the workbook.
+- **Adjusted run time.** The files also give an adjusted run time. It is up to 2.0 days shorter late in Experiment 1 and equal to the run time in Experiment 2 (where it is often an error value). The published bed volumes do not use it.
+- **Not in scope, not extracted:**
+  - blanks and controls;
+  - three Experiment 1 samples at a fourth sampling point ("cft");
+  - nine blanks of Experiment 2.
+  
+  The sheet `PFASdbf`, a laboratory database export of inorganic and carbon analyses, also lists samples of other studies. It holds no PFAS concentrations and is not used. No other experiment or train has PFAS data in the files.
+
+### 9.3 Consequences, fixed now
+
+1. **Time axis.** The files' bed-volume columns use the nominal EBCT, so A2's "bed volumes × A1's EBCT" would distort the time axis. The run time itself is in the files: "Collection Experiment Time (days)". Under one constant factor per train and bed, it reproduces the run time of every one of the 3,760 workbook samples of the six species. A2 therefore uses this run time for every sample, influent included. The rule "influent samples take the run time of the effluent samples taken with them" (8.2) is not needed.
+2. **A correction to A1, for Experiment 2.**
+   - In Experiment 1 the factor is 1: A1's time axis is exact.
+   - In Experiment 2 the authors' bed volumes imply EBCTs (lead / train) of 1.60 / 2.63, 1.57 / 2.64, 1.57 / 2.66 and 1.64 / 2.71 min, for +NOM replicates 1 and 2 and −NOM replicates 1 and 2.
+   - A1 used the two-digit train EBCTs of SI Table S3 (2.6 and 2.7 min). Its Experiment 2 run times are therefore off by a constant factor per train: 0.989, 0.985, 1.015 and 0.996. The two −NOM replicates differ from each other by 1.9 % in that factor.
+   - Under 8.3.5 this is a time error in the workbook CSV. **E6–E8 are therefore rerun on the workbook data with corrected Experiment 2 run times**: workbook bed volumes × the EBCT from run time ÷ 1440 (the values are in the header of `smith2026_aex_detailed.csv`). Both versions are reported, and the rerun is labelled as a correction. The primary results stay the registered ones.
+   - The A2 repeat is compared with both: with the primary results, and with the corrected rerun, which isolates the effect of the data format.
+3. **Influent $C_0$.** Each train's own influent samples, as in 8.2. Ten influent rows of Experiment 2 have no run time and are left out.
+4. **Reporting limit.** Not given anywhere. As 8.4 foresaw, S4, K0 and the model-free 4 ng/L comparison are therefore **not scorable** and are not run. If the authors later state the MRL, these items may be run as registered in 8.4, labelled as added after the A2 results.
+5. **Outliers.** The files do not flag them, so there is no sensitivity run (extraction rule 3). The repeat uses the files' values, so the samples the authors set to "na" are absent. The primary E6–E8 kept the 19 flagged samples.
+6. **Laboratory duplicates** are averaged (8.3.4).
+7. **Mapping check (8.3.5).**
+   - Trains, sampling points and sample times match the workbook: all 3,760 samples under the assumed train → replicate mapping.
+   - For matched samples, ng/L divided by the authors' influent mean of that row agrees with the workbook's C/C0 within 0.01 for 66 % of samples. With the replicates swapped, this drops to 44 % (Experiment 1) and 33 % (Experiment 2), which confirms the mapping.
+   - The workbook's C/C0 equal the files' ng/L divided by one constant per condition and species within 0.01 for 78–80 % of samples. The constants lie within −3.4 % to +8.1 % of the mean influent of each condition. This is consistent with the paper's normalization by one mean influent per condition (SI Table S5).
+   - 96 samples differ by more than 0.05, mostly PFHxA and PFBA near or above C/C0 = 1.
+   - None of these differences points to a mislabelled train, sampling point or sample.
+8. **The processed CSV** has 10,091 rows: influent, lead-effluent and lag-effluent samples of the six species in the eight trains.
+9. **Unchanged:** everything else in A2, including the $C_0$ rules, cases, cut-offs K1–K4, methods, decision rules and expectations.

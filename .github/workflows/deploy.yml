@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Python model tests incl. full report reproducibility (standard library only, ~5 min)
+      - name: Python model tests incl. full report reproducibility (standard library only, about 55 min)
         env:
           PFAS_FULL_REPRO: "1"
         run: python -m unittest discover -s simulation -p "test_*.py" -v
