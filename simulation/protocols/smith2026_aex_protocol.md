@@ -212,3 +212,81 @@ These are exact tabulated values, not values read from a picture. Extraction rul
 4. **Unchanged.** Everything else in Sections 1–6 is unchanged: species, cases, cut-offs, methods, scores and decision rules.
 
 The detailed underlying data that Dr. Haupert offered (with influent per sample and ng/L values) will be used to repeat the analysis as a check if they arrive. The primary results remain the ones from this workbook.
+
+---
+
+## 8. Amendment A2: repeat of E6–E8 with the authors' detailed data (12 November 2026, before the files were opened)
+
+This amendment was written **before any of the detailed data files was opened**. The commit that adds it is the registration of A2, and it is pushed to `main` before the files are opened. Any later change is labelled *post hoc* in the output JSON and the README.
+
+### 8.1 The data, and what is already known
+
+- **Source.** On 10 November 2026, Dr. Levi Haupert (U.S. EPA, a co-author of the paper) sent the compiled raw data behind the paper: `Smith-2026-all-data.zip`, 12,011,614 bytes, SHA-256 `2e35200625a9f140ee57d7691bfc5e14bc451fa7abff987e18e1dce497650716`.
+- **Content, as his emails describe it:** two multi-tab spreadsheets with the influent of each sample and concentrations in ng/L. A few short pump-maintenance interruptions (under a day each) are accounted for in the data.
+- **Sharing condition.** A processed subset may be published. The raw compiled files must not be shared or posted, so they are kept out of git (`Smith-2026-all-data/` and `*.zip` are in `.gitignore`).
+- **State of the files.** The zip was extracted on 11 November 2026 into the ignored folder `Smith-2026-all-data/`. File names may have been seen during the extraction. No file has been opened. The hash above was computed on 12 November without opening the zip.
+- **What is already known:** all E6–E8 results on the public workbook (README §3.8.4, `external_validation_aex.json`). The workbook gives the same samples of the same experiment as C/C0, so the shape of every curve is known.
+  - This repeat is therefore **not blind**. It checks whether the E6–E8 results depend on the workbook's format. It does not test a new hypothesis.
+  - These are **not unseen data**. They cannot serve as the unseen test of a model changed after E6–E8, for example the two-point twin with outlet data.
+
+### 8.2 What the repeat changes
+
+The repeat runs Sections 1–6 as first registered, now that the data allow it. It undoes the changes that A1 had to make because of the workbook's format:
+
+| Item | E6–E8 (workbook, A1) | A2 repeat |
+| :--- | :--- | :--- |
+| Influent $C_0$ | The authors' C/C0, normalized with the mean influent of each condition (SI Table S5); $C_0 = 1$ | Measured influent of the train, as registered in Section 1 (rules below) |
+| 4 ng/L crossing (S4) | Not scorable | Scored as registered in Section 3 (reporting-limit rule in 8.4) |
+| Non-detects | Not in the workbook | Set to 0 ng/L, flagged, reporting limit recorded (extraction rule 2) |
+| Outliers | The workbook's flags; a sensitivity run without them | Extraction rule 3 as written: a sensitivity run only if the files flag outliers themselves |
+
+Everything else is unchanged: species, cases, cut-offs K1–K4, methods, fits, scores S1–S3, the reference scatter and every decision rule.
+
+**$C_0$ rules (fixed now).**
+- **Target train:** the mean of its influent samples on or before the cut-off (Section 1, as in E1). The target's port and outlet values are divided by this $C_0$. The S1–S3 levels, the S2 errors and the forecasts are therefore fractions of the $C_0$ known at the cut-off.
+- **Cut-offs set as a fraction of $C_0$** (K1, K2 and the PFHxA ≥ 0.90 cut-off of E7): the first port sample that reaches the level times the mean influent on or before that sample's time.
+- **Source train (starting curves), E8 and the reference scatter:** the mean of all influent samples of that train.
+- If no influent sample exists on or before a time, the train's first influent sample is used.
+- If the influent was sampled per NOM condition rather than per train, each train uses the samples of its condition.
+
+**Throughput axis.** Run time in days, as in A1: bed volumes of the sampled bed × that bed's EBCT (the values in the header of `smith2026_aex_columns.csv`). The bed volumes account for the pump interruptions. If the files give no bed volumes, their run-time column is used. Calendar days since the first sample are used only if neither exists. Influent samples take the run time of the effluent samples taken with them.
+
+### 8.3 Handling of the files (fixed now)
+
+1. **Order.** First, only the structure is examined: file names, sheet names, column headers, and the categorical levels and their counts, as in A1. Anything seen beyond that is recorded in an amendment A3. A3 is committed with the extractor and the processed CSV, before any model is fitted to these data.
+2. **Scope.** Only the eight trains of the paper are extracted (2 experiments × 2 NOM conditions × 2 replicates): influent, lead-effluent and lag-effluent samples of PFBA, PFHxA, PFBS, PFOA and PFNA, plus PFOS for the comparison in 8.4.
+3. **Data outside that scope.** If the files hold other experiments, trains or sampling points, their values are neither extracted nor viewed. They are listed by name in A3 and set aside as possible unseen data for a separate, new protocol.
+4. **Values.** As reported, in ng/L, without smoothing.
+   - Non-detects are set to 0 ng/L and flagged, and their reporting limit is recorded. Values below the reporting limit that are reported as numbers are kept as given and flagged.
+   - Labelled quality-control samples (blanks, spikes, calibration checks) are left out.
+   - Repeat analyses of one sample (same train, point, species and time) are averaged. Duplicate trains are never averaged.
+5. **Mapping check.** Before any model is fitted, the extractor compares its output with the workbook CSV (`smith2026_aex_columns.csv`):
+   - the trains, sampling points and species;
+   - the number of samples and their run times;
+   - for matching samples, ng/L divided by the condition's mean influent against the workbook's C/C0.
+
+   Differences are listed in A3. If the check shows that the workbook CSV mislabels a train, a sampling point or a time, E6–E8 are rerun with a corrected CSV. Both versions are then reported, and the rerun is labelled as a correction.
+6. **Public subset.** The processed CSV `simulation/data/smith2026_aex_detailed.csv` holds only what the analysis needs: experiment, NOM condition, replicate, sampling point (influent / lead / lag), species, run time in days, ng/L, the non-detect flag, the reporting limit, and an outlier flag if the files have one. Its header records the SHA-256 of the zip and of each file used, and the sharing condition. The extractor `simulation/tools/extract_smith2026_detailed.py` reads the raw files from the ignored folder, so it cannot run in CI. The raw files are never committed.
+
+### 8.4 Added in A2 (reported only; cannot change any verdict)
+
+These items use the ng/L values, which E6–E8 did not have.
+
+- **Reporting limit.** S4, K0 and the comparison below are used for a species only if its reporting limit is ≤ 2 ng/L (Section 3). The limit is read from the files and must hold for every non-detect at the port and the outlet. If the files give no limits, the limit stated in the paper or its SI is used. If neither gives one, these items are reported as not scorable.
+- **Cut-off K0:** the first port sample with PFOA ≥ 4 ng/L. This is the moment a port sensor set to the U.S. limit would first alarm. Every method and score is run at K0, as at K1–K4.
+- **Expectation for S4, stated in advance:** the travelling-wave twin is also late at 4 ng/L. The 4 ng/L level (about 1 % of $C_0$) lies on the foot of the curve, where E6 found the constant-shape mapping too late.
+- **Model-free port lead at 4 ng/L** (as in README §3.8.2): for every train, for PFOA and PFOS, the port's first sample at or above 4 ng/L against the outlet's observed 4 ng/L interval. Reported: both run times and their ratio (port time ÷ the outlet's first sample at or above 4 ng/L). If the outlet never reaches 4 ng/L, the lead is reported as at least the rest of the record.
+
+### 8.5 Verdicts and reporting
+
+- **The primary results stay those of E6–E8 on the workbook.**
+- The repeat applies the decision rules of Sections 3 and 4, unchanged, to the new data. For each of the three verdicts (travelling-wave twin, two-point twin, tracer claim), the README states whether the repeat agrees.
+  - If a verdict does not agree, the README says that it depends on the data format and in which direction it moved. The primary verdict is not replaced.
+- **Expectation, stated in advance:** all three verdicts agree, because the influent varied by only about 5–8 % of its mean (SI Table S5) and the samples are the same.
+- **Outputs.** `simulation/external_validation_aex_a2.py` writes `simulation/external_validation_aex_a2.json`; its tests go in `simulation/test_external_validation_aex_a2.py`. The script imports the fits, methods and scores of `external_validation_aex.py` (as of commit `e466b2f`) instead of copying them. It adds only the loading, the $C_0$ rules, K0, S4 and the comparison in 8.4.
+- **Order of commits:**
+  1. this amendment, pushed to `main` before the files are opened;
+  2. A3, the extractor and the CSV, before any model is fitted;
+  3. the analysis script, before its first run;
+  4. the JSON, the tests and the README section, together.
+- The README gets a short subsection in §3.8.4 with every result, including failures. The outcome is also sent to Dr. Haupert.
