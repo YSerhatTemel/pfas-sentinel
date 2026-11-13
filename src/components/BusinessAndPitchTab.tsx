@@ -41,8 +41,10 @@ export const BusinessAndPitchTab: React.FC = () => {
   const ghgAvoidedTonsCo2 = Number(econ.co2AvoidedTonnes.toFixed(1));
   const ops = validationReport.operational;
   const abl = validationReport.ablation as Record<string, { pfoaPfos: { maeDays: number } }>;
-  const twinMae = Math.round(abl['jointPhysics (default)'].pfoaPfos.maeDays);
-  const staticMae = Math.round(abl.staticPrior.pfoaPfos.maeDays);
+  const twinMae = abl['jointPhysics (default)'].pfoaPfos.maeDays.toFixed(1);
+  const staticMae = abl.staticPrior.pfoaPfos.maeDays.toFixed(1);
+  // The pitch quotes the README base case (6 vessels, 28%), not the calculator sliders below.
+  const baseEcon = computeEconomics(BASE_ECONOMICS);
 
   const pitchSections = [
     {
@@ -57,7 +59,7 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Core Innovation: Mid-Bed Sensor + Bed-Condition Twin',
       criterion: 'Innovation',
       script:
-        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI/WTW sonde telemetry and 4×4 cross-selectivity deconvolution; its design target is 0.8 to 4 ppt every 15 minutes, to be measured at TRL 4. This mid-bed data feeds a physics-based twin built on the travelling-wave solution of the advection-sorption equation. PFBA and PFBS reach the mid-bed first and give the early alert. Because all four PFAS share two bed-condition factors, the tracers also inform the PFOA and PFOS forecast, but only for effects that act on all species alike, so the twin keeps learning from PFOA and PFOS at the port. The lead-lag switch is scheduled from that forecast.”',
+        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI EXO2 sonde telemetry and 4×4 cross-selectivity deconvolution; its design target is 0.8 to 4 ppt every 15 minutes, to be measured at TRL 4. This mid-bed data feeds a physics-based twin built on the travelling-wave solution of the advection-sorption equation. PFBA and PFBS reach the mid-bed first and give the early alert. Because all four PFAS share two bed-condition factors, the tracers also inform the PFOA and PFOS forecast, but only for effects that act on all species alike, so the twin keeps learning from PFOA and PFOS at the port. The lead-lag switch is scheduled from that forecast.”',
     },
     {
       part: 'Part 3 • 1:40 – 2:25',
@@ -71,7 +73,7 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Measurable Impact & TRL 3 → TRL 6 Validation Roadmap',
       criterion: 'Impact',
       script:
-        '“If field tests confirm a 28% longer bed life, a typical 6-vessel plant (9.1-ton GAC vessels) avoids 15.3 tons of spent PFAS-laden media and about 37 tons of CO₂e a year. Our 12-month roadmap runs two tracks: a software-first Phase 0 that tests the forecast twin on a utility’s existing grab-sample records with no new hardware, and a sensor track from wet-lab calibration (TRL 4) through column testing (TRL 5) to a utility slipstream pilot (TRL 6) with Xylem mentors.”',
+        `“If field tests confirm a ${Math.round(BASE_ECONOMICS.bedLifeExtension * 100)}% longer bed life, a typical ${BASE_ECONOMICS.vessels}-vessel plant (9.1-ton GAC vessels) avoids ${baseEcon.mediaAvoidedTonnes.toFixed(1)} tons of spent PFAS-laden media and ${baseEcon.co2AvoidedTonnes.toFixed(1)} tons of CO₂e a year. Our 12-month roadmap runs two tracks: a software-first Phase 0 that tests the forecast twin on a utility’s existing grab-sample records with no new hardware, and a sensor track from wet-lab calibration (TRL 4) through column testing (TRL 5) to a utility slipstream pilot (TRL 6) with Xylem mentors.”`,
     },
   ];
 

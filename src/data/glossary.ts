@@ -137,7 +137,7 @@ export const GLOSSARY: GlossaryGroup[] = [
         meaning:
           'The twin uses the travelling-wave (Thomas) solution of the 1D advection-sorption equation and learns two bed-condition factors (capacity and kinetics) shared by all four PFAS. A physics-informed neural network (PINN-style) correction was also built and tested.',
         whyItMatters:
-          'Sharing the bed condition lets early PFBA/PFBS data sharpen the PFOA/PFOS forecast (the biggest gain in the ablation). The PINN-style correction helps only with the PDE penalty and gives a small further gain on the testbench, so it is offered as an option; the 2-parameter model stays the default for decisions.',
+          'Sharing the bed condition lets early PFBA/PFBS data improve the PFOA/PFOS forecast, but only for effects that act on all four species alike (the biggest gain in the synthetic ablation; limits in README Section 5). The PINN-style correction helps only with the PDE penalty and gives a small further gain on the testbench, so it is offered as an option; the 2-parameter model stays the default for decisions.',
       },
       {
         term: 'Uncertainty band (±days)',

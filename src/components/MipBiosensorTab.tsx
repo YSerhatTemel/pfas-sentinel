@@ -77,7 +77,7 @@ export const MipBiosensorTab: React.FC = () => {
       title: 'Layer 1: COC Microfluidic Laminar Flow Cell & 0.22 μm Pre-Filter',
       subtitle: 'In-line NPT 1/4" tap or field "Razor-and-Blade" Sensing Lid',
       detail:
-        'Cyclic Olefin Copolymer (COC) micro-channels give high surface-to-volume laminar flow over the sensing array. Design target: 1–4 ppt binding within 12–15 minutes (screening mode under 2 minutes), to be verified at TRL 4.',
+        'Cyclic Olefin Copolymer (COC) micro-channels give high surface-to-volume laminar flow over the sensing array. Design target: 0.8–4 ppt binding within 12–15 minutes (screening mode under 2 minutes), to be verified at TRL 4.',
       badge: 'Hydrodynamic Pre-Concentration',
     },
     {
@@ -145,7 +145,7 @@ export const MipBiosensorTab: React.FC = () => {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Quantitative EIS (12–15m • 1–4 ppt)
+                Quantitative EIS (12–15m • 0.8–4 ppt)
               </button>
               <button
                 onClick={() => setAssayMode('screening')}

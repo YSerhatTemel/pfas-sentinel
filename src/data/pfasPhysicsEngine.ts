@@ -684,7 +684,7 @@ export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
     trlTarget: `Measured data: the halfway port crossed 4 ng/L at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}–${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet's bed volumes; shared factors beat per-species fitting (${round1(EXTERNAL_TWIN_CHECK.twinDay50ErrorFirstCutoff)} vs ${round1(EXTERNAL_TWIN_CHECK.independentDay50ErrorFirstCutoff)} days); 4 ng/L forecast not yet reliable`,
   },
   {
-    challenge: 'Ultra-Trace Limit of Detection (Target 1–4 ppt) Signal-to-Noise Ratio',
+    challenge: 'Ultra-Trace Limit of Detection (Target 0.8–4 ppt) Signal-to-Noise Ratio',
     physicalCause:
       'PFAS molecules are electrochemically inert; direct faradaic oxidation/reduction does not occur at low potentials (<1.2 V).',
     pfasSentinelMitigation:
@@ -921,7 +921,7 @@ export const COMPETITIVE_LANDSCAPE_2026: CompetitorComparison[] = [
     solutionName: 'PFAS-Sentinel™ (Proposed TRL 2–3 Architecture)',
     category: 'In-Line Microfluidic MIP-EIS Array + Physics-Based Breakthrough Twin',
     detectionCapability:
-      'Target 1–4 ppt C4/C8 sub-classes in 12–15 min (32-ch Stand-Alone MIP + 4×4 Cross-Selectivity Deconvolution)',
+      'Target 0.8–4 ppt C4/C8 sub-classes in 12–15 min (32-ch Stand-Alone MIP + 4×4 Cross-Selectivity Deconvolution)',
     physicalTreatmentIntegration:
       'Retrofits existing 1/4" NPT Influent, Mid-Bed (z/L=0.50) & Effluent ports on GAC/IX vessels + automated Lead-Lag PLC control',
     digitalTwinAndAi:
