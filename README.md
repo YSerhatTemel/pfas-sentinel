@@ -17,10 +17,12 @@
 | **1. Plant twin** — simulated lead-lag train, mid-bed tracer, final-effluent screen | **3. Breakthrough Twin Lab** — validation protocol on the synthetic testbench |
 | [![External check on EPA pilot data](docs/screenshots/04-external-check-1.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn#external-check) | [![External check on a full-scale plant](docs/screenshots/05-external-check-2.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn#fullscale-check) |
 | **External check 1** — measured EPA pilot data (Section 3.8.1) | **External check 2** — full-scale plant with a mid-bed port (Section 3.8.2) |
-| [![Early-warning system](docs/screenshots/06-early-warning.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=agentic) | [![Sensor concept](docs/screenshots/02-sensor.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=biosensor) |
-| **4. Early-warning system** — computed interlocks, co-pilot sign-off, audit log | **2. Sensor concept** — MIP array, calibration-based blind estimator |
+| [![External check on EPA anion-exchange columns](docs/screenshots/08-external-check-3.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=pinn#aex-check) | [![Early-warning system](docs/screenshots/06-early-warning.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=agentic) |
+| **External check 3** — EPA anion-exchange columns, pre-registered (Section 3.8.4) | **4. Early-warning system** — computed interlocks, co-pilot sign-off, audit log |
+| [![Sensor concept](docs/screenshots/02-sensor.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=biosensor) | [![Impact and ROI](docs/screenshots/07-impact.png)](https://yserhattemel.github.io/pfas-sentinel/?tab=business) |
+| **2. Sensor concept** — MIP array, calibration-based blind estimator | **5. Impact & ROI** — economics, roadmap and pitch script |
 
-*Screenshots of the live demo; click one to open that tab. The [Impact & ROI tab](https://yserhattemel.github.io/pfas-sentinel/?tab=business) ([screenshot](docs/screenshots/07-impact.png)) holds the economics, roadmap and pitch script.*
+*Screenshots of the live demo; click one to open that tab or check.*
 
 > [!NOTE]
 > PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
@@ -76,7 +78,7 @@ Utilities removing PFAS ("forever chemicals") with granular activated carbon (GA
 
 ### Solution
 1. **In-line MIP sensor pod (concept)** on the existing `1/4" NPT` mid-bed port: 28 molecularly imprinted electrodes in four species groups + 4 non-imprinted blanks, with YSI EXO2 matrix context.
-2. **Physics-based breakthrough twin:** the travelling-wave solution of the advection-sorption equation with two **bed-condition factors shared by all four PFAS**, so early PFBA/PFBS data sharpen the PFOA/PFOS forecast. A PINN-style neural correction is available as an option.
+2. **Physics-based breakthrough twin:** the travelling-wave solution of the advection-sorption equation with two **bed-condition factors shared by all four PFAS**, so early PFBA/PFBS data inform the PFOA/PFOS forecast, but only for effects that act on all four species alike (limits in Section 5). A PINN-style neural correction is available as an option.
 3. **Interlocked early-warning system:** rotation only when the conservative PFOA/PFOS forecast enters the service window and three computed interlocks pass; every action is logged.
 
 ### What the simulation shows (details in Section 3.5)
@@ -133,7 +135,7 @@ The project uses specialist vocabulary from water treatment, electrochemistry an
 
 | Term | What it is | Why it matters here |
 | :--- | :--- | :--- |
-| **Breakthrough twin (and the PINN-style option)** | The twin uses the travelling-wave (Thomas) solution of the 1D advection-sorption equation and learns two bed-condition factors (capacity and kinetics) shared by all four PFAS. A physics-informed neural network (PINN-style) correction was also built and tested. | Sharing the bed condition lets early PFBA/PFBS data sharpen the PFOA/PFOS forecast (the biggest gain in the ablation). The PINN-style correction helps only with the PDE penalty and gives a small further gain on the testbench, so it is offered as an option; the 2-parameter model stays the default for decisions. |
+| **Breakthrough twin (and the PINN-style option)** | The twin uses the travelling-wave (Thomas) solution of the 1D advection-sorption equation and learns two bed-condition factors (capacity and kinetics) shared by all four PFAS. A physics-informed neural network (PINN-style) correction was also built and tested. | Sharing the bed condition lets early PFBA/PFBS data improve the PFOA/PFOS forecast, but only for effects that act on all four species alike (the biggest gain in the synthetic ablation; limits in README Section 5). The PINN-style correction helps only with the PDE penalty and gives a small further gain on the testbench, so it is offered as an option; the 2-parameter model stays the default for decisions. |
 | **Uncertainty band (±days)** | Parameter uncertainty plus a model-form term that grows with the distance from the last data point. Nominal 95%; on held-out synthetic plants it covered the true breach about 91% of the time. | Actuation uses the early end of the band (breach day minus band), so uncertainty makes the system act earlier, not later. It is a decision aid, not a certified interval. |
 | **Early-warning system (EWS) and interlocks** | Software steps that read data, forecast, decide and prepare actions (valve rotation, service order). Three computed interlocks (sonde heartbeat, electrode agreement, pressure drop) and operator sign-off must pass before anything moves; every action is logged. | It turns a forecast into a scheduled action instead of a chart someone must remember to check. |
 | **Servitization** | Selling an outcome as a service (here a per-vessel subscription with cartridges included) instead of selling equipment up front. | Utilities avoid capital cost and pay from the media savings; Xylem gains recurring revenue alongside Evoqua media service. |
@@ -508,7 +510,7 @@ The tracers remain an early alert, but they do not replace PFOA/PFOS data at the
   - **What must be done:**
     - a depth-spreading model and site-water starting values, tested on data not yet seen (ideally a utility's GAC records with a mid-bed port);
     - wet-lab sensor calibration;
-    - utility interviews on today's changeout practice (to test the 20–30% hypothesis). wet-lab sensor calibration; and utility interviews on today's changeout practice (to test the 20–30% hypothesis).
+    - utility interviews on today's changeout practice (to test the 20–30% hypothesis).
 
 ### 12-month validation roadmap (two parallel tracks)
 
