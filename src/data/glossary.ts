@@ -29,7 +29,7 @@ export const GLOSSARY: GlossaryGroup[] = [
         meaning:
           'Granular activated carbon and selective ion-exchange resin: the two main media used in pressure vessels to remove PFAS from drinking water.',
         whyItMatters:
-          'Both get "used up" over time and must be replaced; replacing too early wastes money and creates hazardous waste.',
+          'Both get "used up" over time and must be replaced; replacing too early wastes money and creates more PFAS-laden spent media to dispose of.',
       },
       {
         term: 'Lead-lag train',

@@ -37,7 +37,7 @@ export const BusinessAndPitchTab: React.FC = () => {
   });
   const pfasSentinelSubscriptionAnnual = econ.fee;
   const netAnnualUtilitySavings = Math.round(econ.net);
-  const hazardousWasteAvoidedTons = Number(econ.mediaAvoidedTonnes.toFixed(1));
+  const mediaAvoidedTons = Number(econ.mediaAvoidedTonnes.toFixed(1));
   const ghgAvoidedTonsCo2 = Number(econ.co2AvoidedTonnes.toFixed(1));
   const ops = validationReport.operational;
   const abl = validationReport.ablation as Record<string, { pfoaPfos: { maeDays: number } }>;
@@ -211,7 +211,7 @@ export const BusinessAndPitchTab: React.FC = () => {
               Business Model Innovation • Performance-Based Servitization (Hardware-Enabled SaaS)
             </span>
             <h2 className="text-lg font-bold text-white mt-0.5">
-              Interactive Utility CAPEX/OPEX &amp; Secondary Hazardous Waste Calculator
+              Interactive Utility CAPEX/OPEX &amp; Spent-Media Calculator
             </h2>
           </div>
           <span className="px-3 py-1 rounded-lg text-xs font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
@@ -291,10 +291,10 @@ export const BusinessAndPitchTab: React.FC = () => {
             <div className="bg-[#061320] border border-cyan-500/40 rounded-xl p-4">
               <TrendingDown className="w-5 h-5 text-cyan-400 mb-1" />
               <span className="text-[11px] font-mono text-slate-400 uppercase block">
-                Spent Hazardous Media Avoided
+                Spent PFAS-Laden Media Avoided
               </span>
               <div className="text-2xl font-bold font-mono text-cyan-300 mt-1">
-                {hazardousWasteAvoidedTons} Tons/yr
+                {mediaAvoidedTons} Tons/yr
               </div>
               <span className="text-[11px] text-slate-400 block mt-1">
                 Prevents premature disposal of PFAS-laden GAC/IX

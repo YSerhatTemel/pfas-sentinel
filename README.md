@@ -28,7 +28,7 @@
 > PFAS-Sentinel is an independent student project. It is designed for compatibility with Xylem products (Xylem Vue, YSI EXO2, Sensus, Evoqua, MitiGATOR™), but it is not developed, endorsed, or validated by Xylem Inc. All trademarks belong to their respective owners.
 
 > [!IMPORTANT]
-> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only part that uses measured data: the twin, unchanged, on a public U.S. EPA pilot dataset, on a full-scale lead-lag plant with a mid-bed port and on EPA anion-exchange columns tested under a pre-registered protocol — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py` , `python simulation/external_validation.py`, `python simulation/external_validation_fullscale.py`, `python simulation/external_validation_aex.py` and `python simulation/external_validation_aex_a2.py`, and checked by the test suites (CI recomputes every number).
+> **Every number in this README comes from simulation, except Section 3.8.** A hidden "virtual plant" generates the data; the twin and the sensor estimator never see its parameters. No physical sensor has been built. Section 3.8 is the only part that uses measured data: the twin, unchanged, on a public U.S. EPA pilot dataset, on a full-scale lead-lag plant with a mid-bed port and on EPA anion-exchange columns tested under a pre-registered protocol — with mixed results that are reported in full. Figures are reproduced by `python simulation/validation_report.py`, `python simulation/external_validation.py`, `python simulation/external_validation_fullscale.py`, `python simulation/external_validation_aex.py` and `python simulation/external_validation_aex_a2.py`, and checked by the test suites (CI recomputes every number).
 
 ### How PFAS-Sentinel addresses the judging criteria
 | Criterion | Where to look |
@@ -111,7 +111,7 @@ The project uses specialist vocabulary from water treatment, electrochemistry an
 | Term | What it is | Why it matters here |
 | :--- | :--- | :--- |
 | **PFAS (short-chain C4 vs long-chain C8)** | Per- and polyfluoroalkyl substances, "forever chemicals". The number is the length of the carbon chain: PFBA/PFBS have 4 carbons, PFOA/PFOS have 8. | Short chains stick to carbon weakly and move through the filter first; long chains stick strongly and are the ones the US limit (4 ppt) targets. |
-| **GAC / Selective IX** | Granular activated carbon and selective ion-exchange resin: the two main media used in pressure vessels to remove PFAS from drinking water. | Both get "used up" over time and must be replaced; replacing too early wastes money and creates hazardous waste. |
+| **GAC / Selective IX** | Granular activated carbon and selective ion-exchange resin: the two main media used in pressure vessels to remove PFAS from drinking water. | Both get "used up" over time and must be replaced; replacing too early wastes money and creates more PFAS-laden spent media to dispose of. |
 | **Lead-lag train** | Two vessels in series. The lead vessel does most of the work; the lag vessel polishes and acts as a safety barrier. | When the lead vessel is spent, valves swap the roles and only the lead media is replaced. Timing this swap is the decision PFAS-Sentinel supports. |
 | **Mid-bed port (z/L = 0.50)** | A sampling tap halfway down the vessel. z is the depth from the top, L the total bed depth, so z/L = 0.50 is the middle. | Contaminants reach the middle months before the outlet, so a reading here is an early look at what the outlet will see later. |
 | **Mass Transfer Zone (MTZ)** | The band of media that is actively adsorbing. Above it the media is saturated; below it the media is still clean. | The MTZ moves down the bed like a slow wave. Tracking its position is what lets the twin forecast when the outlet will exceed the limit. |
@@ -254,6 +254,8 @@ Two findings: sharing the bed condition across species gives by far the largest 
 This supports the timing logic. It does **not** measure the 28% bed-life figure, which depends on how conservative each utility is today and must be measured in the pilot.
 
 ### 3.6 Sensor model and blind estimator
+The cartridge is a concept. It is inspired by published MIP-electrochemical PFAS sensing work: a microfluidic electrochemical sensor with a molecularly imprinted polymer membrane (Oseyemi & Rezai 2026), a portable MIP-electrochemical screening device (2witech), a company-reported portable nanocarbon sensor (Verralize) and NSF-backed low-cost sensor research (Rowan University); see references 5 and 13–15. None of these devices is part of this project, and the figures below are design assumptions and model outputs.
+
 - **Four independent group signals.** Each of the four 7-electrode groups responds to all four PFAS through the cross-selectivity matrix $S$ (a design assumption, 3–15% cross-binding); the NIP blanks see drift and fouling but no specific binding.
 - **Blind, calibration-based estimator.** The estimator never uses the simulator's formulas or true concentrations. It learns (a) a sensitivity matrix $\hat A$ from pure standards at a reference matrix (3 replicates × 6 levels × 4 species) and (b) offset and gain corrections from blank/spike runs in 48 water matrices, both anchored to the reference. It then solves $\hat x = (\hat A^\top \hat A + \lambda I)^{-1}\hat A^\top y$ and converts $\hat x = \ln(1 + c)$ to ppt.
 - **Conditioning (computed):** $\kappa_2(S) = 1.627$, $\det S = 0.940$, $\kappa_2(\hat A) = 1.756$.
@@ -564,7 +566,7 @@ Assumptions (single source: [`src/data/economics.ts`](src/data/economics.ts), al
 | Lab savings (quarterly LC-MS/MS retained) | 85% × \$65,520 | +\$55,692 |
 | PFAS-Sentinel service fee (SaaS + cartridges) | 6 × \$14,400 | −\$86,400 |
 | **Net utility savings** | | **+\$112,092** |
-| Hazardous media avoided | 6 × 9.1 t × 28% | **15.3 t** |
+| Spent media avoided | 6 × 9.1 t × 28% | **15.3 t** |
 | Emissions avoided | 15.3 t × 2.4 | **36.7 tCO₂e** |
 
 ### 8.1 Sensitivity: how much depends on the 28% assumption?
