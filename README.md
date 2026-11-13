@@ -283,7 +283,7 @@ Interlocks are **computed from simulated telemetry**, not fixed: sonde heartbeat
 **Lead-lag rotation in the twin:** the lead vessel is $z \in [0,1]$, the lag $z \in [1,2]$. At rotation the former lag becomes the lead with an equivalent loading time (the mass it has retained), and fresh media becomes the lag. Compliance values shown in the demo are an **instantaneous screen of the simulated final effluent**, not a compliance determination.
 
 ### 3.8 External checks on measured data
-Everything above uses the synthetic testbench. The twin was then run **unchanged** (same code, same settings) on three independent public datasets. Code, protocols and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/external_validation_fullscale.py`](simulation/external_validation_fullscale.py), [`simulation/external_validation_aex.py`](simulation/external_validation_aex.py), [`simulation/external_validation_aex_a2.py`](simulation/external_validation_aex_a2.py), [`simulation/protocols/`](simulation/protocols), [`simulation/data/`](simulation/data); results in `simulation/external_validation*.json`; the Twin Lab tab shows the first two checks.
+Everything above uses the synthetic testbench. The twin was then run **unchanged** (same code, same settings) on three independent public datasets. Code, protocols and data: [`simulation/external_validation.py`](simulation/external_validation.py), [`simulation/external_validation_fullscale.py`](simulation/external_validation_fullscale.py), [`simulation/external_validation_aex.py`](simulation/external_validation_aex.py), [`simulation/external_validation_aex_a2.py`](simulation/external_validation_aex_a2.py), [`simulation/protocols/`](simulation/protocols), [`simulation/data/`](simulation/data); results in `simulation/external_validation*.json`; the Twin Lab tab shows all three checks.
 
 #### 3.8.1 U.S. EPA pilot: two identical F400 columns
 Public U.S. EPA pilot dataset (Haupert et al. 2023; data [doi:10.23719/1529105](https://doi.org/10.23719/1529105), public domain). Two identical Calgon F400 GAC columns (4.07 kg each, empty-bed contact time ≈ 3.5 min) at a New Jersey groundwater utility were fed the same well water and sampled 18 times over 392 days. Mean influent: PFBA 6.9, PFBS 8.8, PFOA 24.3, PFOS 46.1 ng/L.
@@ -611,7 +611,7 @@ python simulation/external_validation_aex.py       # about 23 minutes
 python simulation/external_validation_aex_a2.py    # about 25 minutes
 ```
 
-The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. The `external_validation*.py` scripts regenerate `simulation/external_validation*.json` (Section 3.8) from the data in `simulation/data/`. CI runs both test suites before every deployment, including a full recomputation of every synthetic and external number (about an hour; locally `PFAS_FULL_REPRO=1` switches it on). Deep links: `?tab=pinn#external-check` opens the external checks in the demo.
+The report regenerates `simulation/validation_report.json` (the synthetic results in this README) and `simulation/reference_outputs.json` (the fixture that the app's cross-language test compares against). `--with-hybrid-ops` adds the slower decision test for the PINN-style option. The `external_validation*.py` scripts regenerate `simulation/external_validation*.json` (Section 3.8) from the data in `simulation/data/`. CI runs both test suites before every deployment, including a full recomputation of every synthetic and external number (about an hour; locally `PFAS_FULL_REPRO=1` switches it on). Deep links: `?tab=pinn#external-check`, `?tab=pinn#fullscale-check` and `?tab=pinn#aex-check` open the three external checks in the demo.
 
 ---
 
@@ -643,6 +643,7 @@ pfas-sentinel/
 │   │   ├── situation.ts                # One consistent plant snapshot for the Twin and EWS tabs
 │   │   ├── economics.ts                # Servitization economics and scenarios
 │   │   ├── pfasPhysicsEngine.ts        # Facility profiles, regulatory screen, reference data
+│   │   ├── aexCheck.ts                 # Section 3.8.4 numbers for the demo, read from external_validation_aex*.json
 │   │   ├── species.ts · rng.ts · linalg.ts · glossary.ts
 │   │   └── __tests__/                  # Vitest suites
 │   ├── App.tsx · main.tsx · index.css
