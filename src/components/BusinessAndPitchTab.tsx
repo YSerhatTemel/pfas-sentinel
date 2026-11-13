@@ -20,6 +20,7 @@ import {
   COMPETITIVE_LANDSCAPE_2026,
 } from '../data/pfasPhysicsEngine';
 import { BASE_ECONOMICS, ECONOMIC_SCENARIOS, computeEconomics } from '../data/economics';
+import { AEX_CHECK } from '../data/aexCheck';
 import validationReport from '../../simulation/validation_report.json';
 
 export const BusinessAndPitchTab: React.FC = () => {
@@ -56,14 +57,14 @@ export const BusinessAndPitchTab: React.FC = () => {
       title: 'Core Innovation: Mid-Bed Sensor + Bed-Condition Twin',
       criterion: 'Innovation',
       script:
-        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI/WTW sonde telemetry and 4×4 cross-selectivity deconvolution to target 1 to 4 ppt detection in 15 minutes. This mid-bed data feeds a physics-based twin built on the travelling-wave solution of the advection-sorption equation. Because PFBA and PFBS reach the mid-bed first, the twin learns the bed’s condition from them and forecasts when PFOA and PFOS will break through; the lead-lag switch is scheduled from that forecast, so media is used to the last safe day.”',
+        '“Meet PFAS-Sentinel: a cyber-physical early warning module designed for Xylem Vue powered by GoAigua. Rather than requiring new treatment tanks, our reader pod retrofits directly onto the existing mid-bed sampling port (z/L = 0.50) of standard GAC and IX vessels. Inside, a proposed 32-channel microfluidic MIP-nanocarbon cartridge pairs 4 NIP blank channels with YSI/WTW sonde telemetry and 4×4 cross-selectivity deconvolution; its design target is 0.8 to 4 ppt every 15 minutes, to be measured at TRL 4. This mid-bed data feeds a physics-based twin built on the travelling-wave solution of the advection-sorption equation. PFBA and PFBS reach the mid-bed first and give the early alert. Because all four PFAS share two bed-condition factors, the tracers also inform the PFOA and PFOS forecast, but only for effects that act on all species alike, so the twin keeps learning from PFOA and PFOS at the port. The lead-lag switch is scheduled from that forecast.”',
     },
     {
       part: 'Part 3 • 1:40 – 2:25',
       title: 'Engineering Integrity, In-Silico Evidence & Servitization ROI',
       criterion: 'Challenge Fit & Feasibility',
       script:
-        `“We tested the twin honestly: a hidden virtual plant generates the data and the model never sees its parameters. Across 16 simulated plants it forecast the PFOA/PFOS breach with a ${twinMae}-day mean error versus ${staticMae} days for a vendor curve, and in a daily decision test it rotated a median ${Math.round(ops.twin.medianDays)} days before the breach, never after it. We then tested it, unchanged, on public measured data. At a full-scale lead-lag plant the mid-bed port crossed 4 ppt at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)} to ${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet’s bed volumes — real early warning — but the twin’s outlet forecast came too late, so we report that openly and fix it next, with operator sign-off as the default. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”`,
+        `“We tested the twin honestly: a hidden virtual plant generates the data and the model never sees its parameters. Across 16 simulated plants it forecast the PFOA/PFOS breach with a ${twinMae}-day mean error versus ${staticMae} days for a vendor curve, and in a daily decision test it rotated a median ${Math.round(ops.twin.medianDays)} days before the breach, never after it. We then tested it, unchanged, on three public measured datasets. At a full-scale lead-lag plant the mid-bed port crossed 4 ppt at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)} to ${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet’s bed volumes — real early warning — but the twin’s outlet forecast came too late. A third check on EPA ion-exchange columns, with pass and fail rules fixed before the data were opened, found it late again in ${AEX_CHECK.registered.twinLate} of ${AEX_CHECK.registered.open} cases (${AEX_CHECK.repeat.twinLate} of ${AEX_CHECK.repeat.open} in a repeat with the EPA authors’ detailed data) and showed why: the front spreads with depth. We report that openly: the next model must let the front spread and be tested on data it has not seen, and operator sign-off stays the default. Commercially, PFAS-Sentinel eliminates upfront utility CAPEX by integrating into Evoqua media service contracts via a projected $11.80 disposable cartridge—saving a modeled $112,092 a year at a 6-vessel utility, with break-even at only 6% media-life extension, while retaining quarterly LC-MS/MS for statutory sign-off.”`,
     },
     {
       part: 'Part 4 • 2:25 – 3:00',
@@ -364,7 +365,8 @@ export const BusinessAndPitchTab: React.FC = () => {
               On measured data the timing logic is not yet proven: at a full-scale plant the twin&apos;s lead-outlet 4 ng/L forecast was late in{' '}
               {EXTERNAL_TWIN_CHECK.fullScaleTwinLate} of {EXTERNAL_TWIN_CHECK.fullScaleFourNgLForecasts} cases, while the halfway port itself crossed 4 ng/L
               at {Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}–{Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the
-              outlet&apos;s bed volumes (Twin Lab tab, external checks).
+              outlet&apos;s bed volumes; in a pre-registered check on EPA anion-exchange columns its outlet forecast was late in{' '}
+              {AEX_CHECK.registered.twinLate} of {AEX_CHECK.registered.open} cases (Twin Lab tab, external checks).
             </p>
           </div>
         </div>
@@ -543,7 +545,8 @@ export const BusinessAndPitchTab: React.FC = () => {
             </p>
             <p className="text-xs text-slate-400 leading-relaxed">
               Checks on public measured data (Twin Lab tab) already set the first tasks: a front that
-              spreads with depth (the twin&apos;s 4 ng/L outlet forecast was late at a full-scale plant),
+              spreads with depth (the twin&apos;s outlet forecast was late at a full-scale plant and on EPA
+              anion-exchange columns),
               starting values from an RSSCT in site water, and a model-free guard based on the
               mid-bed crossing.
             </p>

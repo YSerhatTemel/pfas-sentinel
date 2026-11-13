@@ -25,6 +25,7 @@ import type { MixtureBenchmark, SensorMatrix } from './sensorModel';
 import { mulberry32 } from './rng';
 import externalValidation from '../../simulation/external_validation.json';
 import fullScaleValidation from '../../simulation/external_validation_fullscale.json';
+import { AEX_CHECK } from './aexCheck';
 
 export { PFAS_SPECIES, SPECIES_ORDER };
 export type { PfasSpeciesConfig, SpeciesId, MediaType };
@@ -677,9 +678,9 @@ export const EXTERNAL_TWIN_CHECK = {
 export const HONEST_LIMITATIONS: EngineeringLimitation[] = [
   {
     challenge: 'Breakthrough Twin on Measured Data: Curve Shape & Starting Values',
-    physicalCause: `Measured curves start at zero and approach the influent slowly, and the front spreads as it moves through the bed. On a full-scale lead-lag plant the twin's lead-outlet 4 ng/L forecast from the halfway port was late in ${EXTERNAL_TWIN_CHECK.fullScaleTwinLate} of ${EXTERNAL_TWIN_CHECK.fullScaleFourNgLForecasts} cases; on an EPA pilot the crossing fell inside the sampling interval in ${EXTERNAL_TWIN_CHECK.fourNgLInside} of ${EXTERNAL_TWIN_CHECK.fourNgLForecasts}. Clean-water isotherm capacities are off by factors that differ about ${Math.round(EXTERNAL_TWIN_CHECK.cleanWaterRatioSpread / 10) * 10}-fold between species.`,
+    physicalCause: `Measured curves start at zero and approach the influent slowly, and the front spreads as it moves through the bed. On a full-scale lead-lag plant the twin's lead-outlet 4 ng/L forecast from the halfway port was late in ${EXTERNAL_TWIN_CHECK.fullScaleTwinLate} of ${EXTERNAL_TWIN_CHECK.fullScaleFourNgLForecasts} cases; in a pre-registered check on EPA anion-exchange columns its outlet forecast was late in ${AEX_CHECK.registered.twinLate} of ${AEX_CHECK.registered.open} (${AEX_CHECK.repeat.twinLate} of ${AEX_CHECK.repeat.open} in a repeat with the authors' detailed data); on an EPA pilot the crossing fell inside the sampling interval in ${EXTERNAL_TWIN_CHECK.fourNgLInside} of ${EXTERNAL_TWIN_CHECK.fourNgLForecasts}. Clean-water isotherm capacities are off by factors that differ about ${Math.round(EXTERNAL_TWIN_CHECK.cleanWaterRatioSpread / 10) * 10}-fold between species.`,
     pfasSentinelMitigation:
-      'Keep the halfway-port crossing as the model-free early-warning signal and operator sign-off as the default; start the twin from site-water data (RSSCT, pilot or previous bed); use the asymmetric curve form (confirmed on full-scale data) and let the front spread with depth; re-test on a third dataset with a mid-bed port and an influent series.',
+      'Keep the halfway-port crossing as the model-free early-warning signal and operator sign-off as the default; start the twin from site-water data (RSSCT, pilot or previous bed); use the asymmetric curve form (confirmed on full-scale data) and let the front spread with depth; test that revised model on data not yet seen, ideally a utility\'s records with a mid-bed port.',
     trlTarget: `Measured data: the halfway port crossed 4 ng/L at ${Math.round(Math.min(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}–${Math.round(Math.max(...EXTERNAL_TWIN_CHECK.midbedLeadRatios) * 100)}% of the outlet's bed volumes; shared factors beat per-species fitting (${round1(EXTERNAL_TWIN_CHECK.twinDay50ErrorFirstCutoff)} vs ${round1(EXTERNAL_TWIN_CHECK.independentDay50ErrorFirstCutoff)} days); 4 ng/L forecast not yet reliable`,
   },
   {
